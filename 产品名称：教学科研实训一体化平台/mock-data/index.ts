@@ -37,6 +37,10 @@ export { trainingProjects } from "./trainings";
 export { personas, skillAndMcpItems } from "./personas";
 export { teachingStrategies } from "./strategies";
 export { teachingPlans } from "./teachingPlans";
+export {
+  planKnowledgePathGraphs,
+  getPlanKnowledgePathGraph,
+} from "./planKnowledgePathGraphs";
 export { teachingDesigns, designsBySection } from "./teachingDesigns";
 export { homeworkEvaluations } from "./homeworks";
 export { examEvaluations } from "./exams";

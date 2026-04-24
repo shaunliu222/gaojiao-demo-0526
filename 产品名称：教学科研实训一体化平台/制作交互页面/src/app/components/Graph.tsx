@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { X, BookOpen, Film, FileText, FlaskConical, Image as ImageIcon, Music, Code2, Database, ListChecks } from "lucide-react";
 import {
   professions,
@@ -14,16 +14,15 @@ import {
   teacherById,
   courseById,
 } from "../data/lookups";
-import {
-  computeGraphLayout,
-  colorOfCluster,
-  computeFocusNodes,
-  clusterColor,
-} from "../data/graphLayout";
+import { colorOfCluster, computeFocusNodes, clusterColor } from "../data/graphLayout";
 import { teachingPlans } from "@mock";
 import { PageHeader, AiBadge } from "./Layout";
+import {
+  GraphNodeShapeBrowse,
+  KnowledgeGraphCanvas,
+  truncateGraphLabel,
+} from "./knowledgeGraph";
 
-const SVG_W = 900;
 const SVG_H = 520;
 
 export function GraphBrowse({ onOpenResource }: { onOpenResource: (id: string) => void }) {
@@ -31,15 +30,13 @@ export function GraphBrowse({ onOpenResource }: { onOpenResource: (id: string) =
   const [planId, setPlanId] = useState<string>("plan-main");
   const [sectionId, setSectionId] = useState<string>("sec-3-2");
   const [selected, setSelected] = useState<string | null>("kn-mech-031");
+  const [hiddenClusters, setHiddenClusters] = useState<Set<string>>(() => new Set());
+  const graphAreaRef = useRef<HTMLDivElement>(null);
+  const [viewBox, setViewBox] = useState({ w: 900, h: 400 });
 
   const prof = professions.find((p) => p.id === profId);
   const nodes = nodesByProfession[profId] ?? [];
   const edges = edgesByProfession[profId] ?? [];
-
-  const coords = useMemo(
-    () => computeGraphLayout(nodes, edges, { width: SVG_W, height: SVG_H }),
-    [nodes, edges],
-  );
 
   // focus 集合
   const focusIds = useMemo(() => {
@@ -61,6 +58,56 @@ export function GraphBrowse({ onOpenResource }: { onOpenResource: (id: string) =
   const profPlans = teachingPlans.filter((p) => p.professionId === profId);
   const currentPlan = teachingPlans.find((p) => p.id === planId);
 
+  useEffect(() => {
+    const el = graphAreaRef.current;
+    if (!el) return;
+    const apply = (w: number, h: number) => {
+      if (w < 2 || h < 2) return;
+      setViewBox({ w: Math.round(w), h: Math.round(h) });
+    };
+    const ro = new ResizeObserver((entries) => {
+      for (const e of entries) apply(e.contentRect.width, e.contentRect.height);
+    });
+    ro.observe(el);
+    apply(el.clientWidth, el.clientHeight);
+    return () => ro.disconnect();
+  }, []);
+
+  const visibleNodes = useMemo(
+    () => nodes.filter((n) => !hiddenClusters.has(n.cluster)),
+    [nodes, hiddenClusters],
+  );
+  const visibleNodeIds = useMemo(
+    () => new Set(visibleNodes.map((n) => n.id)),
+    [visibleNodes],
+  );
+  const visibleEdges = useMemo(
+    () =>
+      edges.filter(
+        (e) => visibleNodeIds.has(e.from) && visibleNodeIds.has(e.to),
+      ),
+    [edges, visibleNodeIds],
+  );
+
+  const toggleCluster = useCallback((name: string) => {
+    setHiddenClusters((prev) => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
+      return next;
+    });
+  }, []);
+
+  const showAllClusters = useCallback(() => {
+    setHiddenClusters(new Set());
+  }, []);
+
+  useEffect(() => {
+    if (!selected) return;
+    const n = nodes.find((x) => x.id === selected);
+    if (n && hiddenClusters.has(n.cluster)) setSelected(null);
+  }, [selected, hiddenClusters, nodes]);
+
   return (
     <div>
       <PageHeader
@@ -72,6 +119,7 @@ export function GraphBrowse({ onOpenResource }: { onOpenResource: (id: string) =
               onChange={(e) => {
                 const nid = e.target.value;
                 setProfId(nid);
+                setHiddenClusters(new Set());
                 const firstPlan = teachingPlans.find((p) => p.professionId === nid);
                 setPlanId(firstPlan?.id ?? "");
                 setSectionId("");
@@ -124,7 +172,7 @@ export function GraphBrowse({ onOpenResource }: { onOpenResource: (id: string) =
       />
       <div className="p-6 grid grid-cols-12 gap-4">
         <div
-          className="col-span-8 bg-white rounded-xl border border-slate-200 relative overflow-hidden"
+          className="col-span-8 flex flex-col overflow-hidden bg-white rounded-xl border border-slate-200"
           style={{ height: SVG_H }}
         >
           {prof && !prof.hasKnowledgeGraph ? (
@@ -133,80 +181,103 @@ export function GraphBrowse({ onOpenResource }: { onOpenResource: (id: string) =
             <EmptyGraph professionName={prof?.name ?? "该专业"} />
           ) : (
             <>
-              <div className="absolute top-3 left-3 flex gap-2 z-10 flex-wrap max-w-[70%]">
-                {clustersInGraph.map((k) => (
-                  <div
-                    key={k}
-                    className="flex items-center gap-1.5 bg-white/90 border border-slate-200 rounded-full px-2 py-0.5"
-                  >
-                    <span
-                      className="size-2.5 rounded-full"
-                      style={{ background: clusterColor[k] ?? colorOfCluster(k) }}
-                    />
-                    <span className="text-slate-600">{k}</span>
-                  </div>
-                ))}
-              </div>
-              <svg viewBox={`0 0 ${SVG_W} ${SVG_H}`} className="w-full h-full">
-                {edges.map((e) => {
-                  const a = coords.get(e.from);
-                  const b = coords.get(e.to);
-                  if (!a || !b) return null;
-                  return (
-                    <line
-                      key={e.id}
-                      x1={a.x}
-                      y1={a.y}
-                      x2={b.x}
-                      y2={b.y}
-                      stroke="#cbd5e1"
-                      strokeWidth={1}
-                    />
-                  );
-                })}
-                {nodes.map((n) => {
-                  const xy = coords.get(n.id);
-                  if (!xy) return null;
-                  const color = colorOfCluster(n.cluster);
-                  const isSel = n.id === selected;
-                  const isFocus = focusIds.has(n.id);
-                  return (
-                    <g
-                      key={n.id}
-                      onClick={() => setSelected(n.id)}
-                      style={{ cursor: "pointer" }}
+              <div className="shrink-0 border-b border-slate-100 px-3 py-2">
+                <div className="text-[10px] text-slate-400 mb-1.5">
+                  点击图例可显示/隐藏该知识簇
+                </div>
+                <div className="flex max-h-20 flex-wrap items-center gap-2 overflow-y-auto pr-0.5">
+                  {hiddenClusters.size > 0 && (
+                    <button
+                      type="button"
+                      onClick={showAllClusters}
+                      className="shrink-0 text-[11px] text-indigo-600 hover:text-indigo-800"
                     >
-                      {isFocus && (
-                        <circle
-                          cx={xy.x}
-                          cy={xy.y}
-                          r={22}
-                          fill="none"
-                          stroke="#6366f1"
-                          strokeDasharray="3 3"
-                        />
-                      )}
-                      <NodeShape
-                        type={n.nodeType}
-                        x={xy.x}
-                        y={xy.y}
-                        color={color}
-                        selected={isSel}
-                      />
-                      <text
-                        x={xy.x}
-                        y={xy.y + 24}
-                        textAnchor="middle"
-                        fontSize={10}
-                        fill="#334155"
-                        className="pointer-events-none"
+                      全部显示
+                    </button>
+                  )}
+                  {clustersInGraph.map((k) => {
+                    const off = hiddenClusters.has(k);
+                    return (
+                      <button
+                        key={k}
+                        type="button"
+                        onClick={() => toggleCluster(k)}
+                        title={off ? "点击在图中显示" : "点击在图中隐藏"}
+                        className={`flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-left text-[12px] transition
+                          ${
+                            off
+                              ? "border-slate-200 bg-slate-50/90 opacity-50 line-through"
+                              : "border-slate-200 bg-slate-50/90 hover:border-indigo-300"
+                          }`}
                       >
-                        {shortLabel(n.name)}
-                      </text>
-                    </g>
-                  );
-                })}
-              </svg>
+                        <span
+                          className="size-2.5 shrink-0 rounded-full"
+                          style={{
+                            background: clusterColor[k] ?? colorOfCluster(k),
+                            opacity: off ? 0.4 : 1,
+                          }}
+                        />
+                        <span className="text-slate-600">{k}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div
+                ref={graphAreaRef}
+                className="relative min-h-0 w-full flex-1"
+              >
+                {visibleNodes.length === 0 ? (
+                  <div className="absolute inset-0 flex items-center justify-center text-slate-400 text-sm">
+                    当前已隐藏全部分簇，请点图例或「全部显示」
+                  </div>
+                ) : (
+                  <KnowledgeGraphCanvas
+                    nodes={visibleNodes}
+                    edges={visibleEdges}
+                    width={viewBox.w}
+                    height={viewBox.h}
+                    edgeStrokeMode="neutral"
+                    onNodeClick={(n) => setSelected(n.id)}
+                    renderNode={({ node, x, y }) => {
+                      const color = colorOfCluster(node.cluster);
+                      const isSel = node.id === selected;
+                      const isFocus = focusIds.has(node.id);
+                      return (
+                        <>
+                          {isFocus && (
+                            <circle
+                              cx={x}
+                              cy={y}
+                              r={22}
+                              fill="none"
+                              stroke="#6366f1"
+                              strokeDasharray="3 3"
+                            />
+                          )}
+                          <GraphNodeShapeBrowse
+                            type={node.nodeType}
+                            x={x}
+                            y={y}
+                            color={color}
+                            selected={isSel}
+                          />
+                          <text
+                            x={x}
+                            y={y + 24}
+                            textAnchor="middle"
+                            fontSize={10}
+                            fill="#334155"
+                            className="pointer-events-none"
+                          >
+                            {truncateGraphLabel(node.name, 6)}
+                          </text>
+                        </>
+                      );
+                    }}
+                  />
+                )}
+              </div>
             </>
           )}
         </div>
@@ -232,10 +303,6 @@ export function GraphBrowse({ onOpenResource }: { onOpenResource: (id: string) =
   );
 }
 
-function shortLabel(name: string): string {
-  return name.length > 6 ? name.slice(0, 6) + "…" : name;
-}
-
 function EmptyGraph({ professionName }: { professionName: string }) {
   return (
     <div className="h-full w-full flex flex-col items-center justify-center text-center p-8">
@@ -248,51 +315,6 @@ function EmptyGraph({ professionName }: { professionName: string }) {
       </p>
       <button className="mt-4 px-4 py-2 rounded-lg bg-indigo-600 text-white">立即建设图谱</button>
     </div>
-  );
-}
-
-function NodeShape({
-  type,
-  x,
-  y,
-  color,
-  selected,
-}: {
-  type: GraphNode["nodeType"];
-  x: number;
-  y: number;
-  color: string;
-  selected: boolean;
-}) {
-  const stroke = selected ? "#1e293b" : "white";
-  const strokeWidth = 2;
-  if (type === "知识点") {
-    return (
-      <circle cx={x} cy={y} r={selected ? 14 : 10} fill={color} stroke={stroke} strokeWidth={strokeWidth} />
-    );
-  }
-  if (type === "技能点") {
-    return (
-      <rect
-        x={x - (selected ? 12 : 10)}
-        y={y - (selected ? 12 : 10)}
-        width={selected ? 24 : 20}
-        height={selected ? 24 : 20}
-        rx={3}
-        fill={color}
-        stroke={stroke}
-        strokeWidth={strokeWidth}
-      />
-    );
-  }
-  const r = selected ? 14 : 11;
-  return (
-    <polygon
-      points={`${x},${y - r} ${x - r},${y + r * 0.75} ${x + r},${y + r * 0.75}`}
-      fill={color}
-      stroke={stroke}
-      strokeWidth={strokeWidth}
-    />
   );
 }
 

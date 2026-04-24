@@ -150,6 +150,35 @@ export interface GraphEdge {
   relation: GraphEdgeRelation;
 }
 
+// -------- 教学计划专属知识路径（与专业库图谱数据独立，仅表达本计划内的学习顺序与模块） --------
+
+export interface PlanKGraphNode {
+  id: ID;
+  name: string;
+  nodeType: GraphNodeType;
+  /** 与 graphLayout 中 clusterColor 对齐的教学模块/阶段名，用于分簇与着色 */
+  cluster: string;
+  description: string;
+  /** 本计划内是否标为重点（如当前学期焦点章节） */
+  focus?: boolean;
+}
+
+export interface PlanKGraphEdge {
+  id: ID;
+  from: ID;
+  to: ID;
+  relation: GraphEdgeRelation;
+}
+
+/** 单份教学计划专属知识路径图（虚拟演示数据） */
+export interface PlanKnowledgePathGraph {
+  planId: ID;
+  /** 简短说明，展示在图上方 */
+  caption: string;
+  nodes: PlanKGraphNode[];
+  edges: PlanKGraphEdge[];
+}
+
 // ============ 4. 内容库：课程 / 资源 / 实训 ============
 
 /** 课程 */

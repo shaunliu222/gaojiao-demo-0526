@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
   ArrowDown,
@@ -47,12 +47,13 @@ import {
   subjectById,
   teacherById,
 } from "../data/lookups";
-import {
-  clusterColor,
-  colorOfCluster,
-  computeGraphLayout,
-} from "../data/graphLayout";
+import { clusterColor, colorOfCluster } from "../data/graphLayout";
 import { AiBadge, PageHeader } from "./Layout";
+import {
+  GraphNodeShapeWizard,
+  KnowledgeGraphCanvas,
+  truncateGraphLabel,
+} from "./knowledgeGraph";
 
 /** 向导状态中，单个班级画像的本地编辑副本（若未编辑则为 undefined） */
 interface ClassProfileOverride {
@@ -1335,18 +1336,66 @@ function Step4Graph({
     draftChapters[0]?.id ?? null,
   );
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
+  const [hiddenClusters, setHiddenClusters] = useState<Set<string>>(
+    () => new Set(),
+  );
 
   const nodes = nodesByProfession[professionId] ?? [];
   const edges = edgesByProfession[professionId] ?? [];
 
-  const coords = useMemo(
-    () =>
-      computeGraphLayout(nodes, edges, {
-        width: WIZARD_GRAPH_W,
-        height: WIZARD_GRAPH_H,
-      }),
-    [nodes, edges],
+  useEffect(() => {
+    setHiddenClusters(new Set());
+  }, [professionId]);
+
+  const visibleNodes = useMemo(
+    () => nodes.filter((n) => !hiddenClusters.has(n.cluster)),
+    [nodes, hiddenClusters],
   );
+  const visibleNodeIds = useMemo(
+    () => new Set(visibleNodes.map((n) => n.id)),
+    [visibleNodes],
+  );
+  const visibleEdges = useMemo(
+    () =>
+      edges.filter(
+        (e) => visibleNodeIds.has(e.from) && visibleNodeIds.has(e.to),
+      ),
+    [edges, visibleNodeIds],
+  );
+
+  const toggleCluster = useCallback((name: string) => {
+    setHiddenClusters((prev) => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
+      return next;
+    });
+  }, []);
+
+  const showAllClusters = useCallback(() => {
+    setHiddenClusters(new Set());
+  }, []);
+
+  const wizardGraphRef = useRef<HTMLDivElement>(null);
+  const [graphViewport, setGraphViewport] = useState({
+    w: WIZARD_GRAPH_W,
+    h: 400,
+  });
+
+  useEffect(() => {
+    const el = wizardGraphRef.current;
+    if (!el) return;
+    const apply = (w: number, h: number) => {
+      if (w < 2 || h < 2) return;
+      setGraphViewport({ w: Math.round(w), h: Math.round(h) });
+    };
+    const ro = new ResizeObserver((entries) => {
+      for (const e of entries) apply(e.contentRect.width, e.contentRect.height);
+    });
+    ro.observe(el);
+    apply(el.clientWidth, el.clientHeight);
+    return () => ro.disconnect();
+  }, [professionId, nodes.length]);
 
   // 本计划引用的全部节点
   const referencedIds = useMemo(() => {
@@ -1422,10 +1471,10 @@ function Step4Graph({
     <div className="grid grid-cols-12 gap-4">
       {/* 左侧图谱 */}
       <div
-        className="col-span-8 bg-white rounded-xl border border-slate-200 relative overflow-hidden"
+        className="col-span-8 flex flex-col overflow-hidden bg-white rounded-xl border border-slate-200"
         style={{ height: WIZARD_GRAPH_H + 72 }}
       >
-        <div className="px-4 py-3 border-b border-slate-100 flex items-center gap-2">
+        <div className="shrink-0 px-4 py-3 border-b border-slate-100 flex items-center gap-2">
           <div className="size-8 rounded-md bg-indigo-50 text-indigo-600 flex items-center justify-center">
             <Network size={16} />
           </div>
@@ -1437,40 +1486,73 @@ function Step4Graph({
           </div>
           <AiBadge>引用 {referencedIds.size} / {nodes.length} 节点</AiBadge>
         </div>
-        <div className="relative" style={{ height: WIZARD_GRAPH_H }}>
+        {nodes.length > 0 && (
+          <div className="shrink-0 border-b border-slate-100 px-3 py-2">
+            <div className="text-[10px] text-slate-400 mb-1">
+              点击图例可显示/隐藏该知识簇
+            </div>
+            <div className="flex max-h-20 flex-wrap items-center gap-1.5 overflow-y-auto pr-0.5">
+              {hiddenClusters.size > 0 && (
+                <button
+                  type="button"
+                  onClick={showAllClusters}
+                  className="shrink-0 text-[11px] text-indigo-600 hover:text-indigo-800"
+                >
+                  全部显示
+                </button>
+              )}
+              {clustersInGraph.map((k) => {
+                const off = hiddenClusters.has(k);
+                return (
+                  <button
+                    key={k}
+                    type="button"
+                    onClick={() => toggleCluster(k)}
+                    title={off ? "点击在图中显示" : "点击在图中隐藏"}
+                    className={`flex items-center gap-1 rounded-full border px-2 py-0.5 text-left text-[11px] transition
+                      ${
+                        off
+                          ? "border-slate-200 bg-slate-50/90 line-through opacity-50"
+                          : "border-slate-200 bg-slate-50/90 hover:border-indigo-300"
+                      }`}
+                  >
+                    <span
+                      className="size-2 shrink-0 rounded-full"
+                      style={{
+                        background: clusterColor[k] ?? colorOfCluster(k),
+                        opacity: off ? 0.4 : 1,
+                      }}
+                    />
+                    <span className="text-slate-600">{k}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+        <div
+          ref={wizardGraphRef}
+          className="relative min-h-0 flex-1 w-full"
+        >
           {nodes.length === 0 ? (
             <div className="absolute inset-0 flex items-center justify-center text-slate-400">
               该专业尚未建设知识图谱
             </div>
+          ) : visibleNodes.length === 0 ? (
+            <div className="absolute inset-0 flex items-center justify-center text-slate-400 text-sm">
+              当前已隐藏全部分簇，请点图例或「全部显示」
+            </div>
           ) : (
-            <>
-              <div className="absolute top-3 left-3 flex gap-1.5 z-10 flex-wrap max-w-[72%]">
-                {clustersInGraph.map((k) => (
-                  <div
-                    key={k}
-                    className="flex items-center gap-1 bg-white/90 border border-slate-200 rounded-full px-2 py-0.5 text-[11px]"
-                  >
-                    <span
-                      className="size-2 rounded-full"
-                      style={{ background: clusterColor[k] ?? colorOfCluster(k) }}
-                    />
-                    <span className="text-slate-600">{k}</span>
-                  </div>
-                ))}
-              </div>
-              <svg
-                viewBox={`0 0 ${WIZARD_GRAPH_W} ${WIZARD_GRAPH_H}`}
-                className="w-full h-full"
-              >
-                {edges.map((e) => {
-                  const a = coords.get(e.from);
-                  const b = coords.get(e.to);
-                  if (!a || !b) return null;
+            <KnowledgeGraphCanvas
+                nodes={visibleNodes}
+                edges={visibleEdges}
+                width={graphViewport.w}
+                height={graphViewport.h}
+                renderEdge={(e, a, b) => {
                   const bothCited =
                     referencedIds.has(e.from) && referencedIds.has(e.to);
                   return (
                     <line
-                      key={e.id}
                       x1={a.x}
                       y1={a.y}
                       x2={b.x}
@@ -1479,21 +1561,19 @@ function Step4Graph({
                       strokeWidth={bothCited ? 1.25 : 0.8}
                     />
                   );
-                })}
-                {nodes.map((n) => {
-                  const xy = coords.get(n.id);
-                  if (!xy) return null;
-                  const cited = referencedIds.has(n.id);
-                  const isFocus = focusIds.has(n.id);
-                  const isHovered = hoveredNodeId === n.id;
-                  const isCourseMounted = courseNodeSet.has(n.id);
-                  const color = colorOfCluster(n.cluster);
+                }}
+                renderNode={({ node, x, y }) => {
+                  const cited = referencedIds.has(node.id);
+                  const isFocus = focusIds.has(node.id);
+                  const isHovered = hoveredNodeId === node.id;
+                  const isCourseMounted = courseNodeSet.has(node.id);
+                  const color = colorOfCluster(node.cluster);
                   return (
-                    <g key={n.id} style={{ pointerEvents: "none" }}>
+                    <g style={{ pointerEvents: "none" }}>
                       {isFocus && (
                         <circle
-                          cx={xy.x}
-                          cy={xy.y}
+                          cx={x}
+                          cy={y}
                           r={20}
                           fill="none"
                           stroke="#6366f1"
@@ -1502,37 +1582,36 @@ function Step4Graph({
                       )}
                       {isHovered && (
                         <circle
-                          cx={xy.x}
-                          cy={xy.y}
+                          cx={x}
+                          cy={y}
                           r={24}
                           fill="none"
                           stroke="#1e293b"
                           strokeWidth={1.2}
                         />
                       )}
-                      <WizardNodeShape
-                        type={n.nodeType}
-                        x={xy.x}
-                        y={xy.y}
+                      <GraphNodeShapeWizard
+                        type={node.nodeType}
+                        x={x}
+                        y={y}
                         color={cited ? color : "#e2e8f0"}
                         muted={!cited && !isCourseMounted}
                       />
                       {(cited || isHovered) && (
                         <text
-                          x={xy.x}
-                          y={xy.y + 22}
+                          x={x}
+                          y={y + 22}
                           textAnchor="middle"
                           fontSize={10}
                           fill={cited ? "#334155" : "#94a3b8"}
                         >
-                          {shortWizardLabel(n.name)}
+                          {truncateGraphLabel(node.name, 6)}
                         </text>
                       )}
                     </g>
                   );
-                })}
-              </svg>
-            </>
+                }}
+              />
           )}
         </div>
       </div>
@@ -1699,66 +1778,6 @@ function Step4Graph({
         </div>
       </div>
     </div>
-  );
-}
-
-function shortWizardLabel(name: string): string {
-  return name.length > 6 ? name.slice(0, 6) + "…" : name;
-}
-
-function WizardNodeShape({
-  type,
-  x,
-  y,
-  color,
-  muted,
-}: {
-  type: GraphNode["nodeType"];
-  x: number;
-  y: number;
-  color: string;
-  muted: boolean;
-}) {
-  const opacity = muted ? 0.4 : 1;
-  const stroke = "white";
-  if (type === "知识点") {
-    return (
-      <circle
-        cx={x}
-        cy={y}
-        r={muted ? 5 : 9}
-        fill={color}
-        stroke={stroke}
-        strokeWidth={1.5}
-        opacity={opacity}
-      />
-    );
-  }
-  if (type === "技能点") {
-    const s = muted ? 10 : 18;
-    return (
-      <rect
-        x={x - s / 2}
-        y={y - s / 2}
-        width={s}
-        height={s}
-        rx={3}
-        fill={color}
-        stroke={stroke}
-        strokeWidth={1.5}
-        opacity={opacity}
-      />
-    );
-  }
-  const r = muted ? 6 : 10;
-  return (
-    <polygon
-      points={`${x},${y - r} ${x - r},${y + r * 0.75} ${x + r},${y + r * 0.75}`}
-      fill={color}
-      stroke={stroke}
-      strokeWidth={1.5}
-      opacity={opacity}
-    />
   );
 }
 

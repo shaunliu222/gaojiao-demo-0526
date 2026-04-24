@@ -1,9 +1,10 @@
 import { Plus, Search } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { teachingPlans, teachingStrategies } from "@mock";
 import type { TeachingPlan } from "@mock";
 import { classById, teacherById, courseById } from "../data/lookups";
 import { PageHeader, StatusTag, AiBadge } from "./Layout";
+import { PlanKnowledgePathPreview } from "./PlanKnowledgePathPreview";
 
 /** 把 mock 的英文 status 映射到 UI 中文标签（复用 Layout 的 StatusTag） */
 const statusLabel: Record<TeachingPlan["status"], "草稿" | "进行中" | "已完成"> = {
@@ -153,6 +154,7 @@ export function PlanDetail({
   const progress = computeProgress(p);
   const status = statusLabel[p.status];
   const strategy = teachingStrategies.find((s) => s.id === p.strategyId);
+  const graphPlanIds = useMemo(() => [p.id], [p.id]);
 
   return (
     <div>
@@ -174,6 +176,13 @@ export function PlanDetail({
           </>
         }
       />
+      <div className="px-6 pt-2">
+        <PlanKnowledgePathPreview
+          planIds={graphPlanIds}
+          variant="teacher"
+          layout="detail"
+        />
+      </div>
       <div className="px-6 pt-4">
         <div className="flex gap-1 border-b border-slate-200">
           {(

@@ -58,12 +58,96 @@ export interface NodeXY {
 export interface LayoutOptions {
   width: number;
   height: number;
-  /** 大圆半径（簇中心偏离画布中心的距离） */
+  /**
+   * 大环基准半径。未传 macroRadiusX/Y 时，会按此值为基准，再按画布宽高比拉伸成椭圆
+   * （宽画布 x 向更疏、y 更密；高画布则相反），避免簇挤在短边方向。
+   */
   macroRadius?: number;
+  /** 直接指定簇心椭圆两轴，与 macroRadius 互斥时优先用二者 */
+  macroRadiusX?: number;
+  macroRadiusY?: number;
   /** 每个簇里节点的小圆基础半径 */
   microRadius?: number;
   /** 每多一个节点，簇的小圆半径的增长量 */
   microRadiusGrow?: number;
+  /**
+   * 节点「中心点」之间允许的最小距离（像素，与当前 viewBox 同坐标系），
+   * 用于簇内/簇间防重叠的分离迭代。默认随画布短边略缩放。
+   */
+  nodeMinCenterDistance?: number;
+  /** 节点距画布内缘的最小边距，避免与裁切/描边/标签打架 */
+  layoutEdgePadding?: number;
+  /** 分离叠放的迭代轮数，图越大可适当增大 */
+  layoutCollisionIterations?: number;
+}
+
+function clampPoint(
+  p: NodeXY,
+  width: number,
+  height: number,
+  left: number,
+  right: number,
+  top: number,
+  bottom: number,
+): void {
+  p.x = Math.min(Math.max(p.x, left), width - right);
+  p.y = Math.min(Math.max(p.y, top), height - bottom);
+}
+
+/**
+ * 在初始坐标上做「圆盘排斥」式分离，尽量消除两两中心距小于 minD 的叠放，
+ * 每轮后把点夹紧在可绘制矩形内。不改变节点id与顺序，原地修改 result。
+ */
+function applyNodeSeparation(
+  nodes: GraphNode[],
+  result: Map<string, NodeXY>,
+  width: number,
+  height: number,
+  minCenterDist: number,
+  padL: number,
+  padR: number,
+  padT: number,
+  padB: number,
+  iterations: number,
+): void {
+  if (nodes.length === 0) return;
+  if (nodes.length === 1) {
+    const p = result.get(nodes[0]!.id);
+    if (p) clampPoint(p, width, height, padL, padR, padT, padB);
+    return;
+  }
+  const ids = nodes.map((n) => n.id);
+  for (let it = 0; it < iterations; it++) {
+    for (let i = 0; i < ids.length; i++) {
+      for (let j = i + 1; j < ids.length; j++) {
+        const a = result.get(ids[i]!);
+        const b = result.get(ids[j]!);
+        if (!a || !b) continue;
+        let dx = b.x - a.x;
+        let dy = b.y - a.y;
+        const d = Math.hypot(dx, dy);
+        if (d < 1e-4) {
+          const jitter = 0.6 + (it % 5) * 0.12;
+          a.x -= jitter;
+          b.x += jitter;
+          continue;
+        }
+        if (d < minCenterDist) {
+          const push = (minCenterDist - d) * 0.48;
+          dx = (dx / d) * push;
+          dy = (dy / d) * push;
+          a.x -= dx;
+          a.y -= dy;
+          b.x += dx;
+          b.y += dy;
+        }
+      }
+    }
+    for (const id of ids) {
+      const p = result.get(id);
+      if (p) clampPoint(p, width, height, padL, padR, padT, padB);
+    }
+  }
 }
 
 /**
@@ -71,10 +155,37 @@ export interface LayoutOptions {
  *
  * 布局规则：
  * 1. 按 cluster 分组
- * 2. 簇中心均匀分布在画布大圆上
+ * 2. 簇中心均匀分布在以画布中心为中心的椭圆上（随宽高比 x/y 半轴不同，让簇沿长边方向排开）
  * 3. 簇内节点按类型排序（知识点 → 技能点 → 核心素养）再均匀分布在簇小圆上
  * 4. 若只有 1 个节点，直接落在簇中心
  */
+function computeClusterEllipse(
+  width: number,
+  height: number,
+  opts: LayoutOptions,
+): { cx: number; cy: number; macroRadiusX: number; macroRadiusY: number } {
+  const cx = width / 2;
+  const cy = height / 2;
+  const maxMargin = Math.min(width, height) * 0.035;
+  const maxRx = Math.max(24, width / 2 - maxMargin);
+  const maxRy = Math.max(24, height / 2 - maxMargin);
+  const aspectK = Math.sqrt(Math.max(0.25, width / height));
+  const base = opts.macroRadius ?? Math.min(width, height) * 0.4;
+
+  let macroRadiusX: number;
+  let macroRadiusY: number;
+  if (opts.macroRadiusX != null && opts.macroRadiusY != null) {
+    macroRadiusX = opts.macroRadiusX;
+    macroRadiusY = opts.macroRadiusY;
+  } else {
+    macroRadiusX = base * aspectK;
+    macroRadiusY = base / aspectK;
+  }
+  macroRadiusX = Math.min(macroRadiusX, maxRx * 0.992);
+  macroRadiusY = Math.min(macroRadiusY, maxRy * 0.992);
+  return { cx, cy, macroRadiusX, macroRadiusY };
+}
+
 export function computeGraphLayout(
   nodes: GraphNode[],
   _edges: GraphEdge[],
@@ -83,16 +194,26 @@ export function computeGraphLayout(
   const result = new Map<string, NodeXY>();
   if (nodes.length === 0) return result;
 
-  const {
+  const { width, height, microRadiusGrow = 6 } = opts;
+  const wmin = Math.min(width, height);
+  const defaultMicro = 50 * (wmin / 480);
+  const microRadius =
+    opts.microRadius ?? Math.max(44, Math.min(72, defaultMicro));
+  const minChord =
+    opts.nodeMinCenterDistance ??
+    Math.max(50, 0.072 * wmin) /* 形+下方文字的安全间距 */;
+  const padUniform = opts.layoutEdgePadding ?? Math.max(22, 0.04 * wmin);
+  const padB = Math.max(padUniform, 30 /* 为节点下文字多留一截 */);
+  const padL = padUniform;
+  const padR = padUniform;
+  const padT = padUniform;
+  const collisionIters = opts.layoutCollisionIterations ?? 160;
+
+  const { cx, cy, macroRadiusX, macroRadiusY } = computeClusterEllipse(
     width,
     height,
-    macroRadius = Math.min(width, height) * 0.32,
-    microRadius = 55,
-    microRadiusGrow = 6,
-  } = opts;
-
-  const cx = width / 2;
-  const cy = height / 2;
+    opts,
+  );
 
   const clusters = new Map<string, GraphNode[]>();
   for (const n of nodes) {
@@ -110,15 +231,19 @@ export function computeGraphLayout(
     group.sort((a, b) => (typeOrder[a.nodeType] ?? 9) - (typeOrder[b.nodeType] ?? 9));
 
     const phase = clusterCount === 1 ? 0 : (2 * Math.PI * ci) / clusterCount - Math.PI / 2;
-    const clusterCx = cx + macroRadius * Math.cos(phase);
-    const clusterCy = cy + macroRadius * Math.sin(phase);
+    const clusterCx = cx + macroRadiusX * Math.cos(phase);
+    const clusterCy = cy + macroRadiusY * Math.sin(phase);
 
     if (group.length === 1) {
       result.set(group[0].id, { x: clusterCx, y: clusterCy });
       return;
     }
 
-    const r = microRadius + Math.max(0, group.length - 4) * microRadiusGrow;
+    const nIn = group.length;
+    const chordMinR =
+      nIn >= 2 ? (minChord / 2) / Math.sin(Math.PI / nIn) : 0;
+    let r = microRadius + Math.max(0, group.length - 4) * microRadiusGrow;
+    r = Math.max(r, chordMinR);
     group.forEach((n, i) => {
       const a = (2 * Math.PI * i) / group.length - Math.PI / 2;
       result.set(n.id, {
@@ -127,6 +252,19 @@ export function computeGraphLayout(
       });
     });
   });
+
+  applyNodeSeparation(
+    nodes,
+    result,
+    width,
+    height,
+    minChord,
+    padL,
+    padR,
+    padT,
+    padB,
+    collisionIters,
+  );
 
   return result;
 }

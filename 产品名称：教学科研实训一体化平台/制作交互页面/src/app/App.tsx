@@ -1,5 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { Layout, NavKey, ModuleKey } from "./components/Layout";
+import {
+  Layout,
+  NavKey,
+  ModuleKey,
+  Role,
+  TeacherNavKey,
+  StudentNavKey,
+} from "./components/Layout";
 import {
   classById,
   courseById,
@@ -14,6 +21,7 @@ import { ClassProfileList, ClassProfileDetail } from "./components/ClassProfiles
 import { PlansList, PlanDetail } from "./components/Plans";
 import { PlanWizard } from "./components/PlanWizard";
 import { DesignWorkbench } from "./components/DesignWorkbench";
+import { DesignDashboard } from "./components/DesignDashboard";
 import { HwOverview, HwDetail } from "./components/HomeworkEval";
 import { ExamOverview, ExamDetail } from "./components/ExamEval";
 import { StudentList, StudentDetail } from "./components/StudentProfiles";
@@ -21,14 +29,26 @@ import { CourseList, CourseDetail } from "./components/Courses";
 import { ResourceLibrary } from "./components/ResourceLibrary";
 import { TrainingList, TrainingDetail } from "./components/TrainingLibrary";
 import { GraphBrowse, ResourceDetail } from "./components/Graph";
+import { MyPlansList, MyPlanDetail } from "./components/student/MyPlans";
+import { LearnCenter } from "./components/student/LearnCenter";
+import { TrainingLab } from "./components/student/TrainingLab";
+import { MyProfile } from "./components/student/MyProfile";
+import { personalPlanById } from "./data/studentMock";
 
-type View =
+type TeacherView =
   | { k: "class-list" }
   | { k: "class-detail"; id: string }
   | { k: "plans-list" }
   | { k: "plan-wizard" }
   | { k: "plan-detail"; id: string }
-  | { k: "design"; planId: string; sectionId: string; fromPlanId?: string }
+  | { k: "design-dashboard" }
+  | {
+      k: "design";
+      planId: string;
+      sectionId: string;
+      fromPlanId?: string;
+      fromDashboard?: boolean;
+    }
   | { k: "hw-overview" }
   | { k: "hw-detail"; id: string }
   | { k: "exam-overview" }
@@ -42,6 +62,16 @@ type View =
   | { k: "resource-detail"; id: string; from?: "graph" | "library" | "course" }
   | { k: "training-list" }
   | { k: "training-detail"; id: string };
+
+type StudentView =
+  | { k: "my-plans-list" }
+  | { k: "my-plan-detail"; id: string; kind: "course" | "personal" }
+  | { k: "learn-center"; presetSectionId?: string; presetGoalNodeIds?: string[] }
+  | { k: "training-lab" }
+  | { k: "training-detail-student"; id: string }
+  | { k: "my-profile" };
+
+type View = TeacherView | StudentView;
 
 const PLATFORM_TITLE = "教学科研实训一体化平台";
 
@@ -57,6 +87,8 @@ function titleForView(view: View): string {
       return "新建教学计划";
     case "plan-detail":
       return planById(view.id)?.title ?? "教学计划详情";
+    case "design-dashboard":
+      return "教学设计";
     case "design": {
       const plan = planById(view.planId);
       if (plan) {
@@ -93,13 +125,32 @@ function titleForView(view: View): string {
       return "实训项目库";
     case "training-detail":
       return trainingById(view.id)?.name ?? "实训项目详情";
+    // ---- 学生端 ----
+    case "my-plans-list":
+      return "学习计划";
+    case "my-plan-detail": {
+      if (view.kind === "course") {
+        return planById(view.id)?.title ?? "学习计划详情";
+      }
+      return personalPlanById(view.id)?.title ?? "个人学习计划";
+    }
+    case "learn-center":
+      return "学习中心";
+    case "training-lab":
+      return "实训中心";
+    case "training-detail-student":
+      return trainingById(view.id)?.name ?? "实训详情";
+    case "my-profile":
+      return "学情分析";
   }
 }
 
 export default function App() {
+  const [role, setRoleState] = useState<Role>("teacher");
+  const [studentId, setStudentId] = useState<string>("s-mech2301-01");
   const [module, setModule] = useState<ModuleKey>("teach");
-  const [nav, setNav] = useState<NavKey>("class-profiles");
-  const [view, setView] = useState<View>({ k: "class-list" });
+  const [nav, setNav] = useState<NavKey>("plans");
+  const [view, setView] = useState<View>({ k: "plans-list" });
 
   const pageTitle = useMemo(() => titleForView(view), [view]);
 
@@ -107,7 +158,7 @@ export default function App() {
     document.title = `${pageTitle} · ${PLATFORM_TITLE}`;
   }, [pageTitle]);
 
-  const goNav = (n: NavKey) => {
+  const goTeacherNav = (n: TeacherNavKey) => {
     setNav(n);
     switch (n) {
       case "class-profiles":
@@ -117,7 +168,7 @@ export default function App() {
         setView({ k: "plans-list" });
         break;
       case "designs":
-        setView({ k: "plans-list" });
+        setView({ k: "design-dashboard" });
         break;
       case "hw-eval":
         setView({ k: "hw-overview" });
@@ -143,18 +194,58 @@ export default function App() {
     }
   };
 
+  const goStudentNav = (n: StudentNavKey) => {
+    setNav(n);
+    switch (n) {
+      case "my-plans":
+        setView({ k: "my-plans-list" });
+        break;
+      case "learn-center":
+        setView({ k: "learn-center" });
+        break;
+      case "training-lab":
+        setView({ k: "training-lab" });
+        break;
+      case "my-profile":
+        setView({ k: "my-profile" });
+        break;
+    }
+  };
+
+  const goNav = (n: NavKey) => {
+    if (role === "student") {
+      goStudentNav(n as StudentNavKey);
+    } else {
+      goTeacherNav(n as TeacherNavKey);
+    }
+  };
+
   const goModule = (m: ModuleKey) => {
     setModule(m);
     if (m === "teach") {
-      setNav("class-profiles");
-      setView({ k: "class-list" });
+      setNav("plans");
+      setView({ k: "plans-list" });
     } else {
       setNav("graph");
       setView({ k: "graph" });
     }
   };
 
-  const content = () => {
+  const goRole = (r: Role, sid?: string) => {
+    setRoleState(r);
+    if (r === "student") {
+      if (sid) setStudentId(sid);
+      // 学生端默认进入"学习中心"（主线感最强）
+      setNav("learn-center");
+      setView({ k: "learn-center" });
+    } else {
+      setModule("teach");
+      setNav("plans");
+      setView({ k: "plans-list" });
+    }
+  };
+
+  const teacherContent = () => {
     switch (view.k) {
       case "class-list":
         return <ClassProfileList onOpen={(id) => setView({ k: "class-detail", id })} />;
@@ -202,14 +293,34 @@ export default function App() {
             }
           />
         );
+      case "design-dashboard":
+        return (
+          <DesignDashboard
+            onOpenSection={(planId, sectionId) =>
+              setView({
+                k: "design",
+                planId,
+                sectionId,
+                fromDashboard: true,
+              })
+            }
+          />
+        );
       case "design":
         return (
           <DesignWorkbench
             planId={view.planId}
             sectionId={view.sectionId}
-            onBack={() =>
-              setView({ k: "plan-detail", id: view.fromPlanId ?? view.planId })
-            }
+            onBack={() => {
+              if (view.fromDashboard) {
+                setView({ k: "design-dashboard" });
+              } else {
+                setView({
+                  k: "plan-detail",
+                  id: view.fromPlanId ?? view.planId,
+                });
+              }
+            }}
           />
         );
       case "hw-overview":
@@ -275,8 +386,103 @@ export default function App() {
             onOpenCourse={(id) => setView({ k: "course-detail", id })}
           />
         );
+      default:
+        return null;
     }
   };
+
+  const studentContent = () => {
+    switch (view.k) {
+      case "my-plans-list":
+        return (
+          <MyPlansList
+            studentId={studentId}
+            onOpen={(id, kind) =>
+              setView({ k: "my-plan-detail", id, kind })
+            }
+            onGoLearn={(presetSectionId, presetGoalNodeIds) => {
+              setNav("learn-center");
+              setView({
+                k: "learn-center",
+                presetSectionId,
+                presetGoalNodeIds,
+              });
+            }}
+          />
+        );
+      case "my-plan-detail":
+        return (
+          <MyPlanDetail
+            studentId={studentId}
+            id={view.id}
+            kind={view.kind}
+            onBack={() => setView({ k: "my-plans-list" })}
+            onGoLearn={(presetSectionId, presetGoalNodeIds) => {
+              setNav("learn-center");
+              setView({
+                k: "learn-center",
+                presetSectionId,
+                presetGoalNodeIds,
+              });
+            }}
+          />
+        );
+      case "learn-center":
+        return (
+          <LearnCenter
+            studentId={studentId}
+            presetSectionId={view.presetSectionId}
+            presetGoalNodeIds={view.presetGoalNodeIds}
+          />
+        );
+      case "training-lab":
+        return (
+          <TrainingLab
+            studentId={studentId}
+            onOpenTraining={(id) =>
+              setView({ k: "training-detail-student", id })
+            }
+            onGoLearn={() => {
+              setNav("learn-center");
+              setView({ k: "learn-center" });
+            }}
+          />
+        );
+      case "training-detail-student":
+        return (
+          <TrainingDetail
+            id={view.id}
+            onBack={() => setView({ k: "training-lab" })}
+            onOpenCourse={() => setView({ k: "training-lab" })}
+          />
+        );
+      case "my-profile":
+        return (
+          <MyProfile
+            studentId={studentId}
+            onGoLearn={(presetGoalNodeIds) => {
+              setNav("learn-center");
+              setView({
+                k: "learn-center",
+                presetGoalNodeIds,
+              });
+            }}
+            onGoPlans={() => {
+              setNav("my-plans");
+              setView({ k: "my-plans-list" });
+            }}
+            onGoLab={() => {
+              setNav("training-lab");
+              setView({ k: "training-lab" });
+            }}
+          />
+        );
+      default:
+        return null;
+    }
+  };
+
+  const content = () => (role === "student" ? studentContent() : teacherContent());
 
   return (
     <Layout
@@ -285,6 +491,10 @@ export default function App() {
       setModule={goModule}
       nav={nav}
       setNav={goNav}
+      role={role}
+      setRole={goRole}
+      studentId={studentId}
+      setStudentId={setStudentId}
     >
       {content()}
     </Layout>

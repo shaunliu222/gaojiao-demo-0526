@@ -19,7 +19,15 @@ export const students: Student[] = [
   { id: "s-mech2301-03", name: "王一鸣", gender: "男", classId: "cls-mech-2301", studentNo: "2023010103", enrollYear: 2023 },
   { id: "s-mech2301-04", name: "赵思齐", gender: "男", classId: "cls-mech-2301", studentNo: "2023010104", enrollYear: 2023 },
   { id: "s-mech2301-05", name: "孙雨欣", gender: "女", classId: "cls-mech-2301", studentNo: "2023010105", enrollYear: 2023 },
-  { id: "s-mech2301-06", name: "周子航", gender: "男", classId: "cls-mech-2301", studentNo: "2023010106", enrollYear: 2023 },
+  {
+    id: "s-mech2301-06",
+    name: "周子航",
+    gender: "男",
+    classId: "cls-mech-2301",
+    studentNo: "2023010106",
+    enrollYear: 2023,
+    teacherFocus: true,
+  },
   { id: "s-mech2301-07", name: "吴佳怡", gender: "女", classId: "cls-mech-2301", studentNo: "2023010107", enrollYear: 2023 },
   { id: "s-mech2301-08", name: "郑浩然", gender: "男", classId: "cls-mech-2301", studentNo: "2023010108", enrollYear: 2023 },
   { id: "s-mech2301-09", name: "冯昊轩", gender: "男", classId: "cls-mech-2301", studentNo: "2023010109", enrollYear: 2023 },
@@ -44,7 +52,15 @@ export const students: Student[] = [
   { id: "s-mech2301-28", name: "华子豪", gender: "男", classId: "cls-mech-2301", studentNo: "2023010128", enrollYear: 2023 },
 
   // ==== 机制 2302（抽样 8 人，含薄弱生陈浩宇）====
-  { id: "s-mech2302-01", name: "陈浩宇", gender: "男", classId: "cls-mech-2302", studentNo: "2023010201", enrollYear: 2023 },
+  {
+    id: "s-mech2302-01",
+    name: "陈浩宇",
+    gender: "男",
+    classId: "cls-mech-2302",
+    studentNo: "2023010201",
+    enrollYear: 2023,
+    teacherFocus: true,
+  },
   { id: "s-mech2302-02", name: "林诗涵", gender: "女", classId: "cls-mech-2302", studentNo: "2023010202", enrollYear: 2023 },
   { id: "s-mech2302-03", name: "马俊豪", gender: "男", classId: "cls-mech-2302", studentNo: "2023010203", enrollYear: 2023 },
   { id: "s-mech2302-04", name: "徐子涵", gender: "男", classId: "cls-mech-2302", studentNo: "2023010204", enrollYear: 2023 },

@@ -1,7 +1,17 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --font-size: 16px;
+  /**
+   * 响应式根字号：随视窗宽度平滑缩放。
+   * - 1440px 及以上 ≈ 16px（基准）
+   * - 1280px ≈ 15.5px
+   * - 1100px ≈ 14.2px
+   * - 960px  ≈ 13.2px
+   * - 下限 12.5px，避免过度挤压
+   * 由于 Tailwind v4 的 spacing / text 基本以 rem 为单位，
+   * 根字号变化即可让整站的字号与留白同步缩放。
+   */
+  --font-size: clamp(12.5px, 0.72vw + 6px, 16px);
   --background: #ffffff;
   --foreground: oklch(0.145 0 0);
   --card: #ffffff;

@@ -33,7 +33,6 @@ import {
   studentById,
   studentProfileByStudentId,
   classById,
-  graphNodeById,
 } from "../../data/lookups";
 import { colorOfCluster } from "../../data/graphLayout";
 import {
@@ -167,7 +166,7 @@ export function MyProfile({
       <div className="px-6 pt-6">
         <div className="rounded-2xl bg-gradient-to-r from-indigo-50 via-violet-50 to-white border border-indigo-100 p-6 flex items-center gap-5">
           <div
-            className={`size-16 rounded-2xl flex items-center justify-center text-white text-[24px] ${
+            className={`size-16 rounded-2xl flex items-center justify-center text-white text-[1.5rem] ${
               s.gender === "男"
                 ? "bg-gradient-to-br from-blue-400 to-indigo-500"
                 : "bg-gradient-to-br from-pink-400 to-rose-500"
@@ -177,7 +176,7 @@ export function MyProfile({
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-slate-900 text-[18px]">{s.name}</span>
+              <span className="text-slate-900 text-[1.125rem]">{s.name}</span>
               <span className="text-slate-500">
                 {cls?.name} · {s.studentNo}
               </span>
@@ -190,7 +189,7 @@ export function MyProfile({
               </span>
               <AiBadge>AI 画像 已更新</AiBadge>
             </div>
-            <div className="mt-1.5 text-slate-500 text-[13px] flex flex-wrap items-center gap-4">
+            <div className="mt-1.5 text-slate-500 text-[0.8125rem] flex flex-wrap items-center gap-4">
               <span className="inline-flex items-center gap-1">
                 <Flame size={12} /> 学习风格 {p.learningStyle}
               </span>
@@ -270,7 +269,7 @@ export function MyProfile({
             <p className="text-slate-700 leading-relaxed">
               {p.aiSummary}
             </p>
-            <div className="text-slate-400 text-[11px] mt-2">
+            <div className="text-slate-400 text-[0.6875rem] mt-2">
               生成于 {p.generatedAt.slice(0, 10)} · 基于最近 3 次作业 +
               学习中心对话流
             </div>
@@ -290,7 +289,7 @@ export function MyProfile({
               </div>
               {strongPoints.length > 0 && (
                 <>
-                  <div className="text-slate-500 mt-3 mb-1.5 text-[12px]">
+                  <div className="text-slate-500 mt-3 mb-1.5 text-[0.75rem]">
                     优势知识点
                   </div>
                   <ul className="space-y-1">
@@ -365,7 +364,7 @@ export function MyProfile({
               </ResponsiveContainer>
             </div>
             {trend.length > 0 && (
-              <div className="grid grid-cols-3 gap-2 mt-2 text-[12px]">
+              <div className="grid grid-cols-3 gap-2 mt-2 text-[0.75rem]">
                 {trend.map((t) => (
                   <div
                     key={t.date}
@@ -373,7 +372,7 @@ export function MyProfile({
                   >
                     <div className="text-slate-500 truncate">{t.taskName}</div>
                     <div className="flex items-center justify-between mt-0.5">
-                      <span className="text-slate-400 text-[11px]">
+                      <span className="text-slate-400 text-[0.6875rem]">
                         {t.date.slice(5)}
                       </span>
                       <span
@@ -414,7 +413,7 @@ export function MyProfile({
                     <span className="flex-1 text-slate-800 truncate">
                       {m.knowledgePointName}
                       {node && (
-                        <span className="text-slate-400 ml-1 text-[11px]">
+                        <span className="text-slate-400 ml-1 text-[0.6875rem]">
                           · {node.cluster}
                         </span>
                       )}
@@ -446,7 +445,7 @@ export function MyProfile({
               })}
             </div>
             {weakPoints.length > 0 && (
-              <div className="mt-3 rounded-lg border border-rose-200 bg-rose-50 p-3 flex gap-2 text-[13px]">
+              <div className="mt-3 rounded-lg border border-rose-200 bg-rose-50 p-3 flex gap-2 text-[0.8125rem]">
                 <AlertTriangle size={14} className="text-rose-500 mt-0.5 shrink-0" />
                 <div className="flex-1 text-rose-800">
                   AI 诊断：你还有{" "}
@@ -461,7 +460,7 @@ export function MyProfile({
                       weakPoints.slice(0, 2).map((w) => w.knowledgePointId),
                     )
                   }
-                  className="shrink-0 px-2 py-1 rounded-md bg-rose-600 text-white hover:bg-rose-700 text-[12px] inline-flex items-center gap-1"
+                  className="shrink-0 px-2 py-1 rounded-md bg-rose-600 text-white hover:bg-rose-700 text-[0.75rem] inline-flex items-center gap-1"
                 >
                   立即补学 <ChevronRight size={12} />
                 </button>
@@ -474,7 +473,7 @@ export function MyProfile({
         <div className="col-span-12">
           <Card title="学习历程" icon={<Clock size={14} />}>
             {timeline.length === 0 ? (
-              <div className="text-slate-400 text-[13px] text-center py-6">
+              <div className="text-slate-400 text-[0.8125rem] text-center py-6">
                 暂无学习历程记录
               </div>
             ) : (
@@ -486,11 +485,11 @@ export function MyProfile({
                     >
                       <e.icon size={10} />
                     </span>
-                    <div className="text-slate-500 text-[11px]">
+                    <div className="text-slate-500 text-[0.6875rem]">
                       {e.date}
                     </div>
                     <div className="text-slate-900">{e.title}</div>
-                    <div className="text-slate-500 text-[12px] mt-0.5">
+                    <div className="text-slate-500 text-[0.75rem] mt-0.5">
                       {e.detail}
                     </div>
                   </li>
@@ -520,7 +519,7 @@ export function MyProfile({
                         </div>
                         <div className="text-slate-900">{g.title}</div>
                       </div>
-                      <p className="text-slate-600 leading-relaxed text-[13px]">
+                      <p className="text-slate-600 leading-relaxed text-[0.8125rem]">
                         {g.detail}
                       </p>
                     </div>
@@ -575,7 +574,7 @@ function KPI({
         {icon}
       </div>
       <div>
-        <div className="text-slate-500 text-[12px]">{label}</div>
+        <div className="text-slate-500 text-[0.75rem]">{label}</div>
         <div className="text-slate-900">{value}</div>
       </div>
     </div>
@@ -603,7 +602,7 @@ function Card({
           <span>{title}</span>
         </div>
         {extra && (
-          <span className="text-slate-500 text-[12px]">{extra}</span>
+          <span className="text-slate-500 text-[0.75rem]">{extra}</span>
         )}
       </div>
       {children}
@@ -840,5 +839,3 @@ function durationMinutes(label: string): number {
   const m = mMatch ? parseInt(mMatch[1]!, 10) : 0;
   return h * 60 + m;
 }
-
-void graphNodeById;

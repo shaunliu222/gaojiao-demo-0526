@@ -123,7 +123,7 @@ export function PlanKnowledgePathPreview({
         <div className="size-10 rounded-xl bg-indigo-100 text-indigo-600 flex items-center justify-center shrink-0">
           <Map size={20} />
         </div>
-        <div className="flex-1 min-w-[200px]">
+        <div className="flex-1 min-w-[12.5rem]">
           <div className="text-slate-900 flex items-center gap-2">
             {title}
             <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-violet-100 text-violet-700">
@@ -175,7 +175,7 @@ export function PlanKnowledgePathPreview({
       >
         <div className="absolute top-2 left-2 flex flex-wrap gap-1.5 z-10 max-w-[90%] items-center">
           {layout === "detail" && (
-            <div className="hidden md:flex items-center gap-2 mr-1 text-[10px] text-slate-500 border border-slate-200 rounded-full bg-white/95 px-2 py-0.5">
+            <div className="hidden md:flex items-center gap-2 mr-1 text-[0.625rem] text-slate-500 border border-slate-200 rounded-full bg-white/95 px-2 py-0.5">
               <span className="inline-flex items-center gap-0.5">
                 <span className="text-indigo-300">—</span> 先修
               </span>

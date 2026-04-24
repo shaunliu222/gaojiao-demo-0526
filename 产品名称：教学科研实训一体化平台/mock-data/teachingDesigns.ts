@@ -5,6 +5,14 @@ import type { TeachingDesign } from "./types";
  *
  * 主故事线焦点小节：
  *   plan-main · sec-3-2 "组合体三视图绘制"
+ */
+/** 带完整假数据的教学计划、小节 id（与下方 teachingDesigns 一致） */
+export const DEMO_DESIGN_PLAN_ID = "plan-main";
+export const DEMO_DESIGN_SECTION_ID = "sec-3-2";
+
+/**
+ * 数据正文
+ * @see DEMO_DESIGN_PLAN_ID / DEMO_DESIGN_SECTION_ID
  *
  * 三个 Tab（讲义/课堂/作业）均有完整产物、对话历史、技能工具引用。
  * 其他小节不提供具体设计（hasDesign=false 即可）。
@@ -15,8 +23,8 @@ export const teachingDesigns: TeachingDesign[] = [
   // ========================================================================
   {
     id: "design-sec-3-2-handout",
-    planId: "plan-main",
-    sectionId: "sec-3-2",
+    planId: DEMO_DESIGN_PLAN_ID,
+    sectionId: DEMO_DESIGN_SECTION_ID,
     tab: "讲义",
     personaId: "persona-li-custom-1",
     knowledgeFiles: [
@@ -111,8 +119,8 @@ export const teachingDesigns: TeachingDesign[] = [
   // ========================================================================
   {
     id: "design-sec-3-2-class",
-    planId: "plan-main",
-    sectionId: "sec-3-2",
+    planId: DEMO_DESIGN_PLAN_ID,
+    sectionId: DEMO_DESIGN_SECTION_ID,
     tab: "课堂",
     personaId: "persona-preset-facilitator",
     knowledgeFiles: [
@@ -199,8 +207,8 @@ export const teachingDesigns: TeachingDesign[] = [
   // ========================================================================
   {
     id: "design-sec-3-2-homework",
-    planId: "plan-main",
-    sectionId: "sec-3-2",
+    planId: DEMO_DESIGN_PLAN_ID,
+    sectionId: DEMO_DESIGN_SECTION_ID,
     tab: "作业",
     personaId: "persona-preset-examiner",
     knowledgeFiles: [

@@ -128,7 +128,7 @@ export function TrainingList({ onOpen }: { onOpen: (id: string) => void }) {
                   <div className="text-slate-500 truncate mt-0.5">
                     {prof?.name} · {owner?.name ?? "—"}
                   </div>
-                  <p className="mt-2 text-slate-600 text-[13px] line-clamp-2 leading-relaxed">
+                  <p className="mt-2 text-slate-600 text-[0.8125rem] line-clamp-2 leading-relaxed">
                     {t.description}
                   </p>
                   <div className="mt-3 flex items-center gap-3 text-slate-500">

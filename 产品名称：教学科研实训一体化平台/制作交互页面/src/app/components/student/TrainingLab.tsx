@@ -213,13 +213,13 @@ export function TrainingLab({
                 <div className="text-rose-900">
                   AI 建议：先在「组合体实体模型柜」摸一摸再回来做虚拟实训
                 </div>
-                <div className="text-rose-700 text-[13px] mt-1">
+                <div className="text-rose-700 text-[0.8125rem] mt-1">
                   根据你的作业错题，从实体模型入手比直接从软件学更有效。
                 </div>
               </div>
               <button
                 onClick={() => setDeviceDetailId("hw-model-01")}
-                className="px-3 py-1.5 rounded-lg bg-white border border-rose-200 text-rose-700 hover:bg-rose-50 shrink-0 inline-flex items-center gap-1 text-[13px]"
+                className="px-3 py-1.5 rounded-lg bg-white border border-rose-200 text-rose-700 hover:bg-rose-50 shrink-0 inline-flex items-center gap-1 text-[0.8125rem]"
               >
                 查看模型柜 <ChevronRight size={14} />
               </button>
@@ -264,7 +264,7 @@ export function TrainingLab({
                       <FlaskConical size={14} className="text-emerald-500" />
                       {t.name}
                     </div>
-                    <p className="text-slate-500 text-[12px] line-clamp-2 mt-1 leading-relaxed">
+                    <p className="text-slate-500 text-[0.75rem] line-clamp-2 mt-1 leading-relaxed">
                       {t.description}
                     </p>
                     <div className="mt-3 flex items-center gap-3 text-slate-500">
@@ -288,7 +288,7 @@ export function TrainingLab({
                         </div>
                       </div>
                     )}
-                    <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-[13px]">
+                    <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-[0.8125rem]">
                       <span className="text-slate-500 inline-flex items-center gap-1">
                         {status.label === "已完成" ? (
                           <CheckCircle2 size={14} className="text-emerald-500" />
@@ -343,7 +343,7 @@ export function TrainingLab({
                         <Icon size={20} />
                       </div>
                       <span
-                        className={`px-1.5 py-0.5 rounded-md border text-[11px] ${meta.tone} inline-flex items-center gap-1`}
+                        className={`px-1.5 py-0.5 rounded-md border text-[0.6875rem] ${meta.tone} inline-flex items-center gap-1`}
                       >
                         <span className={`size-1.5 rounded-full ${meta.dot}`} />
                         {meta.label}
@@ -352,13 +352,13 @@ export function TrainingLab({
                     <div className="text-slate-900 mt-3 line-clamp-1">
                       {d.name}
                     </div>
-                    <div className="text-slate-500 text-[12px] mt-0.5">
+                    <div className="text-slate-500 text-[0.75rem] mt-0.5">
                       {d.category}
                     </div>
-                    <p className="text-slate-500 text-[12px] line-clamp-2 mt-2 leading-relaxed">
+                    <p className="text-slate-500 text-[0.75rem] line-clamp-2 mt-2 leading-relaxed">
                       {d.description}
                     </p>
-                    <div className="mt-3 pt-3 border-t border-slate-100 space-y-1 text-[12px] text-slate-500">
+                    <div className="mt-3 pt-3 border-t border-slate-100 space-y-1 text-[0.75rem] text-slate-500">
                       <div className="inline-flex items-center gap-1">
                         <MapPin size={12} /> {d.location}
                       </div>
@@ -374,7 +374,7 @@ export function TrainingLab({
                       )}
                     </div>
                     {isRecommended && (
-                      <div className="mt-2 inline-flex items-center gap-1 text-indigo-700 text-[12px]">
+                      <div className="mt-2 inline-flex items-center gap-1 text-indigo-700 text-[0.75rem]">
                         <Sparkles size={12} /> AI 为你优先推荐
                       </div>
                     )}
@@ -389,7 +389,7 @@ export function TrainingLab({
             <section>
               <SectionHead title="我最近的硬件使用" />
               <div className="mt-3 bg-white rounded-xl border border-slate-200 overflow-hidden">
-                <table className="w-full text-[13px]">
+                <table className="w-full text-[0.8125rem]">
                   <thead className="bg-slate-50 text-slate-500">
                     <tr>
                       <th className="text-left px-4 py-2 font-normal">时间</th>
@@ -476,23 +476,23 @@ export function TrainingLab({
                       <div className="text-slate-900 leading-snug">
                         {p.title}
                       </div>
-                      <p className="text-slate-500 text-[12px] mt-1 leading-relaxed">
+                      <p className="text-slate-500 text-[0.75rem] mt-1 leading-relaxed">
                         {p.summary}
                       </p>
                     </div>
                   </div>
-                  <div className="text-slate-400 text-[11px] mt-2 inline-flex items-center gap-1">
+                  <div className="text-slate-400 text-[0.6875rem] mt-2 inline-flex items-center gap-1">
                     <History size={11} /> {p.reason}
                   </div>
                   <div className="mt-3 flex items-center justify-between">
-                    <span className="text-slate-500 text-[12px]">
+                    <span className="text-slate-500 text-[0.75rem]">
                       {p.actionHint}
                     </span>
                     <button
                       onClick={() => {
                         if (p.title.includes("学习")) onGoLearn();
                       }}
-                      className="px-3 py-1 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 text-[12px]"
+                      className="px-3 py-1 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 text-[0.75rem]"
                     >
                       {p.actionLabel}
                     </button>
@@ -503,17 +503,17 @@ export function TrainingLab({
           )}
 
           <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-            <div className="text-slate-500 mb-1.5 text-[12px]">
+            <div className="text-slate-500 mb-1.5 text-[0.75rem]">
               实训学时汇总
             </div>
-            <div className="text-slate-900 text-[18px] leading-tight">
+            <div className="text-slate-900 text-[1.125rem] leading-tight">
               {myDeviceUsage.reduce(
                 (sum, u) => sum + u.durationMinutes,
                 0,
               ) / 60 || 0}{" "}
-              <span className="text-slate-400 text-[12px]">小时 · 本学期</span>
+              <span className="text-slate-400 text-[0.75rem]">小时 · 本学期</span>
             </div>
-            <div className="mt-2 flex items-center justify-between text-[12px] text-slate-500">
+            <div className="mt-2 flex items-center justify-between text-[0.75rem] text-slate-500">
               <span>完成实训</span>
               <span className="text-slate-800">
                 {myTrainings.filter((t) => trainingStatus(t).label === "已完成").length}
@@ -561,14 +561,14 @@ function DeviceDrawer({
         className="flex-1 bg-slate-900/30"
         onClick={onClose}
       />
-      <div className="w-[440px] bg-white h-full shadow-2xl overflow-auto">
+      <div className="w-[min(27.5rem,88vw)] bg-white h-full shadow-2xl overflow-auto">
         <div className="p-5 border-b border-slate-100 flex items-center gap-3">
           <div className="size-12 rounded-xl bg-slate-50 flex items-center justify-center text-slate-600">
             <Icon size={22} />
           </div>
           <div className="flex-1 min-w-0">
             <div className="text-slate-900">{device.name}</div>
-            <div className="text-slate-500 text-[12px]">{device.category}</div>
+            <div className="text-slate-500 text-[0.75rem]">{device.category}</div>
           </div>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-800">
             <X size={18} />
@@ -576,13 +576,13 @@ function DeviceDrawer({
         </div>
         <div className="p-5 space-y-5">
           <div
-            className={`px-3 py-2 rounded-lg border text-[13px] ${meta.tone} inline-flex items-center gap-2`}
+            className={`px-3 py-2 rounded-lg border text-[0.8125rem] ${meta.tone} inline-flex items-center gap-2`}
           >
             <span className={`size-2 rounded-full ${meta.dot}`} />
             {meta.label}
           </div>
 
-          <div className="bg-slate-50 rounded-xl p-4 space-y-2 text-[13px]">
+          <div className="bg-slate-50 rounded-xl p-4 space-y-2 text-[0.8125rem]">
             <DrawerRow k="位置">
               <span className="inline-flex items-center gap-1">
                 <MapPin size={12} /> {device.location}
@@ -622,7 +622,7 @@ function DeviceDrawer({
           <div>
             <div className="text-slate-500 mb-2">我的使用记录</div>
             {recentUsage.length === 0 ? (
-              <div className="text-slate-400 text-[13px]">
+              <div className="text-slate-400 text-[0.8125rem]">
                 暂无使用记录
               </div>
             ) : (
@@ -634,14 +634,14 @@ function DeviceDrawer({
                   >
                     <div>
                       <div className="text-slate-900">{u.task}</div>
-                      <div className="text-slate-500 text-[12px] mt-0.5">
+                      <div className="text-slate-500 text-[0.75rem] mt-0.5">
                         {u.startedAt.slice(0, 16).replace("T", " ")} ·{" "}
                         {u.durationMinutes} 分钟
                       </div>
                     </div>
                     {u.score !== undefined && (
                       <span
-                        className={`px-2 py-0.5 rounded-md text-[12px] ${
+                        className={`px-2 py-0.5 rounded-md text-[0.75rem] ${
                           u.score >= 85
                             ? "bg-emerald-50 text-emerald-700"
                             : u.score >= 70
@@ -662,7 +662,7 @@ function DeviceDrawer({
             <div className="flex items-center gap-2 mb-1">
               <AiBadge>AI 操作提示</AiBadge>
             </div>
-            <p className="text-slate-700 leading-relaxed text-[13px]">
+            <p className="text-slate-700 leading-relaxed text-[0.8125rem]">
               {device.category.includes("三维")
                 ? "建议先 Ctrl+Shift+A 开启「实时评估」，AI 会在建模时提示约束遗漏。"
                 : device.category.includes("实体")
@@ -699,8 +699,8 @@ function DrawerRow({ k, children }: { k: string; children: React.ReactNode }) {
 function SectionHead({ title, hint }: { title: string; hint?: string }) {
   return (
     <div className="flex items-end justify-between">
-      <h2 className="text-slate-900 text-[15px]">{title}</h2>
-      {hint && <div className="text-slate-400 text-[12px]">{hint}</div>}
+      <h2 className="text-slate-900 text-[0.9375rem]">{title}</h2>
+      {hint && <div className="text-slate-400 text-[0.75rem]">{hint}</div>}
     </div>
   );
 }

@@ -36,7 +36,7 @@ export function StudentList({ onOpen }: { onOpen: (id: string) => void }) {
   return (
     <div>
       <PageHeader
-        title="学生档案"
+        title="学情分析"
         actions={
           <div className="flex items-center gap-2">
             <select
@@ -155,7 +155,7 @@ export function StudentDetail({ id, onBack }: { id: string; onBack: () => void }
   if (!s) {
     return (
       <div>
-        <PageHeader back={onBack} title="学生档案" />
+        <PageHeader back={onBack} title="学情分析" />
         <div className="p-16 text-center text-slate-500">未找到学生 {id}</div>
       </div>
     );

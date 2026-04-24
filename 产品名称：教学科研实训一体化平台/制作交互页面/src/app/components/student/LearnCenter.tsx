@@ -221,12 +221,12 @@ export function LearnCenter({
           {/* 左：学习场景配置 */}
           <aside className="col-span-3 border-r border-slate-200 bg-white overflow-auto p-4 space-y-5">
             <ConfigSection icon={Target} title="学习目标">
-              <div className="text-slate-500 text-[12px] mb-1.5">
+              <div className="text-slate-500 text-[0.75rem] mb-1.5">
                 本次想掌握的知识点
               </div>
               <div className="flex flex-wrap gap-1 mb-2">
                 {goalNodes.length === 0 && (
-                  <span className="text-slate-400 text-[12px]">
+                  <span className="text-slate-400 text-[0.75rem]">
                     尚未选择知识点，可从推荐里添加
                   </span>
                 )}
@@ -258,11 +258,11 @@ export function LearnCenter({
                   )
                 }
               />
-              <div className="mt-3 text-slate-500 text-[12px]">
+              <div className="mt-3 text-slate-500 text-[0.75rem]">
                 我的学习风格
               </div>
               <StyleSelect value={style} onChange={setStyle} />
-              <div className="text-slate-400 text-[11px] mt-1">
+              <div className="text-slate-400 text-[0.6875rem] mt-1">
                 {STYLE_SUGGESTIONS[style] ??
                   "AI 会按你的偏好组织内容"}
               </div>
@@ -307,7 +307,7 @@ export function LearnCenter({
 
             <ConfigSection icon={BookOpen} title="推荐资源">
               {recommendedResources.length === 0 ? (
-                <div className="text-slate-400 text-[12px]">
+                <div className="text-slate-400 text-[0.75rem]">
                   选择目标知识点后会出现推荐
                 </div>
               ) : (
@@ -315,7 +315,7 @@ export function LearnCenter({
                   {recommendedResources.map((r) => (
                     <div
                       key={r.id}
-                      className="px-2 py-1.5 rounded-md bg-slate-50 text-slate-700 text-[12px] flex items-center gap-2"
+                      className="px-2 py-1.5 rounded-md bg-slate-50 text-slate-700 text-[0.75rem] flex items-center gap-2"
                     >
                       <span className="size-5 rounded bg-white flex items-center justify-center text-slate-500">
                         {iconForResType(r.type)}
@@ -361,7 +361,7 @@ export function LearnCenter({
                             {personaById(personaId)?.name ?? "AI"}
                           </AiBadge>
                           {m.pending && (
-                            <span className="text-slate-400 text-[11px]">
+                            <span className="text-slate-400 text-[0.6875rem]">
                               · 正在为你生成学习产物…
                             </span>
                           )}
@@ -403,13 +403,13 @@ export function LearnCenter({
           <aside className="col-span-3 border-l border-slate-200 bg-white overflow-auto p-4 space-y-4">
             <div className="flex items-center justify-between">
               <div className="text-slate-500">本次学习场景 · 产物</div>
-              <span className="text-slate-400 text-[11px]">
+              <span className="text-slate-400 text-[0.6875rem]">
                 {messages.length === 0 ? "待开始" : "实时生成"}
               </span>
             </div>
 
             {messages.length === 0 ? (
-              <div className="text-slate-400 text-[13px] bg-slate-50 border border-dashed border-slate-200 rounded-xl p-4 leading-relaxed">
+              <div className="text-slate-400 text-[0.8125rem] bg-slate-50 border border-dashed border-slate-200 rounded-xl p-4 leading-relaxed">
                 开始对话后，AI 会在这里同步生成：
                 <br />· 学习要点笔记 · 互动小测 · 推荐视频 · 思维导图
               </div>
@@ -610,7 +610,7 @@ function GoalPicker({
   if (options.length === 0) return null;
   return (
     <div>
-      <div className="text-slate-400 text-[11px] mb-1">AI 推荐</div>
+      <div className="text-slate-400 text-[0.6875rem] mb-1">AI 推荐</div>
       <div className="flex flex-wrap gap-1">
         {options.map((o) => (
           <button
@@ -620,7 +620,7 @@ function GoalPicker({
           >
             + {o.knowledgePointName}
             <span
-              className={`text-[10px] ${
+              className={`text-[0.625rem] ${
                 o.masteryLevel < 60
                   ? "text-rose-500"
                   : o.masteryLevel < 80
@@ -672,7 +672,7 @@ function PersonaOption({
             {persona.name}
           </div>
           {persona.description && (
-            <div className="text-slate-400 text-[11px] line-clamp-1">
+            <div className="text-slate-400 text-[0.6875rem] line-clamp-1">
               {persona.description}
             </div>
           )}
@@ -702,14 +702,14 @@ function OutputCard({
         <div className="size-7 rounded-md bg-indigo-50 text-indigo-600 flex items-center justify-center">
           {icon}
         </div>
-        <span className="text-slate-500 text-[12px]">{type}</span>
+        <span className="text-slate-500 text-[0.75rem]">{type}</span>
         <AiBadge>AI 生成</AiBadge>
       </div>
       <div className="text-slate-900 line-clamp-1">{title}</div>
-      <p className="text-slate-500 text-[12px] line-clamp-2 mt-0.5 leading-relaxed">
+      <p className="text-slate-500 text-[0.75rem] line-clamp-2 mt-0.5 leading-relaxed">
         {detail}
       </p>
-      <button className="mt-2 w-full py-1 rounded-md border border-slate-200 hover:bg-slate-50 text-[12px]">
+      <button className="mt-2 w-full py-1 rounded-md border border-slate-200 hover:bg-slate-50 text-[0.75rem]">
         {actionLabel ?? "打开"}
       </button>
     </div>
@@ -737,7 +737,7 @@ function EmptyDialog({
           <div className="text-slate-900">
             嗨 {studentName}，今天想围绕 <b>{goal}</b> 学点什么？
           </div>
-          <div className="text-slate-500 text-[13px] mt-1">
+          <div className="text-slate-500 text-[0.8125rem] mt-1">
             左边已经读取了你的画像和目标，直接提问或从下面挑一个开始。
           </div>
         </div>
@@ -754,7 +754,7 @@ function EmptyDialog({
                   <Icon size={14} />
                 </div>
                 <div className="text-slate-900">{s.title}</div>
-                <div className="text-slate-500 text-[12px] mt-1 leading-relaxed">
+                <div className="text-slate-500 text-[0.75rem] mt-1 leading-relaxed">
                   {s.hint}
                 </div>
               </button>
@@ -792,20 +792,20 @@ function HistoryPanel({ history }: { history: LearnScenario[] }) {
           >
             <div className="flex items-center gap-2 mb-1">
               {s.completed ? (
-                <span className="px-1.5 py-0.5 rounded-md bg-emerald-50 text-emerald-700 text-[11px]">
+                <span className="px-1.5 py-0.5 rounded-md bg-emerald-50 text-emerald-700 text-[0.6875rem]">
                   已完成
                 </span>
               ) : (
-                <span className="px-1.5 py-0.5 rounded-md bg-indigo-50 text-indigo-700 text-[11px]">
+                <span className="px-1.5 py-0.5 rounded-md bg-indigo-50 text-indigo-700 text-[0.6875rem]">
                   未完成
                 </span>
               )}
-              <span className="text-slate-500 text-[11px]">
+              <span className="text-slate-500 text-[0.6875rem]">
                 {s.startedAt.slice(0, 10)} · {s.durationLabel}
               </span>
             </div>
             <div className="text-slate-900">{s.title}</div>
-            <div className="text-slate-500 text-[12px] mt-1 line-clamp-2">
+            <div className="text-slate-500 text-[0.75rem] mt-1 line-clamp-2">
               {s.goal}
             </div>
           </button>
@@ -826,11 +826,11 @@ function HistoryPanel({ history }: { history: LearnScenario[] }) {
                 <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600">
                   {current.durationLabel}
                 </span>
-                <span className="text-slate-400 text-[12px]">
+                <span className="text-slate-400 text-[0.75rem]">
                   开始于 {current.startedAt.slice(0, 16).replace("T", " ")}
                 </span>
               </div>
-              <div className="text-slate-900 mt-2 text-[15px]">
+              <div className="text-slate-900 mt-2 text-[0.9375rem]">
                 {current.title}
               </div>
               <p className="text-slate-600 mt-1 leading-relaxed">
@@ -878,7 +878,7 @@ function HistoryPanel({ history }: { history: LearnScenario[] }) {
                       </span>
                       <div>
                         <div>{o.title}</div>
-                        <div className="text-slate-500 text-[12px]">
+                        <div className="text-slate-500 text-[0.75rem]">
                           {o.detail}
                         </div>
                       </div>

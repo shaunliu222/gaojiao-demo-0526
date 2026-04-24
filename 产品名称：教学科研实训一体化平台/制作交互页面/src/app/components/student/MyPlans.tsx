@@ -239,8 +239,8 @@ function Section({
     <section>
       <div className="flex items-end justify-between mb-3">
         <div>
-          <h2 className="text-slate-900 text-[15px]">{title}</h2>
-          {tip && <div className="text-slate-400 text-[12px] mt-0.5">{tip}</div>}
+          <h2 className="text-slate-900 text-[0.9375rem]">{title}</h2>
+          {tip && <div className="text-slate-400 text-[0.75rem] mt-0.5">{tip}</div>}
         </div>
       </div>
       {children}
@@ -327,7 +327,7 @@ function CoursePlanCard({
             style={{ width: `${pendingPct}%` }}
           />
         </div>
-        <div className="flex items-center gap-3 text-slate-500 mt-1.5 text-[12px]">
+        <div className="flex items-center gap-3 text-slate-500 mt-1.5 text-[0.75rem]">
           <span className="inline-flex items-center gap-1">
             <Legend color="bg-emerald-500" /> 已掌握
           </span>
@@ -384,7 +384,7 @@ function PersonalPlanCard({
         </span>
       </div>
       <div className="text-slate-900 mt-3">{plan.title}</div>
-      <p className="text-slate-500 line-clamp-2 mt-1 text-[13px] leading-relaxed">
+      <p className="text-slate-500 line-clamp-2 mt-1 text-[0.8125rem] leading-relaxed">
         {plan.goal}
       </p>
 
@@ -494,7 +494,7 @@ function CoursePlanDetail({
             <div className="text-indigo-900">
               已为你生成个性化学习路径（AI 建议）
             </div>
-            <div className="text-indigo-700 mt-1 text-[13px]">
+            <div className="text-indigo-700 mt-1 text-[0.8125rem]">
               不改动老师的主计划，只在你的视图上调整节奏：把薄弱的投影阶段提前复盘，把已掌握的小节折叠。进入学习中心后每个小节都可以继续微调。
             </div>
           </div>
@@ -599,7 +599,7 @@ function CoursePlanDetail({
                         <span>{s.title}</span>
                         {prog?.masteryScore !== undefined &&
                           prog.masteryScore > 0 && (
-                            <span className="text-[11px] opacity-80">
+                            <span className="text-[0.6875rem] opacity-80">
                               {prog.masteryScore}
                             </span>
                           )}
@@ -624,7 +624,7 @@ function CoursePlanDetail({
                 .map(({ s, prog }) => (
                   <div
                     key={`${s.id}-note`}
-                    className={`mt-3 rounded-lg px-3 py-2 flex gap-2 text-[13px] ${
+                    className={`mt-3 rounded-lg px-3 py-2 flex gap-2 text-[0.8125rem] ${
                       prog!.status === "weak"
                         ? "bg-rose-50 border border-rose-200 text-rose-700"
                         : "bg-indigo-50 border border-indigo-200 text-indigo-700"
@@ -804,7 +804,7 @@ function PersonalPlanDetail({
                 </span>
                 <div className="flex items-center justify-between gap-3 flex-wrap">
                   <div className="text-slate-900">{s.title}</div>
-                  <div className="flex items-center gap-2 text-slate-500 text-[12px]">
+                  <div className="flex items-center gap-2 text-slate-500 text-[0.75rem]">
                     <span className="inline-flex items-center gap-1">
                       <Clock size={12} /> {s.minutes} 分钟
                     </span>
@@ -828,7 +828,7 @@ function PersonalPlanDetail({
                     return (
                       <span
                         key={nid}
-                        className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 text-[11px]"
+                        className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 text-[0.6875rem]"
                       >
                         {n?.name ?? nid}
                       </span>
@@ -884,7 +884,7 @@ function PlanWizardModal({
           </div>
           <div className="flex-1">
             <div className="text-slate-900">创建个人学习计划</div>
-            <div className="text-slate-500 text-[12px]">
+            <div className="text-slate-500 text-[0.75rem]">
               描述你的目标，AI 会结合你的画像给出一条短线路径
             </div>
           </div>
@@ -969,7 +969,7 @@ function PlanWizardModal({
             </Field>
 
             <div className="flex items-center justify-between pt-2 border-t border-slate-100">
-              <span className="text-slate-400 text-[12px]">
+              <span className="text-slate-400 text-[0.75rem]">
                 此弹窗为演示态，不会真正写入 mock 数据。
               </span>
               <div className="flex gap-2">
@@ -1008,7 +1008,7 @@ function PlanWizardModal({
                 <li>③ AI 互动练习：3 题（含错题反馈）</li>
                 <li>④ 学习产物：1 张速查卡 · 1 份要点笔记</li>
               </ul>
-              <div className="text-slate-500 mt-2 text-[12px]">
+              <div className="text-slate-500 mt-2 text-[0.75rem]">
                 难度已按「{difficulty}」调整，保存后会出现在你的"个人学习计划"列表里。
               </div>
             </div>

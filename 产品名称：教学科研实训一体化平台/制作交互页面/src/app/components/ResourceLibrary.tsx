@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   Search,
   Film,
@@ -10,11 +10,20 @@ import {
   ListChecks,
   Sparkles,
   Filter,
+  Upload,
+  Plus,
 } from "lucide-react";
 import { resources, professions } from "@mock";
 import type { ResourceType } from "@mock";
 import { teacherById, professionById } from "../data/lookups";
 import { PageHeader, AiBadge } from "./Layout";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "./ui/dialog";
 
 const TYPE_OPTIONS: { value: ResourceType | "all"; label: string }[] = [
   { value: "all", label: "全部类型" },
@@ -28,7 +37,23 @@ const TYPE_OPTIONS: { value: ResourceType | "all"; label: string }[] = [
   { value: "quiz", label: "题库" },
 ];
 
+const ADD_TYPE_OPTIONS: { value: ResourceType; label: string }[] = [
+  { value: "doc", label: "文档" },
+  { value: "ppt", label: "课件" },
+  { value: "video", label: "视频" },
+  { value: "audio", label: "音频" },
+  { value: "image", label: "图片" },
+  { value: "code", label: "代码" },
+  { value: "dataset", label: "数据集" },
+  { value: "quiz", label: "题库" },
+];
+
 export function ResourceLibrary({ onOpen }: { onOpen: (id: string) => void }) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [addOpen, setAddOpen] = useState(false);
+  const [addTitle, setAddTitle] = useState("");
+  const [addType, setAddType] = useState<ResourceType>("doc");
+  const [demoHint, setDemoHint] = useState<string | null>(null);
   const [typeFilter, setTypeFilter] = useState<ResourceType | "all">("all");
   const [profFilter, setProfFilter] = useState<string>("all");
   const [aiOnly, setAiOnly] = useState<boolean>(false);
@@ -61,10 +86,111 @@ export function ResourceLibrary({ onOpen }: { onOpen: (id: string) => void }) {
 
   return (
     <div>
+      <input
+        ref={fileInputRef}
+        type="file"
+        className="sr-only"
+        multiple
+        onChange={(e) => {
+          const n = e.target.files?.length ?? 0;
+          if (n > 0) {
+            setDemoHint(
+              `已选择 ${n} 个文件（演示环境，未执行实际上传/解析）`,
+            );
+          }
+          e.target.value = "";
+        }}
+      />
+      <Dialog
+        open={addOpen}
+        onOpenChange={(o) => {
+          setAddOpen(o);
+          if (o) {
+            setAddTitle("");
+            setAddType("doc");
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>新增教学资源</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-1">
+            <div>
+              <label className="text-sm text-slate-600">资源名称</label>
+              <input
+                value={addTitle}
+                onChange={(e) => setAddTitle(e.target.value)}
+                placeholder="如：第 3 周 · 读图与标注练习"
+                className="mt-1 w-full rounded-md border border-slate-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-200"
+              />
+            </div>
+            <div>
+              <label className="text-sm text-slate-600">资源类型</label>
+              <select
+                value={addType}
+                onChange={(e) => setAddType(e.target.value as ResourceType)}
+                className="mt-1 w-full rounded-md border border-slate-200 px-3 py-2 text-sm bg-white outline-none focus:ring-2 focus:ring-indigo-200"
+              >
+                {ADD_TYPE_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <p className="text-slate-500 text-xs">
+              本交互为演示：确定后不会写入下方列表，也不会调用后端。
+            </p>
+          </div>
+          <DialogFooter>
+            <button
+              type="button"
+              onClick={() => setAddOpen(false)}
+              className="px-3 py-1.5 rounded-md border border-slate-200 text-slate-600 hover:bg-slate-50"
+            >
+              取消
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const name = addTitle.trim() || "未命名资源";
+                setDemoHint(
+                  `已登记「${name}」（${ADD_TYPE_OPTIONS.find((x) => x.value === addType)?.label ?? addType}，演示环境不写入列表）`,
+                );
+                setAddOpen(false);
+              }}
+              className="px-3 py-1.5 rounded-md bg-indigo-600 text-white hover:bg-indigo-700"
+            >
+              确定
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <PageHeader
         title="教学资源库"
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex items-center flex-wrap gap-2 justify-end">
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-slate-200 text-slate-700 bg-white hover:bg-slate-50"
+            >
+              <Upload size={14} />
+              上传
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setAddTitle("");
+                setAddType("doc");
+                setAddOpen(true);
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-indigo-600 text-white hover:bg-indigo-700"
+            >
+              <Plus size={14} />
+              新增
+            </button>
             <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-md px-2 py-1 w-56">
               <Search size={14} className="text-slate-400" />
               <input
@@ -87,6 +213,19 @@ export function ResourceLibrary({ onOpen }: { onOpen: (id: string) => void }) {
           </div>
         }
       />
+      {demoHint && (
+        <div className="px-6 py-2 bg-amber-50 border-b border-amber-200 text-amber-900 text-sm flex items-start justify-between gap-3">
+          <span className="leading-snug pt-0.5">{demoHint}</span>
+          <button
+            type="button"
+            onClick={() => setDemoHint(null)}
+            className="shrink-0 text-amber-700/80 hover:text-amber-900 px-1"
+            aria-label="关闭提示"
+          >
+            ×
+          </button>
+        </div>
+      )}
       <div className="p-6">
         <div className="bg-white rounded-xl border border-slate-200 p-4 mb-4">
           <div className="flex items-center gap-2 mb-2">
@@ -180,7 +319,7 @@ export function ResourceLibrary({ onOpen }: { onOpen: (id: string) => void }) {
                       {r.tags.slice(0, 3).map((t) => (
                         <span
                           key={t}
-                          className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 text-[11px]"
+                          className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 text-[0.6875rem]"
                         >
                           {t}
                         </span>

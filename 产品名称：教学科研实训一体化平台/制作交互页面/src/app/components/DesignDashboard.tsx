@@ -11,7 +11,7 @@ import {
 import { teachingPlans, designsBySection } from "@mock";
 import type { TeachingDesign, TeachingPlan } from "@mock";
 import { classById, courseById } from "../data/lookups";
-import { AiBadge, PageHeader } from "./Layout";
+import { PageHeader } from "./Layout";
 
 interface SectionRef {
   planId: string;
@@ -114,13 +114,7 @@ export function DesignDashboard({
           <div className="flex items-center gap-2">
             <PenTool size={16} className="text-indigo-600" />
             <span>教学设计</span>
-            <AiBadge>一跳直达工作台</AiBadge>
           </div>
-        }
-        actions={
-          <button className="px-3 py-1.5 rounded-md border border-slate-200 hover:bg-slate-50 text-slate-600">
-            按计划浏览
-          </button>
         }
       />
       <div className="p-6 space-y-5">
@@ -219,7 +213,7 @@ function Metric({
         {icon}
       </div>
       <div className="leading-tight">
-        <div className="text-slate-400 text-[11px]">{label}</div>
+        <div className="text-slate-400 text-[0.6875rem]">{label}</div>
         <div className="text-slate-900 text-xl">
           {value}
           {suffix && (
@@ -258,9 +252,9 @@ function DashboardGroup({
       <div className="flex items-center gap-2 mb-3">
         <span className={`size-2.5 rounded-full ${accentDot[accent]}`} />
         <div className="text-slate-900">{title}</div>
-        <span className="text-slate-400 text-[12px]">· {hint}</span>
+        <span className="text-slate-400 text-[0.75rem]">· {hint}</span>
         <div className="flex-1" />
-        <span className="text-slate-400 text-[11px]">{cards.length}</span>
+        <span className="text-slate-400 text-[0.6875rem]">{cards.length}</span>
       </div>
       {cards.length === 0 ? (
         <div className="bg-slate-50 border border-dashed border-slate-300 rounded-xl h-28 flex items-center justify-center text-slate-400">
@@ -302,22 +296,22 @@ function SectionCard({
       }`}
     >
       {data.isFocus && (
-        <span className="absolute top-3 right-3 inline-flex items-center gap-1 text-indigo-600 text-[11px]">
+        <span className="absolute top-3 right-3 inline-flex items-center gap-1 text-indigo-600 text-[0.6875rem]">
           <Target size={11} />
           焦点
         </span>
       )}
-      <div className="text-slate-500 text-[11px] truncate">
+      <div className="text-slate-500 text-[0.6875rem] truncate">
         《{course?.name ?? data.plan.courseId}》 · {data.chapterTitle}
       </div>
       <div className="text-slate-900 mt-0.5 line-clamp-1">
         {data.sectionTitle}
       </div>
-      <div className="mt-2 flex items-center gap-1.5 text-slate-500 text-[11px]">
+      <div className="mt-2 flex items-center gap-1.5 text-slate-500 text-[0.6875rem]">
         <Clock size={11} />
         <span>{data.plannedDate}</span>
         <span className="text-slate-300">·</span>
-        <span className="truncate max-w-[140px]">{classNames.join("+")}</span>
+        <span className="truncate max-w-[8.75rem]">{classNames.join("+")}</span>
       </div>
 
       <div className="mt-3 flex items-center gap-1">
@@ -328,17 +322,17 @@ function SectionCard({
 
       <div className="mt-3 flex items-center justify-between">
         {data.latestUpdatedAt ? (
-          <span className="text-slate-400 text-[11px]">
+          <span className="text-slate-400 text-[0.6875rem]">
             更新 {data.latestUpdatedAt.slice(5, 10)}
           </span>
         ) : data.hasDesign ? (
-          <span className="text-emerald-600 text-[11px]">已生成设计</span>
+          <span className="text-emerald-600 text-[0.6875rem]">已生成设计</span>
         ) : (
-          <span className="inline-flex items-center gap-1 text-amber-600 text-[11px]">
+          <span className="inline-flex items-center gap-1 text-amber-600 text-[0.6875rem]">
             <Sparkles size={11} /> AI 可生成初稿
           </span>
         )}
-        <span className="inline-flex items-center gap-0.5 text-indigo-600 text-[12px]">
+        <span className="inline-flex items-center gap-0.5 text-indigo-600 text-[0.75rem]">
           {cta} <ArrowRight size={12} />
         </span>
       </div>
@@ -349,7 +343,7 @@ function SectionCard({
 function TabChip({ label, done }: { label: string; done: boolean }) {
   return (
     <span
-      className={`px-1.5 py-0.5 rounded-md text-[11px] ${
+      className={`px-1.5 py-0.5 rounded-md text-[0.6875rem] ${
         done
           ? "bg-emerald-50 text-emerald-700"
           : "bg-slate-100 text-slate-400"

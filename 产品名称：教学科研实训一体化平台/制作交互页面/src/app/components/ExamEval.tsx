@@ -189,7 +189,7 @@ export function ExamDetail({ id, onBack }: { id: string; onBack: () => void }) {
                         {Math.round(hs.wrongRate * 100)}%
                       </span>
                     </div>
-                    <div className="text-rose-600/80 text-[12px] mt-1">{hs.aiCause}</div>
+                    <div className="text-rose-600/80 text-[0.75rem] mt-1">{hs.aiCause}</div>
                   </div>
                 ))}
                 {e.hotWrongPoints.length === 0 && (

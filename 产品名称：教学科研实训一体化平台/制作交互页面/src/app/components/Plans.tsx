@@ -1,6 +1,6 @@
-import { Plus, Search } from "lucide-react";
+import { Plus, Search, Users } from "lucide-react";
 import { useMemo, useState } from "react";
-import { teachingPlans, teachingStrategies } from "@mock";
+import { teachingPlans, teachingStrategies, classes } from "@mock";
 import type { TeachingPlan } from "@mock";
 import { classById, teacherById, courseById } from "../data/lookups";
 import { PageHeader, StatusTag, AiBadge } from "./Layout";
@@ -44,6 +44,36 @@ export function PlansList({
   onOpen: (id: string) => void;
   onCreate: () => void;
 }) {
+  const [searchQ, setSearchQ] = useState("");
+  const [filterClassId, setFilterClassId] = useState("");
+  const [filterSemester, setFilterSemester] = useState("");
+  const [filterStatus, setFilterStatus] = useState<"" | TeachingPlan["status"]>("");
+
+  const semesterOptions = useMemo(() => {
+    const s = new Set(teachingPlans.map((p) => p.semester));
+    return Array.from(s).sort();
+  }, []);
+
+  const filteredPlans = useMemo(() => {
+    const q = searchQ.trim().toLowerCase();
+    return teachingPlans.filter((p) => {
+      if (filterClassId && !p.classIds.includes(filterClassId)) return false;
+      if (filterSemester && p.semester !== filterSemester) return false;
+      if (filterStatus && p.status !== filterStatus) return false;
+      if (q) {
+        const course = courseById(p.courseId);
+        const names = planClassNames(p);
+        const hitCourse =
+          (course?.name ?? "").toLowerCase().includes(q) ||
+          p.courseId.toLowerCase().includes(q);
+        const hitClass = names.some((n) => n.toLowerCase().includes(q));
+        const hitTitle = p.title.toLowerCase().includes(q);
+        if (!hitCourse && !hitClass && !hitTitle) return false;
+      }
+      return true;
+    });
+  }, [searchQ, filterClassId, filterSemester, filterStatus]);
+
   return (
     <div>
       <PageHeader
@@ -58,21 +88,62 @@ export function PlansList({
         }
       />
       <div className="p-6">
-        <div className="flex items-center gap-2 mb-4">
-          <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-md px-2 py-1 flex-1 max-w-xs">
-            <Search size={14} className="text-slate-400" />
-            <input placeholder="搜索课程或班级" className="w-full outline-none" />
+        <div className="flex flex-wrap items-center gap-2 mb-4">
+          <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-md px-2 py-1 flex-1 min-w-[12.5rem] max-w-xs">
+            <Search size={14} className="text-slate-400 shrink-0" />
+            <input
+              value={searchQ}
+              onChange={(e) => setSearchQ(e.target.value)}
+              placeholder="搜索课程或班级"
+              className="w-full outline-none"
+            />
           </div>
-          <select className="bg-white border border-slate-200 rounded-md px-2 py-1">
-            <option>全部学期</option>
+          <select
+            value={filterClassId}
+            onChange={(e) => setFilterClassId(e.target.value)}
+            className="bg-white border border-slate-200 rounded-md px-2 py-1.5 min-w-[8.75rem]"
+            aria-label="按班级筛选"
+          >
+            <option value="">全部班级</option>
+            {classes.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
           </select>
-          <select className="bg-white border border-slate-200 rounded-md px-2 py-1">
-            <option>全部状态</option>
+          <select
+            value={filterSemester}
+            onChange={(e) => setFilterSemester(e.target.value)}
+            className="bg-white border border-slate-200 rounded-md px-2 py-1.5"
+          >
+            <option value="">全部学期</option>
+            {semesterOptions.map((sem) => (
+              <option key={sem} value={sem}>
+                {sem}
+              </option>
+            ))}
+          </select>
+          <select
+            value={filterStatus}
+            onChange={(e) =>
+              setFilterStatus((e.target.value || "") as "" | TeachingPlan["status"])
+            }
+            className="bg-white border border-slate-200 rounded-md px-2 py-1.5"
+          >
+            <option value="">全部状态</option>
+            <option value="draft">草稿</option>
+            <option value="in_progress">进行中</option>
+            <option value="completed">已完成</option>
           </select>
         </div>
+        {filteredPlans.length === 0 ? (
+          <div className="text-center text-slate-500 py-16 border border-dashed border-slate-200 rounded-xl bg-slate-50/50">
+            没有符合当前筛选条件的教学计划，请调整条件后重试。
+          </div>
+        ) : (
         <div className="grid grid-cols-2 gap-4">
-          {teachingPlans.map((p) => {
-            const cls = planClassNames(p).join(" / ");
+          {filteredPlans.map((p) => {
+            const classNames = planClassNames(p);
             const course = courseById(p.courseId);
             const teacher = teacherById(p.creatorTeacherId);
             const progress = computeProgress(p);
@@ -86,11 +157,23 @@ export function PlansList({
                   isFocus ? "border-indigo-300 ring-1 ring-indigo-100" : "border-slate-200"
                 }`}
               >
-                <div className="flex items-start justify-between">
-                  <div>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
                     <div className="text-slate-900">《{course?.name ?? p.courseId}》</div>
-                    <div className="text-slate-500 mt-0.5">
-                      {p.semester} · {cls}
+                    <div className="text-slate-500 mt-0.5 text-sm">{p.semester}</div>
+                    <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                      <span className="inline-flex items-center gap-0.5 text-slate-400 text-xs shrink-0">
+                        <Users size={12} aria-hidden />
+                        班级
+                      </span>
+                      {classNames.map((name) => (
+                        <span
+                          key={name}
+                          className="text-xs font-medium text-slate-700 bg-slate-100 border border-slate-200/80 rounded-md px-2 py-0.5"
+                        >
+                          {name}
+                        </span>
+                      ))}
                     </div>
                   </div>
                   <StatusTag status={status} />
@@ -123,6 +206,7 @@ export function PlansList({
             );
           })}
         </div>
+        )}
       </div>
     </div>
   );
@@ -289,7 +373,7 @@ export function PlanDetail({
                 >
                   <div className="flex items-center justify-between">
                     <span className="text-slate-900">{s.name}</span>
-                    <span className="text-slate-400 text-[11px]">{sourceLabel(s.source)}</span>
+                    <span className="text-slate-400 text-[0.6875rem]">{sourceLabel(s.source)}</span>
                   </div>
                   <div className="text-slate-500 line-clamp-2 mt-0.5">{s.description}</div>
                 </div>

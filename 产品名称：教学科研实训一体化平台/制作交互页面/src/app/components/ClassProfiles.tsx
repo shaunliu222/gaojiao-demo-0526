@@ -1,4 +1,5 @@
-import { AlertTriangle, Download, FileText, ChevronRight } from "lucide-react";
+import { useMemo } from "react";
+import { AlertTriangle, Download, FileText, ChevronRight, Star } from "lucide-react";
 import {
   Radar,
   RadarChart,
@@ -14,8 +15,15 @@ import {
   CartesianGrid,
 } from "recharts";
 import { classProfiles, classes } from "@mock";
-import type { ClassProfile } from "@mock";
-import { teacherById, classById, currentPlanForClass, professionById } from "../data/lookups";
+import type { ClassProfile, Student, StudentProfile } from "@mock";
+import {
+  teacherById,
+  classById,
+  currentPlanForClass,
+  professionById,
+  studentsByClass,
+  studentProfileByStudentId,
+} from "../data/lookups";
 import { PageHeader, AiBadge } from "./Layout";
 
 /** 班级画像若 stdDev 超过 14，就视作"两极分化"预警 */
@@ -33,6 +41,23 @@ interface ClassCard {
   collegeName: string;
   grade: number;
   hasGraph: boolean;
+}
+
+function recentProfileAvg(p: StudentProfile | undefined): number | undefined {
+  if (!p || p.recentScores.length === 0) return undefined;
+  return Math.round(
+    p.recentScores.reduce((a, b) => a + b.score, 0) / p.recentScores.length,
+  );
+}
+
+/** 重点关注优先，其次按学号 */
+function sortClassStudentsForArchive(list: readonly Student[]) {
+  return [...list].sort((a, b) => {
+    const fa = a.teacherFocus ? 1 : 0;
+    const fb = b.teacherFocus ? 1 : 0;
+    if (fa !== fb) return fb - fa;
+    return a.studentNo.localeCompare(b.studentNo, "zh-CN", { numeric: true });
+  });
 }
 
 function buildCard(p: ClassProfile): ClassCard {
@@ -131,11 +156,13 @@ export function ClassProfileDetail({
   onBack,
   onGoPlans,
   onOpenPlan,
+  onOpenStudent,
 }: {
   id: string;
   onBack: () => void;
   onGoPlans: () => void;
   onOpenPlan?: (planId: string) => void;
+  onOpenStudent?: (studentId: string) => void;
 }) {
   const profile = classProfiles.find((x) => x.classId === id);
   const cls = classes.find((c) => c.id === id);
@@ -160,6 +187,11 @@ export function ClassProfileDetail({
   ];
 
   const plan = currentPlanForClass(id);
+
+  const classStudents = useMemo(
+    () => sortClassStudentsForArchive(studentsByClass(id)),
+    [id],
+  );
 
   return (
     <div>
@@ -262,7 +294,7 @@ export function ClassProfileDetail({
         <div className="col-span-12 bg-white rounded-xl border border-slate-200 p-5">
           <div className="text-slate-500 mb-3">快速入口</div>
           <div className="flex gap-2 flex-wrap">
-            <Quick label={`查看 ${cls.studentCount} 名学生档案`} />
+            <Quick label={`查看 ${cls.studentCount} 人学情分析`} />
             <Quick label="最近作业" />
             {plan ? (
               <Quick
@@ -272,6 +304,118 @@ export function ClassProfileDetail({
             ) : (
               <Quick label="本班对应的教学计划" onClick={onGoPlans} />
             )}
+          </div>
+        </div>
+        <div className="col-span-12 bg-white rounded-xl border border-slate-200 p-5">
+          <div className="flex flex-wrap items-baseline justify-between gap-2 mb-4">
+            <div>
+              <div className="text-slate-900 font-medium">全班学情档案</div>
+              <div className="text-slate-500 text-sm mt-0.5">
+                共 {classStudents.length} 人 · 已生成画像 {classStudents.filter((s) => studentProfileByStudentId(s.id)).length}{" "}
+                人 · 重点关注排前
+              </div>
+            </div>
+          </div>
+          <div className="overflow-x-auto -mx-1">
+            <table className="w-full text-sm min-w-[720px]">
+              <thead>
+                <tr className="text-left text-slate-500 border-b border-slate-200">
+                  <th className="py-2.5 pr-3 font-medium w-10">#</th>
+                  <th className="py-2.5 pr-3 font-medium">姓名</th>
+                  <th className="py-2.5 pr-3 font-medium">学号</th>
+                  <th className="py-2.5 pr-3 font-medium">关注</th>
+                  <th className="py-2.5 pr-3 font-medium">近期均分</th>
+                  <th className="py-2.5 pr-3 font-medium">学习风格</th>
+                  <th className="py-2.5 pr-3 font-medium">课堂活跃</th>
+                  <th className="py-2.5 pr-2 font-medium">学情摘要</th>
+                </tr>
+              </thead>
+              <tbody>
+                {classStudents.map((s, index) => {
+                  const p = studentProfileByStudentId(s.id);
+                  const avg = recentProfileAvg(p);
+                  return (
+                    <tr
+                      key={s.id}
+                      onClick={() => onOpenStudent?.(s.id)}
+                      className={`border-b border-slate-100 last:border-0 ${
+                        onOpenStudent ? "cursor-pointer hover:bg-slate-50/80" : ""
+                      }`}
+                    >
+                      <td className="py-2.5 pr-3 text-slate-400 tabular-nums">{index + 1}</td>
+                      <td className="py-2.5 pr-3 text-slate-900 whitespace-nowrap">
+                        {s.teacherFocus && (
+                          <Star
+                            className="inline-block mr-1.5 -mt-0.5 text-amber-500"
+                            size={14}
+                            fill="currentColor"
+                          />
+                        )}
+                        {s.name}
+                      </td>
+                      <td className="py-2.5 pr-3 text-slate-600 font-mono text-xs whitespace-nowrap">
+                        {s.studentNo}
+                      </td>
+                      <td className="py-2.5 pr-3 whitespace-nowrap">
+                        {s.teacherFocus ? (
+                          <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md bg-amber-50 text-amber-800 text-xs">
+                            重点关注
+                          </span>
+                        ) : (
+                          <span className="text-slate-300">—</span>
+                        )}
+                      </td>
+                      <td className="py-2.5 pr-3">
+                        {avg != null ? (
+                          <span
+                            className={`px-2 py-0.5 rounded-md ${
+                              avg >= 85
+                                ? "bg-emerald-50 text-emerald-700"
+                                : avg >= 70
+                                ? "bg-amber-50 text-amber-700"
+                                : "bg-rose-50 text-rose-700"
+                            }`}
+                          >
+                            {avg}
+                          </span>
+                        ) : (
+                          <span className="text-slate-400">—</span>
+                        )}
+                      </td>
+                      <td className="py-2.5 pr-3 text-slate-700">
+                        {p ? p.learningStyle : "—"}
+                      </td>
+                      <td className="py-2.5 pr-3">
+                        {p ? (
+                          <span
+                            className={`px-2 py-0.5 rounded-md ${
+                              p.activity === "高"
+                                ? "bg-emerald-50 text-emerald-700"
+                                : p.activity === "中"
+                                ? "bg-amber-50 text-amber-700"
+                                : "bg-rose-50 text-rose-700"
+                            }`}
+                          >
+                            {p.activity}
+                          </span>
+                        ) : (
+                          <span className="text-slate-400">—</span>
+                        )}
+                      </td>
+                      <td className="py-2.5 pr-2 text-slate-600 max-w-md">
+                        {p ? (
+                          <span className="line-clamp-2" title={p.aiSummary}>
+                            {p.aiSummary}
+                          </span>
+                        ) : (
+                          <span className="text-slate-400">暂无学情档案</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         </div>
       </div>

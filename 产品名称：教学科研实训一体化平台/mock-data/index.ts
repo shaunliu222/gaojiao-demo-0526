@@ -41,6 +41,11 @@ export {
   planKnowledgePathGraphs,
   getPlanKnowledgePathGraph,
 } from "./planKnowledgePathGraphs";
-export { teachingDesigns, designsBySection } from "./teachingDesigns";
+export {
+  teachingDesigns,
+  designsBySection,
+  DEMO_DESIGN_PLAN_ID,
+  DEMO_DESIGN_SECTION_ID,
+} from "./teachingDesigns";
 export { homeworkEvaluations } from "./homeworks";
 export { examEvaluations } from "./exams";

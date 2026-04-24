@@ -1,7 +1,9 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   BookOpen,
+  ChevronDown,
   Clock,
+  CloudRain,
   FileText,
   Film,
   FlaskConical,
@@ -10,7 +12,13 @@ import {
   Music,
   Code2,
   Database,
+  Download,
   Network,
+  Plus,
+  School,
+  Search,
+  Sparkles,
+  TreePine,
   User,
 } from "lucide-react";
 import { courses, professions } from "@mock";
@@ -25,87 +33,334 @@ import {
 import { colorOfCluster } from "../data/graphLayout";
 import { PageHeader } from "./Layout";
 
+const IMPORT_SOURCES: {
+  key: string;
+  name: string;
+  description: string;
+  icon: typeof Sparkles;
+  iconCls: string;
+  bgCls: string;
+}[] = [
+  {
+    key: "chaoxing",
+    name: "超星",
+    description: "同步超星泛雅 / 学习通课程",
+    icon: Sparkles,
+    iconCls: "text-violet-600",
+    bgCls: "bg-violet-50",
+  },
+  {
+    key: "zhihuishu",
+    name: "智慧树",
+    description: "同步智慧树平台课程",
+    icon: TreePine,
+    iconCls: "text-emerald-600",
+    bgCls: "bg-emerald-50",
+  },
+  {
+    key: "yuketang",
+    name: "雨课堂",
+    description: "同步雨课堂课程",
+    icon: CloudRain,
+    iconCls: "text-sky-600",
+    bgCls: "bg-sky-50",
+  },
+  {
+    key: "jwxt",
+    name: "教务系统",
+    description: "从校内教务系统导入课表",
+    icon: School,
+    iconCls: "text-amber-600",
+    bgCls: "bg-amber-50",
+  },
+];
+
+function summarizeTags(tags: string[]): string {
+  if (tags.length === 0) return "—";
+  if (tags.length <= 2) return tags.join("、");
+  return `${tags[0]}、${tags[1]} 等 ${tags.length} 项`;
+}
+
 export function CourseList({ onOpen }: { onOpen: (id: string) => void }) {
-  const [profId, setProfId] = useState<string>("all");
+  const [selectedProfIds, setSelectedProfIds] = useState<Set<string>>(
+    () => new Set(professions.map((p) => p.id))
+  );
+  const [courseQuery, setCourseQuery] = useState("");
+  const [profPanelOpen, setProfPanelOpen] = useState(false);
+  const [profSearch, setProfSearch] = useState("");
+
   const list = useMemo(() => {
-    if (profId === "all") return courses;
-    return courses.filter((c) => c.professionId === profId);
-  }, [profId]);
+    let rows = courses.filter((c) => selectedProfIds.has(c.professionId));
+    const q = courseQuery.trim().toLowerCase();
+    if (q) rows = rows.filter((c) => c.name.toLowerCase().includes(q));
+    return rows;
+  }, [selectedProfIds, courseQuery]);
+
+  const professionsFiltered = useMemo(() => {
+    const q = profSearch.trim().toLowerCase();
+    if (!q) return professions;
+    return professions.filter((p) => p.name.toLowerCase().includes(q));
+  }, [profSearch]);
+
+  const toggleProfession = (id: string) => {
+    setSelectedProfIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const selectAllProfessions = () => {
+    setSelectedProfIds(new Set(professions.map((p) => p.id)));
+  };
+
+  const clearProfessions = () => {
+    setSelectedProfIds(new Set());
+  };
+
+  const [importOpen, setImportOpen] = useState(false);
+  const importRef = useRef<HTMLDivElement>(null);
+  const profRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!importOpen && !profPanelOpen) return;
+    const handler = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (importOpen && importRef.current && !importRef.current.contains(t)) {
+        setImportOpen(false);
+      }
+      if (profPanelOpen && profRef.current && !profRef.current.contains(t)) {
+        setProfPanelOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [importOpen, profPanelOpen]);
 
   return (
     <div>
       <PageHeader
         title="课程中心"
         actions={
-          <select
-            value={profId}
-            onChange={(e) => setProfId(e.target.value)}
-            className="bg-white border border-slate-200 rounded-md px-2 py-1"
-          >
-            <option value="all">全部专业</option>
-            {professions.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
+          <>
+            {/* 导入数据下拉 */}
+            <div ref={importRef} className="relative">
+              <button
+                onClick={() => setImportOpen((v) => !v)}
+                className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-md border transition ${
+                  importOpen
+                    ? "border-indigo-300 bg-indigo-50 text-indigo-700"
+                    : "border-slate-200 bg-white text-slate-700 hover:border-indigo-300 hover:text-indigo-700"
+                }`}
+              >
+                <Download size={14} />
+                <span>导入数据</span>
+                <ChevronDown
+                  size={14}
+                  className={`transition ${
+                    importOpen ? "rotate-180 text-indigo-500" : "text-slate-400"
+                  }`}
+                />
+              </button>
+              {importOpen && (
+                <div className="absolute right-0 top-[calc(100%+6px)] w-72 bg-white border border-slate-200 rounded-xl shadow-lg p-1.5 z-20">
+                  <div className="px-3 py-1.5 text-slate-400 text-[0.6875rem] uppercase tracking-wider">
+                    选择数据来源
+                  </div>
+                  {IMPORT_SOURCES.map((src) => {
+                    const Icon = src.icon;
+                    return (
+                      <button
+                        key={src.key}
+                        onClick={() => setImportOpen(false)}
+                        className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left text-slate-700 hover:bg-slate-50"
+                      >
+                        <span
+                          className={`size-7 rounded-md flex items-center justify-center ${src.bgCls}`}
+                        >
+                          <Icon size={14} className={src.iconCls} />
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <div className="truncate text-slate-800">{src.name}</div>
+                          <div className="text-slate-400 text-[0.6875rem] truncate">
+                            {src.description}
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <button
+              onClick={() => {}}
+              className="inline-flex items-center gap-1 bg-indigo-600 text-white px-3 py-1.5 rounded-md hover:bg-indigo-700"
+            >
+              <Plus size={14} /> 新建课程
+            </button>
+          </>
         }
       />
-      <div className="p-6 grid grid-cols-3 gap-4">
-        {list.map((c) => {
-          const owner = teacherById(c.ownerTeacherId);
-          const prof = professionById(c.professionId);
-          const resCount = resourcesByCourse(c.id).length;
-          const trainCount = trainingsByCourse(c.id).length;
-          return (
-            <button
-              key={c.id}
-              onClick={() => onOpen(c.id)}
-              className="text-left bg-white rounded-xl border border-slate-200 overflow-hidden hover:border-indigo-300 hover:shadow-md transition"
-            >
-              <div className="h-32 bg-gradient-to-br from-indigo-100 via-sky-100 to-emerald-100 flex items-center justify-center">
-                <BookOpen size={36} className="text-indigo-500/70" />
+      <div className="px-6 pt-4 flex flex-wrap items-center gap-3">
+        <div ref={profRef} className="relative">
+          <button
+            type="button"
+            onClick={() => setProfPanelOpen((v) => !v)}
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-sm transition ${
+              profPanelOpen
+                ? "border-indigo-300 bg-indigo-50 text-indigo-800"
+                : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
+            }`}
+          >
+            专业筛选
+            <span className="text-slate-400 font-normal tabular-nums">
+              （{selectedProfIds.size}/{professions.length}）
+            </span>
+            <ChevronDown
+              size={14}
+              className={`text-slate-400 transition ${profPanelOpen ? "rotate-180" : ""}`}
+            />
+          </button>
+          {profPanelOpen && (
+            <div className="absolute left-0 top-[calc(100%+6px)] w-[min(100vw-3rem,22rem)] bg-white border border-slate-200 rounded-xl shadow-lg z-30 flex flex-col max-h-[min(24rem,50vh)]">
+              <div className="p-2 border-b border-slate-100 shrink-0">
+                <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-md px-2 py-1">
+                  <Search size={14} className="text-slate-400 shrink-0" />
+                  <input
+                    value={profSearch}
+                    onChange={(e) => setProfSearch(e.target.value)}
+                    placeholder="搜索专业名称…"
+                    className="w-full min-w-0 bg-transparent text-sm outline-none"
+                  />
+                </div>
               </div>
-              <div className="p-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-slate-900 truncate">《{c.name}》</span>
-                  <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 shrink-0 ml-2">
-                    {c.credit} 学分
-                  </span>
-                </div>
-                <div className="mt-1 text-slate-500 truncate">
-                  {prof?.name} · {c.semester}
-                </div>
-                <div className="mt-2 flex items-center gap-3 text-slate-500">
-                  <span className="inline-flex items-center gap-1">
-                    <Clock size={12} /> {c.totalHours} 学时
-                  </span>
-                  <span className="inline-flex items-center gap-1">
-                    <User size={12} /> {owner?.name ?? "—"}
-                  </span>
-                </div>
-                <div className="mt-3 flex items-center gap-1.5 flex-wrap">
-                  {c.tags.slice(0, 3).map((t) => (
-                    <span
-                      key={t}
-                      className="px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700"
+              <div className="overflow-y-auto flex-1 min-h-0 p-1">
+                {professionsFiltered.length === 0 ? (
+                  <div className="px-3 py-6 text-center text-slate-400 text-sm">
+                    无匹配专业
+                  </div>
+                ) : (
+                  professionsFiltered.map((p) => (
+                    <label
+                      key={p.id}
+                      className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-slate-50 cursor-pointer"
                     >
-                      {t}
-                    </span>
-                  ))}
-                </div>
-                <div className="mt-3 flex items-center gap-3 text-slate-500 border-t border-slate-100 pt-3">
-                  <span>知识点 {c.knowledgeNodeIds.length}</span>
-                  <span>资源 {resCount}</span>
-                  <span>实训 {trainCount}</span>
-                </div>
+                      <input
+                        type="checkbox"
+                        checked={selectedProfIds.has(p.id)}
+                        onChange={() => toggleProfession(p.id)}
+                        className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                      />
+                      <span className="text-sm text-slate-800 truncate">{p.name}</span>
+                    </label>
+                  ))
+                )}
               </div>
-            </button>
-          );
-        })}
-        {list.length === 0 && (
-          <div className="col-span-3 p-12 text-center text-slate-400">该专业暂无课程</div>
-        )}
+              <div className="flex items-center justify-between gap-2 px-2 py-1.5 border-t border-slate-100 text-xs shrink-0">
+                <button
+                  type="button"
+                  onClick={selectAllProfessions}
+                  className="text-indigo-600 hover:text-indigo-800 px-2 py-1"
+                >
+                  全选
+                </button>
+                <button
+                  type="button"
+                  onClick={clearProfessions}
+                  className="text-slate-500 hover:text-slate-800 px-2 py-1"
+                >
+                  清空
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-md px-2 py-1 flex-1 min-w-[12rem] max-w-md">
+          <Search size={14} className="text-slate-400 shrink-0" />
+          <input
+            value={courseQuery}
+            onChange={(e) => setCourseQuery(e.target.value)}
+            placeholder="搜索课程名称…"
+            className="w-full min-w-0 bg-transparent text-sm outline-none"
+          />
+        </div>
+
+        <span className="text-slate-400 text-sm tabular-nums ml-auto">
+          共 {list.length} 条
+        </span>
+      </div>
+
+      <div className="px-6 pb-6 pt-3">
+        <div className="border border-slate-200 rounded-lg bg-white overflow-hidden">
+          <div className="overflow-x-auto max-h-[min(70vh,calc(100vh-12rem))] overflow-y-auto">
+            <table className="w-full text-sm text-left border-collapse">
+              <thead>
+                <tr className="bg-slate-50 text-slate-600 border-b border-slate-200 sticky top-0 z-10">
+                  <th className="px-3 py-2.5 font-medium whitespace-nowrap">课程名称</th>
+                  <th className="px-3 py-2.5 font-medium whitespace-nowrap">专业</th>
+                  <th className="px-3 py-2.5 font-medium whitespace-nowrap">学期</th>
+                  <th className="px-3 py-2.5 font-medium whitespace-nowrap text-right">学分</th>
+                  <th className="px-3 py-2.5 font-medium whitespace-nowrap text-right">学时</th>
+                  <th className="px-3 py-2.5 font-medium whitespace-nowrap">主讲</th>
+                  <th className="px-3 py-2.5 font-medium min-w-[8rem]">标签摘要</th>
+                  <th className="px-3 py-2.5 font-medium whitespace-nowrap text-right">知识点</th>
+                  <th className="px-3 py-2.5 font-medium whitespace-nowrap text-right">资源</th>
+                  <th className="px-3 py-2.5 font-medium whitespace-nowrap text-right">实训</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {list.map((c) => {
+                  const owner = teacherById(c.ownerTeacherId);
+                  const prof = professionById(c.professionId);
+                  const resCount = resourcesByCourse(c.id).length;
+                  const trainCount = trainingsByCourse(c.id).length;
+                  return (
+                    <tr
+                      key={c.id}
+                      onClick={() => onOpen(c.id)}
+                      className="hover:bg-slate-50/80 cursor-pointer text-slate-800"
+                    >
+                      <td className="px-3 py-2 max-w-[14rem]">
+                        <span className="line-clamp-2" title={c.name}>
+                          《{c.name}》
+                        </span>
+                      </td>
+                      <td className="px-3 py-2 text-slate-600 whitespace-nowrap max-w-[10rem] truncate" title={prof?.name}>
+                        {prof?.name ?? "—"}
+                      </td>
+                      <td className="px-3 py-2 text-slate-600 whitespace-nowrap">{c.semester}</td>
+                      <td className="px-3 py-2 text-right tabular-nums text-slate-600">{c.credit}</td>
+                      <td className="px-3 py-2 text-right tabular-nums text-slate-600">{c.totalHours}</td>
+                      <td className="px-3 py-2 text-slate-600 whitespace-nowrap max-w-[8rem] truncate" title={owner?.name}>
+                        {owner?.name ?? "—"}
+                      </td>
+                      <td className="px-3 py-2 text-slate-500 max-w-[12rem] truncate" title={summarizeTags(c.tags)}>
+                        {summarizeTags(c.tags)}
+                      </td>
+                      <td className="px-3 py-2 text-right tabular-nums text-slate-600">
+                        {c.knowledgeNodeIds.length}
+                      </td>
+                      <td className="px-3 py-2 text-right tabular-nums text-slate-600">{resCount}</td>
+                      <td className="px-3 py-2 text-right tabular-nums text-slate-600">{trainCount}</td>
+                    </tr>
+                  );
+                })}
+                {list.length === 0 && (
+                  <tr>
+                    <td colSpan={10} className="px-3 py-16 text-center text-slate-400">
+                      {selectedProfIds.size === 0
+                        ? "请至少选择一个专业"
+                        : "当前筛选条件下暂无课程"}
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
   );

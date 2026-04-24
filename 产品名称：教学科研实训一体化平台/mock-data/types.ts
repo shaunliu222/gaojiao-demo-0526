@@ -55,6 +55,8 @@ export interface Student {
   studentNo: string; // 学号
   enrollYear: number;
   avatar?: string;
+  /** 教师标记为学情关注对象，班级学情列表优先展示 */
+  teacherFocus?: boolean;
 }
 
 /** 教师 */

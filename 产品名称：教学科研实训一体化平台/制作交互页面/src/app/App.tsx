@@ -34,6 +34,7 @@ import { LearnCenter } from "./components/student/LearnCenter";
 import { TrainingLab } from "./components/student/TrainingLab";
 import { MyProfile } from "./components/student/MyProfile";
 import { personalPlanById } from "./data/studentMock";
+import { DEMO_DESIGN_PLAN_ID, DEMO_DESIGN_SECTION_ID } from "@mock";
 
 type TeacherView =
   | { k: "class-list" }
@@ -54,7 +55,7 @@ type TeacherView =
   | { k: "exam-overview" }
   | { k: "exam-detail"; id: string }
   | { k: "student-list" }
-  | { k: "student-detail"; id: string }
+  | { k: "student-detail"; id: string; fromClassId?: string }
   | { k: "graph" }
   | { k: "course-list" }
   | { k: "course-detail"; id: string }
@@ -108,7 +109,7 @@ function titleForView(view: View): string {
     case "exam-detail":
       return examById(view.id)?.examTitle ?? "考试详情";
     case "student-list":
-      return "学生档案";
+      return "学情分析";
     case "student-detail":
       return studentById(view.id)?.name ?? "学生详情";
     case "graph":
@@ -220,6 +221,12 @@ export default function App() {
     }
   };
 
+  /** 顶栏/菜单：先切模块再进对应侧栏项，不经过「模块默认页」 */
+  const goTeacherModuleNav = (m: ModuleKey, n: TeacherNavKey) => {
+    setModule(m);
+    goTeacherNav(n);
+  };
+
   const goModule = (m: ModuleKey) => {
     setModule(m);
     if (m === "teach") {
@@ -238,6 +245,10 @@ export default function App() {
       // 学生端默认进入"学习中心"（主线感最强）
       setNav("learn-center");
       setView({ k: "learn-center" });
+    } else if (r === "college_admin") {
+      setModule("engine");
+      setNav("graph");
+      setView({ k: "graph" });
     } else {
       setModule("teach");
       setNav("plans");
@@ -262,20 +273,35 @@ export default function App() {
               setNav("plans");
               setView({ k: "plan-detail", id: planId });
             }}
+            onOpenStudent={(studentId) =>
+              setView({ k: "student-detail", id: studentId, fromClassId: view.id })
+            }
           />
         );
       case "plans-list":
         return (
           <PlansList
-            onOpen={(id) => setView({ k: "plan-detail", id })}
-            onCreate={() => setView({ k: "plan-wizard" })}
+            onOpen={(id) => {
+              setNav("plans");
+              setView({ k: "plan-detail", id });
+            }}
+            onCreate={() => {
+              setNav("plans");
+              setView({ k: "plan-wizard" });
+            }}
           />
         );
       case "plan-wizard":
         return (
           <PlanWizard
-            onCancel={() => setView({ k: "plans-list" })}
-            onSubmit={() => setView({ k: "plan-detail", id: "plan-main" })}
+            onCancel={() => {
+              setNav("plans");
+              setView({ k: "plans-list" });
+            }}
+            onSubmit={() => {
+              setNav("plans");
+              setView({ k: "plan-detail", id: "plan-main" });
+            }}
             onGoToGraph={() => {
               setModule("engine");
               setNav("graph");
@@ -287,23 +313,28 @@ export default function App() {
         return (
           <PlanDetail
             id={view.id}
-            onBack={() => setView({ k: "plans-list" })}
-            onOpenSection={(planId, sectionId) =>
-              setView({ k: "design", planId, sectionId, fromPlanId: planId })
-            }
+            onBack={() => {
+              setNav("plans");
+              setView({ k: "plans-list" });
+            }}
+            onOpenSection={(planId, sectionId) => {
+              setNav("designs");
+              setView({ k: "design", planId, sectionId, fromPlanId: planId });
+            }}
           />
         );
       case "design-dashboard":
         return (
           <DesignDashboard
-            onOpenSection={(planId, sectionId) =>
+            onOpenSection={(planId, sectionId) => {
+              setNav("designs");
               setView({
                 k: "design",
                 planId,
                 sectionId,
                 fromDashboard: true,
-              })
-            }
+              });
+            }}
           />
         );
       case "design":
@@ -313,13 +344,25 @@ export default function App() {
             sectionId={view.sectionId}
             onBack={() => {
               if (view.fromDashboard) {
+                setNav("designs");
                 setView({ k: "design-dashboard" });
               } else {
+                setNav("plans");
                 setView({
                   k: "plan-detail",
                   id: view.fromPlanId ?? view.planId,
                 });
               }
+            }}
+            onOpenDemoSection={() => {
+              setNav("designs");
+              setView({
+                k: "design",
+                planId: DEMO_DESIGN_PLAN_ID,
+                sectionId: DEMO_DESIGN_SECTION_ID,
+                fromPlanId: view.fromPlanId ?? view.planId,
+                fromDashboard: view.fromDashboard,
+              });
             }}
           />
         );
@@ -334,10 +377,22 @@ export default function App() {
       case "student-list":
         return <StudentList onOpen={(id) => setView({ k: "student-detail", id })} />;
       case "student-detail":
-        return <StudentDetail id={view.id} onBack={() => setView({ k: "student-list" })} />;
+        return (
+          <StudentDetail
+            id={view.id}
+            onBack={() =>
+              setView(
+                view.fromClassId
+                  ? { k: "class-detail", id: view.fromClassId }
+                  : { k: "student-list" },
+              )
+            }
+          />
+        );
       case "graph":
         return (
           <GraphBrowse
+            role={role}
             onOpenResource={(id) =>
               setView({ k: "resource-detail", id, from: "graph" })
             }
@@ -482,13 +537,15 @@ export default function App() {
     }
   };
 
-  const content = () => (role === "student" ? studentContent() : teacherContent());
+  const content = () =>
+    role === "student" ? studentContent() : teacherContent();
 
   return (
     <Layout
       pageTitle={pageTitle}
       module={module}
       setModule={goModule}
+      onTeacherModuleNav={goTeacherModuleNav}
       nav={nav}
       setNav={goNav}
       role={role}

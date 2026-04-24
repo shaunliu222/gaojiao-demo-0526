@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { X, BookOpen, Film, FileText, FlaskConical, Image as ImageIcon, Music, Code2, Database, ListChecks } from "lucide-react";
+import { X, BookOpen, Film, FileText, FlaskConical, Image as ImageIcon, Music, Code2, Database, ListChecks, Sparkles, Pencil, Upload } from "lucide-react";
 import {
   professions,
   nodesByProfession,
@@ -14,9 +14,8 @@ import {
   teacherById,
   courseById,
 } from "../data/lookups";
-import { colorOfCluster, computeFocusNodes, clusterColor } from "../data/graphLayout";
-import { teachingPlans } from "@mock";
-import { PageHeader, AiBadge } from "./Layout";
+import { colorOfCluster, clusterColor } from "../data/graphLayout";
+import { PageHeader, AiBadge, type Role } from "./Layout";
 import {
   GraphNodeShapeBrowse,
   KnowledgeGraphCanvas,
@@ -25,25 +24,35 @@ import {
 
 const SVG_H = 520;
 
-export function GraphBrowse({ onOpenResource }: { onOpenResource: (id: string) => void }) {
+export function GraphBrowse({
+  onOpenResource,
+  role = "teacher",
+}: {
+  onOpenResource: (id: string) => void;
+  role?: Role;
+}) {
+  const canManageGraph = role === "college_admin";
   const [profId, setProfId] = useState<string>("prof-mech");
-  const [planId, setPlanId] = useState<string>("plan-main");
-  const [sectionId, setSectionId] = useState<string>("sec-3-2");
   const [selected, setSelected] = useState<string | null>("kn-mech-031");
   const [hiddenClusters, setHiddenClusters] = useState<Set<string>>(() => new Set());
+  const [nodeOverrides, setNodeOverrides] = useState<
+    Record<string, { name?: string; description?: string }>
+  >({});
+  const [genOpen, setGenOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [actionHint, setActionHint] = useState<string | null>(null);
   const graphAreaRef = useRef<HTMLDivElement>(null);
   const [viewBox, setViewBox] = useState({ w: 900, h: 400 });
 
   const prof = professions.find((p) => p.id === profId);
-  const nodes = nodesByProfession[profId] ?? [];
+  const baseNodes = nodesByProfession[profId] ?? [];
   const edges = edgesByProfession[profId] ?? [];
+  const nodes = useMemo(
+    () => baseNodes.map((n) => ({ ...n, ...nodeOverrides[n.id] })),
+    [baseNodes, nodeOverrides],
+  );
 
-  // focus 集合
-  const focusIds = useMemo(() => {
-    const plan = teachingPlans.find((p) => p.id === planId);
-    if (!plan || plan.professionId !== profId) return new Set<string>();
-    return computeFocusNodes(plan, sectionId);
-  }, [planId, sectionId, profId]);
+  const focusIds = useMemo(() => new Set<string>(), []);
 
   const node = selected ? nodes.find((n) => n.id === selected) : undefined;
 
@@ -53,10 +62,6 @@ export function GraphBrowse({ onOpenResource }: { onOpenResource: (id: string) =
     for (const n of nodes) set.add(n.cluster);
     return Array.from(set);
   }, [nodes]);
-
-  // 当前专业相关的教学计划（供上下文切换）
-  const profPlans = teachingPlans.filter((p) => p.professionId === profId);
-  const currentPlan = teachingPlans.find((p) => p.id === planId);
 
   useEffect(() => {
     const el = graphAreaRef.current;
@@ -120,9 +125,6 @@ export function GraphBrowse({ onOpenResource }: { onOpenResource: (id: string) =
                 const nid = e.target.value;
                 setProfId(nid);
                 setHiddenClusters(new Set());
-                const firstPlan = teachingPlans.find((p) => p.professionId === nid);
-                setPlanId(firstPlan?.id ?? "");
-                setSectionId("");
                 setSelected(null);
               }}
               className="bg-white border border-slate-200 rounded-md px-2 py-1"
@@ -134,55 +136,68 @@ export function GraphBrowse({ onOpenResource }: { onOpenResource: (id: string) =
                 </option>
               ))}
             </select>
-            {profPlans.length > 0 && (
-              <select
-                value={planId}
-                onChange={(e) => {
-                  setPlanId(e.target.value);
-                  setSectionId("");
-                }}
-                className="bg-white border border-slate-200 rounded-md px-2 py-1"
-              >
-                {profPlans.map((p) => (
-                  <option key={p.id} value={p.id}>
-                    上下文计划：{p.title.split(" · ").slice(0, 2).join(" · ")}
-                  </option>
-                ))}
-              </select>
+            {canManageGraph && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setGenOpen(true)}
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-violet-200 bg-violet-50 text-violet-800 hover:bg-violet-100"
+                >
+                  <Sparkles size={14} />
+                  生成图谱
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!selected) {
+                      setActionHint("请先在图中选中要编辑的节点。");
+                      return;
+                    }
+                    setEditOpen(true);
+                  }}
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-indigo-600 text-white hover:bg-indigo-700"
+                >
+                  <Pencil size={14} />
+                  编辑图谱
+                </button>
+              </>
             )}
-            {currentPlan && (
-              <select
-                value={sectionId}
-                onChange={(e) => setSectionId(e.target.value)}
-                className="bg-white border border-slate-200 rounded-md px-2 py-1"
-              >
-                <option value="">全部已设计小节</option>
-                {currentPlan.chapters.flatMap((c) =>
-                  c.sections.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.title}
-                    </option>
-                  )),
-                )}
-              </select>
-            )}
-            <button className="px-3 py-1.5 rounded-md bg-indigo-600 text-white">编辑图谱</button>
           </>
         }
       />
+      {actionHint && (
+        <div className="px-6 py-2 text-sm text-amber-700 bg-amber-50 border-b border-amber-100">
+          {actionHint}
+          <button
+            type="button"
+            className="ml-2 text-amber-900 underline"
+            onClick={() => setActionHint(null)}
+          >
+            关闭
+          </button>
+        </div>
+      )}
       <div className="p-6 grid grid-cols-12 gap-4">
         <div
           className="col-span-8 flex flex-col overflow-hidden bg-white rounded-xl border border-slate-200"
           style={{ height: SVG_H }}
         >
           {prof && !prof.hasKnowledgeGraph ? (
-            <EmptyGraph professionName={prof.name} />
+            <EmptyGraph
+              professionName={prof.name}
+              canShowBuild={canManageGraph}
+              onBuild={() => setGenOpen(true)}
+            />
           ) : nodes.length === 0 ? (
-            <EmptyGraph professionName={prof?.name ?? "该专业"} />
+            <EmptyGraph
+              professionName={prof?.name ?? "该专业"}
+              canShowBuild={canManageGraph}
+              onBuild={() => setGenOpen(true)}
+            />
           ) : (
             <>
               <div className="shrink-0 border-b border-slate-100 px-3 py-2">
-                <div className="text-[10px] text-slate-400 mb-1.5">
+                <div className="text-[0.625rem] text-slate-400 mb-1.5">
                   点击图例可显示/隐藏该知识簇
                 </div>
                 <div className="flex max-h-20 flex-wrap items-center gap-2 overflow-y-auto pr-0.5">
@@ -190,7 +205,7 @@ export function GraphBrowse({ onOpenResource }: { onOpenResource: (id: string) =
                     <button
                       type="button"
                       onClick={showAllClusters}
-                      className="shrink-0 text-[11px] text-indigo-600 hover:text-indigo-800"
+                      className="shrink-0 text-[0.6875rem] text-indigo-600 hover:text-indigo-800"
                     >
                       全部显示
                     </button>
@@ -203,7 +218,7 @@ export function GraphBrowse({ onOpenResource }: { onOpenResource: (id: string) =
                         type="button"
                         onClick={() => toggleCluster(k)}
                         title={off ? "点击在图中显示" : "点击在图中隐藏"}
-                        className={`flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-left text-[12px] transition
+                        className={`flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-left text-[0.75rem] transition
                           ${
                             off
                               ? "border-slate-200 bg-slate-50/90 opacity-50 line-through"
@@ -299,11 +314,181 @@ export function GraphBrowse({ onOpenResource }: { onOpenResource: (id: string) =
           )}
         </aside>
       </div>
+      {genOpen && prof && canManageGraph && (
+        <GenerateGraphDialog
+          onClose={() => setGenOpen(false)}
+          onConfirm={(uploadedName) => {
+            setGenOpen(false);
+            setActionHint(`已依据《${uploadedName}》提交知识图谱生成任务。`);
+          }}
+        />
+      )}
+      {editOpen && selected && node && canManageGraph && (
+        <EditGraphNodeDialog
+          key={selected}
+          initialName={node.name}
+          initialDescription={node.description}
+          onClose={() => setEditOpen(false)}
+          onSave={({ name, description }) => {
+            setNodeOverrides((prev) => ({
+              ...prev,
+              [selected]: { name, description },
+            }));
+            setEditOpen(false);
+            setActionHint("已保存节点信息。");
+          }}
+        />
+      )}
     </div>
   );
 }
 
-function EmptyGraph({ professionName }: { professionName: string }) {
+function GenerateGraphDialog({
+  onClose,
+  onConfirm,
+}: {
+  onClose: () => void;
+  onConfirm: (uploadedFileName: string) => void;
+}) {
+  const [file, setFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  return (
+    <div
+      className="fixed inset-0 z-30 flex items-center justify-center bg-slate-900/40 p-4"
+      onClick={onClose}
+      role="presentation"
+    >
+      <div
+        className="bg-white rounded-xl max-w-lg w-full p-6 shadow-xl border border-slate-200"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="text-slate-900 font-medium">按培养计划生成知识图谱</div>
+        <div className="mt-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              ref={fileInputRef}
+              type="file"
+              className="sr-only"
+              accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-slate-200 bg-slate-50 text-slate-800 hover:bg-slate-100"
+            >
+              <Upload size={16} />
+              选择文件
+            </button>
+            {file && (
+              <span className="text-sm text-slate-600 truncate max-w-[min(100%,240px)]" title={file.name}>
+                已选：{file.name}
+              </span>
+            )}
+          </div>
+        </div>
+        <p className="mt-4 text-sm text-slate-600 leading-relaxed">
+          {file ? (
+            <>
+              将依据
+              <span className="text-slate-800 font-medium">《{file.name}》</span>
+              从培养规格中梳理知识点、技能点与能力模块之间的结构关系。
+            </>
+          ) : (
+            "请上传文件"
+          )}
+        </p>
+        <div className="mt-5 flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-3 py-1.5 rounded-md border border-slate-200 text-slate-700 hover:bg-slate-50"
+          >
+            取消
+          </button>
+          <button
+            type="button"
+            disabled={!file}
+            onClick={() => file && onConfirm(file.name)}
+            className="px-3 py-1.5 rounded-md bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            开始生成
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EditGraphNodeDialog({
+  initialName,
+  initialDescription,
+  onClose,
+  onSave,
+}: {
+  initialName: string;
+  initialDescription: string;
+  onClose: () => void;
+  onSave: (v: { name: string; description: string }) => void;
+}) {
+  const [name, setName] = useState(initialName);
+  const [description, setDescription] = useState(initialDescription);
+  return (
+    <div
+      className="fixed inset-0 z-30 flex items-center justify-center bg-slate-900/40 p-4"
+      onClick={onClose}
+      role="presentation"
+    >
+      <div
+        className="bg-white rounded-xl max-w-lg w-full p-6 shadow-xl border border-slate-200"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="text-slate-900 font-medium">编辑节点</div>
+        <div className="mt-3 space-y-2">
+          <div className="text-xs text-slate-500">显示名称</div>
+          <input
+            className="w-full border border-slate-200 rounded-md px-2 py-1.5"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+          <div className="text-xs text-slate-500">说明</div>
+          <textarea
+            className="w-full border border-slate-200 rounded-md px-2 py-1.5 min-h-[100px] text-sm"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+          />
+        </div>
+        <div className="mt-5 flex justify-end gap-2">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-3 py-1.5 rounded-md border border-slate-200 text-slate-700 hover:bg-slate-50"
+          >
+            取消
+          </button>
+          <button
+            type="button"
+            onClick={() => onSave({ name, description })}
+            className="px-3 py-1.5 rounded-md bg-indigo-600 text-white hover:bg-indigo-700"
+          >
+            保存
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EmptyGraph({
+  professionName,
+  canShowBuild,
+  onBuild,
+}: {
+  professionName: string;
+  canShowBuild: boolean;
+  onBuild: () => void;
+}) {
   return (
     <div className="h-full w-full flex flex-col items-center justify-center text-center p-8">
       <div className="size-16 rounded-2xl bg-amber-50 text-amber-500 flex items-center justify-center mb-3">
@@ -311,9 +496,17 @@ function EmptyGraph({ professionName }: { professionName: string }) {
       </div>
       <div className="text-slate-900 mb-1">{professionName}尚未建设知识图谱</div>
       <p className="text-slate-500 max-w-md">
-        该专业当前没有可视化的图谱节点。可在"编辑图谱"中导入专业培养方案，由 AI 协助生成初稿后进入人工校对流程。
+        该专业当前没有可视化的图谱节点。学院管理员可上传专业人才培养方案等文件，通过「按培养方案生成」创建图谱；其他用户可浏览已建设完成的专业数据。
       </p>
-      <button className="mt-4 px-4 py-2 rounded-lg bg-indigo-600 text-white">立即建设图谱</button>
+      {canShowBuild && (
+        <button
+          type="button"
+          onClick={onBuild}
+          className="mt-4 px-4 py-2 rounded-lg bg-indigo-600 text-white"
+        >
+          按培养方案生成
+        </button>
+      )}
     </div>
   );
 }
@@ -481,7 +674,7 @@ export function ResourceDetail({ id, onBack }: { id: string; onBack: () => void 
             </div>
             <div className="text-slate-600">{r.type.toUpperCase()} 资源预览</div>
             <div className="text-slate-400 mt-1 max-w-md">
-              {r.description || "演示占位 · 点击下载或插入到教学设计"}
+              {r.description || "暂无描述。可在下方操作下载或插入到教学设计。"}
             </div>
           </div>
         </div>

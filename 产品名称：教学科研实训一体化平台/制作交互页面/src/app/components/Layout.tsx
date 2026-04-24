@@ -36,12 +36,14 @@ const engineMenu: { key: NavKey; label: string; icon: any }[] = [
 ];
 
 export function Layout({
+  pageTitle,
   module,
   setModule,
   nav,
   setNav,
   children,
 }: {
+  pageTitle: string;
   module: ModuleKey;
   setModule: (m: ModuleKey) => void;
   nav: NavKey;
@@ -62,7 +64,15 @@ export function Layout({
             className="h-9 w-auto max-w-[min(280px,42vw)] object-contain object-left"
           />
         </div>
-        <nav className="flex items-center gap-1 ml-4">
+        <div
+          className="min-w-0 shrink max-w-[min(360px,38vw)] pl-1 border-l border-slate-200 ml-1"
+          title={pageTitle}
+        >
+          <span className="block truncate text-[15px] font-semibold text-slate-800 leading-tight">
+            {pageTitle}
+          </span>
+        </div>
+        <nav className="flex items-center gap-1 ml-4 shrink-0">
           <button
             onClick={() => {
               setModule("teach");

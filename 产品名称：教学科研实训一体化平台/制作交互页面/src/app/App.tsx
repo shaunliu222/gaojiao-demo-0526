@@ -1,5 +1,15 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Layout, NavKey, ModuleKey } from "./components/Layout";
+import {
+  classById,
+  courseById,
+  examById,
+  homeworkById,
+  planById,
+  resourceById,
+  studentById,
+  trainingById,
+} from "./data/lookups";
 import { ClassProfileList, ClassProfileDetail } from "./components/ClassProfiles";
 import { PlansList, PlanDetail } from "./components/Plans";
 import { DesignWorkbench } from "./components/DesignWorkbench";
@@ -31,10 +41,63 @@ type View =
   | { k: "training-list" }
   | { k: "training-detail"; id: string };
 
+const PLATFORM_TITLE = "教学科研实训一体化平台";
+
+function titleForView(view: View): string {
+  switch (view.k) {
+    case "class-list":
+      return "班级档案";
+    case "class-detail":
+      return classById(view.id)?.name ?? "班级详情";
+    case "plans-list":
+      return "教学计划";
+    case "plan-detail":
+      return planById(view.id)?.title ?? "教学计划详情";
+    case "design": {
+      const plan = planById(view.planId);
+      const sec = plan?.sections.find((s) => s.id === view.sectionId);
+      if (sec?.title) return sec.title;
+      return plan?.title ?? "教学设计";
+    }
+    case "hw-overview":
+      return "作业评价";
+    case "hw-detail":
+      return homeworkById(view.id)?.homeworkTitle ?? "作业详情";
+    case "exam-overview":
+      return "考试评价";
+    case "exam-detail":
+      return examById(view.id)?.examTitle ?? "考试详情";
+    case "student-list":
+      return "学生档案";
+    case "student-detail":
+      return studentById(view.id)?.name ?? "学生详情";
+    case "graph":
+      return "知识图谱";
+    case "course-list":
+      return "课程中心";
+    case "course-detail":
+      return courseById(view.id)?.name ?? "课程详情";
+    case "resource-list":
+      return "教学资源库";
+    case "resource-detail":
+      return resourceById(view.id)?.title ?? "资源详情";
+    case "training-list":
+      return "实训项目库";
+    case "training-detail":
+      return trainingById(view.id)?.name ?? "实训项目详情";
+  }
+}
+
 export default function App() {
   const [module, setModule] = useState<ModuleKey>("teach");
   const [nav, setNav] = useState<NavKey>("class-profiles");
   const [view, setView] = useState<View>({ k: "class-list" });
+
+  const pageTitle = useMemo(() => titleForView(view), [view]);
+
+  useEffect(() => {
+    document.title = `${pageTitle} · ${PLATFORM_TITLE}`;
+  }, [pageTitle]);
 
   const goNav = (n: NavKey) => {
     setNav(n);
@@ -191,7 +254,13 @@ export default function App() {
   };
 
   return (
-    <Layout module={module} setModule={goModule} nav={nav} setNav={goNav}>
+    <Layout
+      pageTitle={pageTitle}
+      module={module}
+      setModule={goModule}
+      nav={nav}
+      setNav={goNav}
+    >
       {content()}
     </Layout>
   );

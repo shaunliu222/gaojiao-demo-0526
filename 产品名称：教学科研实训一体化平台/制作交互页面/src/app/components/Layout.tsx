@@ -57,7 +57,7 @@ export function Layout({
       <header className="h-14 bg-white border-b border-slate-200 flex items-center px-6 gap-6 shrink-0">
         <div className="flex items-center shrink-0">
           <img
-            src="/logo-platform.svg"
+            src={`${import.meta.env.BASE_URL}logo-platform.svg`}
             alt="教学科研实训一体化平台"
             className="h-9 w-auto max-w-[min(280px,42vw)] object-contain object-left"
           />

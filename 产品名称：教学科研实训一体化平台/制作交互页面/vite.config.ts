@@ -17,6 +17,8 @@ function figmaAssetResolver() {
 }
 
 export default defineConfig({
+  // GitHub Pages 项目站为 /<仓库名>/；本地与 Vercel 根域名部署用默认 "/"
+  base: process.env.VITE_BASE_PATH || '/',
   plugins: [
     figmaAssetResolver(),
     // The React and Tailwind plugins are both required for Make, even if

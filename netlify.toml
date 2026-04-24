@@ -1,0 +1,11 @@
+# 仓库根目录配置：避免未设置 Base directory 时发布错目录导致整站 404
+# Netlify 会先进入 base，再执行 command；publish 相对于 base
+[build]
+  base = "产品名称：教学科研实训一体化平台/制作交互页面"
+  command = "npm ci && npm run build"
+  publish = "dist"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

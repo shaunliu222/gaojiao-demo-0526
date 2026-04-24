@@ -12,6 +12,7 @@ import {
 } from "./data/lookups";
 import { ClassProfileList, ClassProfileDetail } from "./components/ClassProfiles";
 import { PlansList, PlanDetail } from "./components/Plans";
+import { PlanWizard } from "./components/PlanWizard";
 import { DesignWorkbench } from "./components/DesignWorkbench";
 import { HwOverview, HwDetail } from "./components/HomeworkEval";
 import { ExamOverview, ExamDetail } from "./components/ExamEval";
@@ -25,6 +26,7 @@ type View =
   | { k: "class-list" }
   | { k: "class-detail"; id: string }
   | { k: "plans-list" }
+  | { k: "plan-wizard" }
   | { k: "plan-detail"; id: string }
   | { k: "design"; planId: string; sectionId: string; fromPlanId?: string }
   | { k: "hw-overview" }
@@ -51,12 +53,18 @@ function titleForView(view: View): string {
       return classById(view.id)?.name ?? "班级详情";
     case "plans-list":
       return "教学计划";
+    case "plan-wizard":
+      return "新建教学计划";
     case "plan-detail":
       return planById(view.id)?.title ?? "教学计划详情";
     case "design": {
       const plan = planById(view.planId);
-      const sec = plan?.sections.find((s) => s.id === view.sectionId);
-      if (sec?.title) return sec.title;
+      if (plan) {
+        for (const ch of plan.chapters) {
+          const sec = ch.sections.find((s) => s.id === view.sectionId);
+          if (sec?.title) return sec.title;
+        }
+      }
       return plan?.title ?? "教学设计";
     }
     case "hw-overview":
@@ -166,7 +174,24 @@ export default function App() {
           />
         );
       case "plans-list":
-        return <PlansList onOpen={(id) => setView({ k: "plan-detail", id })} />;
+        return (
+          <PlansList
+            onOpen={(id) => setView({ k: "plan-detail", id })}
+            onCreate={() => setView({ k: "plan-wizard" })}
+          />
+        );
+      case "plan-wizard":
+        return (
+          <PlanWizard
+            onCancel={() => setView({ k: "plans-list" })}
+            onSubmit={() => setView({ k: "plan-detail", id: "plan-main" })}
+            onGoToGraph={() => {
+              setModule("engine");
+              setNav("graph");
+              setView({ k: "graph" });
+            }}
+          />
+        );
       case "plan-detail":
         return (
           <PlanDetail

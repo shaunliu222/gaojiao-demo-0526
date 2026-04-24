@@ -36,13 +36,22 @@ function planTotalHours(p: TeachingPlan): number {
   return Math.round(min / 45); // 按 1 学时 = 45 分钟换算
 }
 
-export function PlansList({ onOpen }: { onOpen: (id: string) => void }) {
+export function PlansList({
+  onOpen,
+  onCreate,
+}: {
+  onOpen: (id: string) => void;
+  onCreate: () => void;
+}) {
   return (
     <div>
       <PageHeader
         title="教学计划"
         actions={
-          <button className="inline-flex items-center gap-1 bg-indigo-600 text-white px-3 py-1.5 rounded-md hover:bg-indigo-700">
+          <button
+            onClick={onCreate}
+            className="inline-flex items-center gap-1 bg-indigo-600 text-white px-3 py-1.5 rounded-md hover:bg-indigo-700"
+          >
             <Plus size={14} /> 新建教学计划
           </button>
         }

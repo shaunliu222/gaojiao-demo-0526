@@ -123,6 +123,19 @@ export function CourseDetail({
   onOpenTraining: (id: string) => void;
 }) {
   const c = courses.find((x) => x.id === id);
+
+  const nodesByCluster = useMemo(() => {
+    const map: Record<string, Array<{ id: string; name: string; cluster: string }>> = {};
+    if (!c) return map;
+    for (const nid of c.knowledgeNodeIds) {
+      const n = graphNodeById(nid);
+      if (!n) continue;
+      if (!map[n.cluster]) map[n.cluster] = [];
+      map[n.cluster].push({ id: n.id, name: n.name, cluster: n.cluster });
+    }
+    return map;
+  }, [c]);
+
   if (!c) {
     return (
       <div>
@@ -135,17 +148,6 @@ export function CourseDetail({
   const prof = professionById(c.professionId);
   const resources = resourcesByCourse(c.id);
   const trainings = trainingsByCourse(c.id);
-
-  const nodesByCluster = useMemo(() => {
-    const map: Record<string, Array<{ id: string; name: string; cluster: string }>> = {};
-    for (const nid of c.knowledgeNodeIds) {
-      const n = graphNodeById(nid);
-      if (!n) continue;
-      if (!map[n.cluster]) map[n.cluster] = [];
-      map[n.cluster].push({ id: n.id, name: n.name, cluster: n.cluster });
-    }
-    return map;
-  }, [c.knowledgeNodeIds]);
 
   return (
     <div>

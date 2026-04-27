@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { ChevronRight, AlertTriangle, Calendar } from "lucide-react";
 import {
   BarChart,
@@ -7,7 +8,13 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
+  Cell,
 } from "recharts";
+import {
+  EvalCoopRoster,
+  EvalStudentSheet,
+  type Focus,
+} from "./EvalCoopCommon";
 import { examEvaluations } from "@mock";
 import type { ExamEvalSummary } from "@mock";
 import { classById, courseById, teacherById } from "../data/lookups";
@@ -83,6 +90,16 @@ export function ExamOverview({ onOpen }: { onOpen: (id: string) => void }) {
 }
 
 export function ExamDetail({ id, onBack }: { id: string; onBack: () => void }) {
+  const [rangeFilter, setRangeFilter] = useState<string | null>(null);
+  const [questionFocus, setQuestionFocus] = useState<Focus>({ k: "none" });
+  const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
+
+  useEffect(() => {
+    setRangeFilter(null);
+    setQuestionFocus({ k: "none" });
+    setSelectedStudentId(null);
+  }, [id]);
+
   const e = examEvaluations.find((x) => x.id === id);
   if (!e) {
     return (
@@ -95,31 +112,55 @@ export function ExamDetail({ id, onBack }: { id: string; onBack: () => void }) {
   const course = courseById(e.courseId);
   const teacher = teacherById(e.teacherId);
   const notStarted = e.submittedCount === 0 && e.averageScore === 0;
-  const distData = e.scoreBuckets.map((b) => ({ bin: b.range, count: b.count }));
+  const distData = e.scoreBuckets.map((b) => ({
+    bin: b.range,
+    count: b.count,
+    range: b.range,
+  }));
   const compareData = e.classComparison.map((c) => ({
     name: classById(c.classId)?.name ?? c.classId,
     avg: c.avgScore,
     pass: Math.round(c.passRate * 100),
   }));
+  const qAcc = e.questionAccuracy ?? [];
+  const rosterInteractive = !notStarted && qAcc.length > 0;
 
   return (
-    <div>
-      <PageHeader
-        back={onBack}
-        title={<span>{e.examTitle} · {classesLabel(e.classIds)}</span>}
-      />
-      {notStarted ? (
-        <div className="mx-6 mt-4 px-4 py-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-700">
-          考试尚未进行（{e.examAt}），以下为 AI 根据前序评价给出的备考建议。
-        </div>
-      ) : (
-        hasWarning(e) && (
-          <div className="mx-6 mt-4 px-4 py-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 flex items-center gap-2">
-            <AlertTriangle size={16} /> 班级差距较大，建议查看 2302 等薄弱班级的重点学生列表。
+    <div className="flex h-[calc(100dvh-3.5rem)] max-h-full min-h-0 w-full max-w-full flex-col overflow-hidden">
+      <div className="shrink-0">
+        <PageHeader
+          back={onBack}
+          title={<span>{e.examTitle} · {classesLabel(e.classIds)}</span>}
+        />
+        {notStarted ? (
+          <div className="mx-6 mt-4 px-4 py-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-700">
+            考试尚未进行（{e.examAt}），以下为 AI 根据前序评价给出的备考建议。
           </div>
-        )
-      )}
-      <div className="p-6 grid grid-cols-12 gap-4">
+        ) : (
+          hasWarning(e) && (
+            <div className="mx-6 mt-4 px-4 py-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 flex items-center gap-2">
+              <AlertTriangle size={16} /> 班级差距较大，建议对照右栏与题目筛选关注薄弱面。
+            </div>
+          )
+        )}
+      </div>
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden lg:flex-row">
+        <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain max-lg:min-h-0">
+          {selectedStudentId ? (
+            <EvalStudentSheet
+              studentId={selectedStudentId}
+              results={e.studentResults}
+              questionAccuracy={qAcc}
+              keyReasons={e.keyStudents.map((ks) => ({
+                studentId: ks.studentId,
+                reason: ks.reason,
+              }))}
+              title="本场考试"
+              submittedAt={e.examAt}
+              onBack={() => setSelectedStudentId(null)}
+            />
+          ) : (
+      <div className="grid grid-cols-12 gap-4 p-6">
         <div className="col-span-12 grid grid-cols-5 gap-3">
           <Metric label="提交" value={notStarted ? "—" : `${e.submittedCount}/${e.totalStudents}`} />
           <Metric label="均分" value={notStarted ? "—" : e.averageScore.toFixed(1)} />
@@ -138,6 +179,7 @@ export function ExamDetail({ id, onBack }: { id: string; onBack: () => void }) {
           <>
             <div className="col-span-7 bg-white rounded-xl border border-slate-200 p-5">
               <div className="text-slate-900 mb-2">分数分布</div>
+              <p className="text-xs text-slate-400 mb-2">点击柱形按分数段筛选右侧名单，再次点击同一分段可取消</p>
               <div className="h-56">
                 <ResponsiveContainer>
                   <BarChart data={distData}>
@@ -145,7 +187,25 @@ export function ExamDetail({ id, onBack }: { id: string; onBack: () => void }) {
                     <XAxis dataKey="bin" tick={{ fontSize: 12, fill: "#64748b" }} />
                     <YAxis tick={{ fontSize: 12, fill: "#64748b" }} />
                     <Tooltip />
-                    <Bar dataKey="count" fill="#6366f1" radius={[6, 6, 0, 0]} />
+                    <Bar dataKey="count" fill="#6366f1" radius={[6, 6, 0, 0]}>
+                      {distData.map((entry, i) => {
+                        const r = entry.range;
+                        const isSel = rangeFilter === r;
+                        return (
+                          <Cell
+                            key={r + i}
+                            fill="#6366f1"
+                            fillOpacity={rangeFilter && !isSel ? 0.4 : 1}
+                            stroke={isSel ? "#4f46e5" : undefined}
+                            strokeWidth={isSel ? 2 : 0}
+                            style={{ cursor: "pointer" }}
+                            onClick={() =>
+                              setRangeFilter((cur) => (cur === r ? null : r))
+                            }
+                          />
+                        );
+                      })}
+                    </Bar>
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -173,7 +233,62 @@ export function ExamDetail({ id, onBack }: { id: string; onBack: () => void }) {
               )}
             </div>
 
+            {qAcc.length > 0 && (
             <div className="col-span-7 bg-white rounded-xl border border-slate-200 p-5">
+              <div className="text-slate-900 mb-3">题目正确率</div>
+              <p className="text-xs text-slate-400 mb-2 -mt-1">点击题目标题行筛出该题答错学生</p>
+              <div className="space-y-2">
+                {qAcc.map((q, qi) => {
+                  const rate = Math.round(q.accuracy * 100);
+                  const isSel =
+                    questionFocus.k === "question" && questionFocus.qIndex === qi;
+                  return (
+                    <button
+                      key={q.questionNo}
+                      type="button"
+                      onClick={() => {
+                        setQuestionFocus((cur) =>
+                          cur.k === "question" && cur.qIndex === qi
+                            ? { k: "none" }
+                            : {
+                                k: "question",
+                                questionNo: q.questionNo,
+                                title: q.title,
+                                qIndex: qi,
+                              },
+                        );
+                        setRangeFilter(null);
+                      }}
+                      className={`w-full text-left flex items-center gap-3 rounded-lg px-1 py-0.5 -mx-1 transition ${
+                        isSel
+                          ? "ring-2 ring-indigo-400 ring-offset-0 bg-indigo-50/50"
+                          : "hover:bg-slate-50"
+                      }`}
+                    >
+                      <span className="w-8 text-slate-500">Q{q.questionNo}</span>
+                      <span className="flex-1 text-slate-700 truncate">{q.title}</span>
+                      <div className="w-48 h-4 bg-slate-100 rounded overflow-hidden">
+                        <div
+                          className={`h-full ${
+                            rate < 65 ? "bg-rose-400" : rate < 80 ? "bg-amber-400" : "bg-emerald-400"
+                          }`}
+                          style={{ width: `${rate}%` }}
+                        />
+                      </div>
+                      <span className="w-12 text-right text-slate-700">{rate}%</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+            )}
+            <div
+              className={
+                qAcc.length > 0
+                  ? "col-span-5 bg-white rounded-xl border border-slate-200 p-5"
+                  : "col-span-12 bg-white rounded-xl border border-slate-200 p-5"
+              }
+            >
               <div className="text-slate-900 mb-3">集中错题</div>
               <div className="space-y-2">
                 {e.hotWrongPoints.map((hs, i) => (
@@ -194,38 +309,6 @@ export function ExamDetail({ id, onBack }: { id: string; onBack: () => void }) {
                 ))}
                 {e.hotWrongPoints.length === 0 && (
                   <div className="text-slate-400">无集中错题</div>
-                )}
-              </div>
-            </div>
-            <div className="col-span-5 bg-white rounded-xl border border-slate-200 p-5">
-              <div className="text-slate-900 mb-3">重点关注学生</div>
-              <div className="space-y-2">
-                {e.keyStudents.map((s) => (
-                  <div
-                    key={s.studentId}
-                    className="flex items-center justify-between px-3 py-2 rounded-lg border border-slate-200"
-                  >
-                    <div>
-                      <div className="text-slate-900">{s.studentName}</div>
-                      <div className="text-slate-500">{s.reason}</div>
-                    </div>
-                    {s.score != null && (
-                      <span
-                        className={`px-2 py-0.5 rounded-md ${
-                          s.score >= 90
-                            ? "bg-emerald-50 text-emerald-700"
-                            : s.score >= 60
-                            ? "bg-amber-50 text-amber-700"
-                            : "bg-rose-50 text-rose-700"
-                        }`}
-                      >
-                        {s.score}
-                      </span>
-                    )}
-                  </div>
-                ))}
-                {e.keyStudents.length === 0 && (
-                  <div className="text-slate-400">无重点学生</div>
                 )}
               </div>
             </div>
@@ -256,6 +339,25 @@ export function ExamDetail({ id, onBack }: { id: string; onBack: () => void }) {
             )}
           </div>
         </div>
+      </div>
+          )}
+        </div>
+        <EvalCoopRoster
+          classIds={e.classIds}
+          results={e.studentResults}
+          questionAccuracy={qAcc}
+          rangeFilter={rangeFilter}
+          onRangeFilter={(r) => {
+            setRangeFilter(r);
+            if (r != null) setQuestionFocus({ k: "none" });
+          }}
+          questionFocus={questionFocus}
+          onQuestionFocus={setQuestionFocus}
+          selectedStudentId={selectedStudentId}
+          onSelectStudent={setSelectedStudentId}
+          disabled={!rosterInteractive}
+          disabledMessage="考试未开考或无逐题数据时不可按分段/题目筛选；仍可搜索学生。"
+        />
       </div>
     </div>
   );

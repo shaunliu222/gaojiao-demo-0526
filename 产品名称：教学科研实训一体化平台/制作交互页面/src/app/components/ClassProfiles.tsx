@@ -1,5 +1,12 @@
-import { useMemo } from "react";
-import { AlertTriangle, Download, FileText, ChevronRight, Star } from "lucide-react";
+import { useMemo, useState } from "react";
+import {
+  AlertTriangle,
+  ClipboardX,
+  Download,
+  FileCheck,
+  Search,
+  Star,
+} from "lucide-react";
 import {
   Radar,
   RadarChart,
@@ -9,49 +16,55 @@ import {
   ResponsiveContainer,
   BarChart,
   Bar,
+  Cell,
   XAxis,
   YAxis,
   Tooltip,
   CartesianGrid,
 } from "recharts";
-import { classProfiles, classes } from "@mock";
-import type { ClassProfile, Student, StudentProfile } from "@mock";
+import { classProfiles, classes, students } from "@mock";
+import type { ClassProfile, ExamEvalSummary } from "@mock";
 import {
   teacherById,
   classById,
-  currentPlanForClass,
+  courseById,
   professionById,
-  studentsByClass,
   studentProfileByStudentId,
+  homeworksByClass,
+  examsByClass,
 } from "../data/lookups";
 import { PageHeader, AiBadge } from "./Layout";
+import { StudentDetail } from "./StudentProfiles";
+
+/** 学情分析中枢默认选中的班级（与 classProfiles 首项一致） */
+export const DEFAULT_LEARNING_CLASS_ID = classProfiles[0]!.classId;
 
 /** 班级画像若 stdDev 超过 14，就视作"两极分化"预警 */
 function isRisk(p: ClassProfile) {
   return p.scoreDistribution.stdDev >= 14;
 }
 
-/** 班级画像 + join 出来的静态显示字段 */
-interface ClassCard {
-  profile: ClassProfile;
-  className: string;
-  teacherName: string;
-  studentCount: number;
-  risk: boolean;
-  collegeName: string;
-  grade: number;
-  hasGraph: boolean;
-}
-
-function recentProfileAvg(p: StudentProfile | undefined): number | undefined {
+function recentProfileAvg(
+  p: ReturnType<typeof studentProfileByStudentId>,
+): number | undefined {
   if (!p || p.recentScores.length === 0) return undefined;
   return Math.round(
     p.recentScores.reduce((a, b) => a + b.score, 0) / p.recentScores.length,
   );
 }
 
-/** 重点关注优先，其次按学号 */
-function sortClassStudentsForArchive(list: readonly Student[]) {
+/** 与班级「成绩分布」四段一致，用学生近期均分划档 */
+export type ScoreBinKey = "<60" | "60-69" | "70-84" | "≥85";
+
+export function scoreAvgToScoreBin(avg: number | undefined | null): ScoreBinKey | null {
+  if (avg == null) return null;
+  if (avg < 60) return "<60";
+  if (avg < 70) return "60-69";
+  if (avg < 85) return "70-84";
+  return "≥85";
+}
+
+function sortRosterByFocus<T extends { teacherFocus?: boolean; studentNo: string }>(list: T[]) {
   return [...list].sort((a, b) => {
     const fa = a.teacherFocus ? 1 : 0;
     const fb = b.teacherFocus ? 1 : 0;
@@ -60,116 +73,294 @@ function sortClassStudentsForArchive(list: readonly Student[]) {
   });
 }
 
-function buildCard(p: ClassProfile): ClassCard {
-  const cls = classById(p.classId);
-  const teacher = cls ? teacherById(cls.headTeacherId) : undefined;
-  const profession = cls ? professionById(cls.professionId) : undefined;
-  return {
-    profile: p,
-    className: cls?.name ?? p.classId,
-    teacherName: teacher?.name ?? "—",
-    studentCount: cls?.studentCount ?? 0,
-    risk: isRisk(p),
-    collegeName: profession?.college ?? "—",
-    grade: cls?.grade ?? 0,
-    hasGraph: profession?.hasKnowledgeGraph ?? true,
-  };
-}
+function LearningStudentRoster({
+  classId,
+  selectedStudentId,
+  onSelect,
+  scoreBinFilter,
+}: {
+  classId: string;
+  selectedStudentId?: string;
+  onSelect: (id: string) => void;
+  scoreBinFilter: ScoreBinKey | null;
+}) {
+  const [q, setQ] = useState("");
 
-export function ClassProfileList({ onOpen }: { onOpen: (id: string) => void }) {
-  const cards = classProfiles.map(buildCard);
+  const list = useMemo(() => {
+    return sortRosterByFocus(
+      students
+        .filter((s) => s.classId === classId)
+        .filter((s) => {
+          if (!q.trim()) return true;
+          const k = q.trim().toLowerCase();
+          return (
+            s.name.toLowerCase().includes(k) || s.studentNo.toLowerCase().includes(k)
+          );
+        })
+        .filter((s) => {
+          if (!scoreBinFilter) return true;
+          const p = studentProfileByStudentId(s.id);
+          const avg = recentProfileAvg(p);
+          if (avg == null) return false;
+          return scoreAvgToScoreBin(avg) === scoreBinFilter;
+        }),
+    );
+  }, [classId, q, scoreBinFilter]);
+
   return (
-    <div>
-      <PageHeader
-        title={<span>班级档案</span>}
-        actions={
-          <div className="flex items-center gap-2 text-slate-500">
-            <select className="bg-white border border-slate-200 rounded-md px-2 py-1">
-              <option>全部学院</option>
-            </select>
-            <select className="bg-white border border-slate-200 rounded-md px-2 py-1">
-              <option>全部年级</option>
-            </select>
-            <input placeholder="搜索班级" className="border border-slate-200 rounded-md px-2 py-1" />
-          </div>
-        }
-      />
-      <div className="p-6 grid grid-cols-3 gap-4">
-        {cards.map((card) => {
-          const { profile: p, className, risk, hasGraph, studentCount } = card;
+    <aside
+      className="w-80 max-lg:max-h-[min(50vh,22rem)] shrink-0 border-l border-slate-200 bg-slate-50/70 flex flex-col min-h-0 lg:h-full lg:max-h-none"
+      aria-label="本班学生列表"
+    >
+      <div className="p-3 border-b border-slate-200/90 bg-white shrink-0">
+        <div className="text-xs text-slate-500 mb-2">本班学生</div>
+        <div className="flex items-center gap-1 bg-white border border-slate-200 rounded-md px-2 py-1.5 w-full">
+          <Search size={14} className="text-slate-400 shrink-0" />
+          <input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="搜索姓名/学号"
+            className="w-full min-w-0 text-sm outline-none"
+          />
+        </div>
+      </div>
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2 space-y-1">
+        {list.map((s) => {
+          const p = studentProfileByStudentId(s.id);
+          const avg = recentProfileAvg(p);
+          const active = selectedStudentId === s.id;
           return (
             <button
-              key={p.classId}
-              onClick={() => onOpen(p.classId)}
-              className="text-left bg-white rounded-xl border border-slate-200 p-4 hover:border-indigo-300 hover:shadow-md transition relative"
+              key={s.id}
+              type="button"
+              onClick={() => onSelect(s.id)}
+              className={`w-full text-left rounded-lg border px-2.5 py-2 text-sm transition ${
+                active
+                  ? "border-indigo-300 bg-indigo-50/90 shadow-sm"
+                  : "border-slate-200/90 bg-white hover:border-indigo-200 hover:bg-indigo-50/40"
+              }`}
             >
-              {risk && (
-                <span className="absolute top-3 right-3 inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-rose-50 text-rose-600">
-                  <AlertTriangle size={12} /> 预警
-                </span>
-              )}
-              <div className="flex items-center justify-between">
-                <div className="text-slate-900">{className}</div>
-                <span
-                  className={`px-2 py-0.5 rounded-md ${
-                    risk ? "bg-rose-50 text-rose-600" : "bg-indigo-50 text-indigo-700"
+              <div className="flex items-start gap-2">
+                <div
+                  className={`size-8 rounded-full flex items-center justify-center text-white text-xs shrink-0 ${
+                    s.gender === "男"
+                      ? "bg-gradient-to-br from-blue-400 to-indigo-500"
+                      : "bg-gradient-to-br from-pink-400 to-rose-500"
                   }`}
                 >
-                  {p.styleTag}
-                </span>
+                  {s.name.charAt(0)}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium text-slate-900 flex items-center gap-1">
+                    {s.teacherFocus && (
+                      <Star size={10} className="text-amber-500 shrink-0" fill="currentColor" />
+                    )}
+                    {s.name}
+                  </div>
+                  <div className="text-slate-500 text-xs font-mono tabular-nums mt-0.5 truncate">
+                    {s.studentNo}
+                  </div>
+                  <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs">
+                    {avg != null && (
+                      <span
+                        className={`px-1.5 py-0.5 rounded ${
+                          avg >= 85
+                            ? "bg-emerald-50 text-emerald-700"
+                            : avg >= 70
+                            ? "bg-amber-50 text-amber-700"
+                            : "bg-rose-50 text-rose-700"
+                        }`}
+                      >
+                        均 {avg}
+                      </span>
+                    )}
+                    {p && (
+                      <>
+                        <span className="text-slate-500 truncate max-w-[5.5rem]">
+                          {p.learningStyle}
+                        </span>
+                        <span
+                          className={
+                            p.activity === "高"
+                              ? "text-emerald-600"
+                              : p.activity === "中"
+                              ? "text-amber-600"
+                              : "text-rose-600"
+                          }
+                        >
+                          活跃 {p.activity}
+                        </span>
+                      </>
+                    )}
+                    {!p && <span className="text-slate-400">暂无画像</span>}
+                  </div>
+                </div>
               </div>
-              <div className="mt-1 text-slate-500">
-                {studentCount} 人 · 均分 {p.scoreDistribution.averageScore}
-              </div>
-              <div className="h-32 -mx-2 my-2">
-                <ResponsiveContainer>
-                  <RadarChart data={p.radar} outerRadius={50}>
-                    <PolarGrid stroke="#e2e8f0" />
-                    <PolarAngleAxis dataKey="name" tick={{ fontSize: 10, fill: "#64748b" }} />
-                    <Radar
-                      dataKey="score"
-                      stroke={risk ? "#f43f5e" : "#6366f1"}
-                      fill={risk ? "#f43f5e" : "#6366f1"}
-                      fillOpacity={0.25}
-                    />
-                  </RadarChart>
-                </ResponsiveContainer>
-              </div>
-              <div className="text-slate-600">
-                强：{p.strengths[0] ?? "—"}
-                <br />
-                弱：{p.weaknesses[0] ?? "—"}
-              </div>
-              {!hasGraph && (
-                <div className="mt-2 text-amber-600">⚠ 图谱未建·画像较粗</div>
-              )}
             </button>
           );
         })}
+        {list.length === 0 && (
+          <div className="p-6 text-center text-slate-400 text-sm">
+            {scoreBinFilter && !q.trim() ? "该分段下暂无有均分档案的学生" : "无匹配学生"}
+          </div>
+        )}
+      </div>
+    </aside>
+  );
+}
+
+export function LearningAnalyticsHub({
+  classId,
+  selectedStudentId,
+  onClassIdChange,
+  onSelectStudent,
+  onClearStudent,
+  onOpenHomeworkEval,
+  onOpenExamEval,
+}: {
+  classId: string;
+  selectedStudentId?: string;
+  onClassIdChange: (id: string) => void;
+  onSelectStudent: (id: string) => void;
+  onClearStudent: () => void;
+  onOpenHomeworkEval: (homeworkEvalId: string) => void;
+  onOpenExamEval: (examEvalId: string) => void;
+}) {
+  const [scoreBinFilter, setScoreBinFilter] = useState<ScoreBinKey | null>(null);
+  // 占满主内容区一屏高（与 Layout 顶栏 h-14 对应），主区/右栏分栏内滚动，避免整页被名单撑高
+  return (
+    <div className="flex h-[calc(100dvh-3.5rem)] max-h-full min-h-0 w-full max-w-full flex-col overflow-hidden">
+      <div className="shrink-0">
+        <PageHeader title={<span>学情分析</span>} />
+        <div className="px-6 pt-1 pb-3 border-b border-slate-200 bg-white">
+          <div
+            className="flex flex-wrap items-center gap-2"
+            role="tablist"
+            aria-label="班级"
+          >
+            {classProfiles.map((p) => {
+              const cls = classById(p.classId);
+              const name = cls?.name ?? p.classId;
+              const active = classId === p.classId;
+              return (
+                <button
+                  key={p.classId}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  onClick={() => {
+                    onClassIdChange(p.classId);
+                    setScoreBinFilter(null);
+                  }}
+                  className={`px-3 py-1.5 rounded-lg text-sm transition ${
+                    active
+                      ? "bg-indigo-50 text-indigo-700 font-medium"
+                      : "text-slate-600 hover:bg-slate-100"
+                  }`}
+                >
+                  {name}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden lg:flex-row">
+        <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain max-lg:min-h-0">
+          {selectedStudentId ? (
+            <StudentDetail
+              id={selectedStudentId}
+              variant="hub"
+              onBack={onClearStudent}
+            />
+          ) : (
+            <ClassProfileDetail
+              id={classId}
+              variant="hub"
+              scoreBinFilter={scoreBinFilter}
+              onScoreBinFilterChange={(bin) =>
+                setScoreBinFilter((cur) => (cur === bin ? null : bin))
+              }
+              onOpenHomeworkEval={onOpenHomeworkEval}
+              onOpenExamEval={onOpenExamEval}
+            />
+          )}
+        </div>
+        <LearningStudentRoster
+          classId={classId}
+          selectedStudentId={selectedStudentId}
+          onSelect={onSelectStudent}
+          scoreBinFilter={scoreBinFilter}
+        />
       </div>
     </div>
   );
 }
 
+const SCORE_BIN_BAR_COLORS: Record<ScoreBinKey, string> = {
+  "<60": "#f43f5e",
+  "60-69": "#fb923c",
+  "70-84": "#eab308",
+  "≥85": "#10b981",
+};
+
+function fmtShortDate(iso: string) {
+  const [y, m, d] = iso.split("-").map(Number);
+  if (!y || !m || !d) return iso;
+  return `${m}月${d}日`;
+}
+
+function examAvgForClass(exam: ExamEvalSummary, classId: string): number {
+  const row = exam.classComparison.find((c) => c.classId === classId);
+  return row?.avgScore ?? exam.averageScore;
+}
+
 export function ClassProfileDetail({
   id,
+  variant = "default",
   onBack,
-  onGoPlans,
-  onOpenPlan,
-  onOpenStudent,
+  scoreBinFilter = null,
+  onScoreBinFilterChange,
+  onOpenHomeworkEval,
+  onOpenExamEval,
 }: {
   id: string;
-  onBack: () => void;
-  onGoPlans: () => void;
-  onOpenPlan?: (planId: string) => void;
-  onOpenStudent?: (studentId: string) => void;
+  variant?: "default" | "hub";
+  onBack?: () => void;
+  /** 学情分析 hub：与右侧名单联动的当前分段；再点同柱在父级取消 */
+  scoreBinFilter?: ScoreBinKey | null;
+  onScoreBinFilterChange?: (bin: ScoreBinKey) => void;
+  /** 跳转到作业评价详情 */
+  onOpenHomeworkEval?: (homeworkEvalId: string) => void;
+  /** 跳转到考试评价详情 */
+  onOpenExamEval?: (examEvalId: string) => void;
 }) {
+  const recentHomework = useMemo(
+    () =>
+      homeworksByClass(id)
+        .slice()
+        .sort((a, b) => b.assignedAt.localeCompare(a.assignedAt))
+        .slice(0, 4),
+    [id],
+  );
+  const recentExams = useMemo(
+    () =>
+      examsByClass(id)
+        .slice()
+        .sort((a, b) => b.examAt.localeCompare(a.examAt))
+        .slice(0, 4),
+    [id],
+  );
+
   const profile = classProfiles.find((x) => x.classId === id);
   const cls = classes.find((c) => c.id === id);
   if (!profile || !cls) {
     return (
       <div>
-        <PageHeader back={onBack} title="班级档案" />
+        <PageHeader
+          back={variant === "hub" ? undefined : onBack}
+          title="班级档案"
+        />
         <div className="p-16 text-center text-slate-500">未找到 id 为 {id} 的班级画像。</div>
       </div>
     );
@@ -180,23 +371,17 @@ export function ClassProfileDetail({
   const sd = profile.scoreDistribution;
 
   const dist = [
-    { bin: "<60", count: sd.poor },
-    { bin: "60-69", count: sd.medium },
-    { bin: "70-84", count: sd.good },
-    { bin: "≥85", count: sd.excellent },
+    { bin: "<60" as const, count: sd.poor },
+    { bin: "60-69" as const, count: sd.medium },
+    { bin: "70-84" as const, count: sd.good },
+    { bin: "≥85" as const, count: sd.excellent },
   ];
-
-  const plan = currentPlanForClass(id);
-
-  const classStudents = useMemo(
-    () => sortClassStudentsForArchive(studentsByClass(id)),
-    [id],
-  );
+  const hubBarInteractive = variant === "hub" && onScoreBinFilterChange;
 
   return (
     <div>
       <PageHeader
-        back={onBack}
+        back={variant === "hub" ? undefined : onBack}
         title={
           <span>
             {cls.name} · {cls.studentCount} 人 · 班主任 {teacher?.name ?? "—"}
@@ -234,6 +419,9 @@ export function ClassProfileDetail({
         </div>
         <div className="col-span-5 bg-white rounded-xl border border-slate-200 p-4">
           <div className="text-slate-500 mb-2">成绩分布</div>
+          {hubBarInteractive && (
+            <p className="text-xs text-slate-400 mb-2">点击柱形快速筛选，再次点击同一分段可取消</p>
+          )}
           <div className="h-48">
             <ResponsiveContainer>
               <BarChart data={dist}>
@@ -241,7 +429,31 @@ export function ClassProfileDetail({
                 <XAxis dataKey="bin" tick={{ fontSize: 12, fill: "#64748b" }} />
                 <YAxis tick={{ fontSize: 12, fill: "#64748b" }} />
                 <Tooltip />
-                <Bar dataKey="count" fill={risk ? "#f43f5e" : "#6366f1"} radius={[6, 6, 0, 0]} />
+                {hubBarInteractive ? (
+                  <Bar dataKey="count" radius={[6, 6, 0, 0]}>
+                    {dist.map((entry) => {
+                      const bin = entry.bin;
+                      const isSel = scoreBinFilter === bin;
+                      return (
+                        <Cell
+                          key={bin}
+                          fill={SCORE_BIN_BAR_COLORS[bin]}
+                          fillOpacity={scoreBinFilter && !isSel ? 0.4 : 1}
+                          stroke={isSel ? "#4f46e5" : undefined}
+                          strokeWidth={isSel ? 2 : 0}
+                          style={{ cursor: "pointer" }}
+                          onClick={() => onScoreBinFilterChange?.(bin)}
+                        />
+                      );
+                    })}
+                  </Bar>
+                ) : (
+                  <Bar
+                    dataKey="count"
+                    fill={risk ? "#f43f5e" : "#6366f1"}
+                    radius={[6, 6, 0, 0]}
+                  />
+                )}
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -257,6 +469,107 @@ export function ClassProfileDetail({
                 <Radar dataKey="score" stroke="#6366f1" fill="#6366f1" fillOpacity={0.3} />
               </RadarChart>
             </ResponsiveContainer>
+          </div>
+        </div>
+        <div className="col-span-12 grid grid-cols-1 gap-4 lg:grid-cols-2">
+          <div className="bg-white rounded-xl border border-slate-200 p-4 flex flex-col min-h-[10.5rem]">
+            <div className="flex items-start justify-between gap-2 mb-3">
+              <div>
+                <div className="text-slate-500 mb-0.5">近期作业</div>
+                <p className="text-xs text-slate-400">协同评价 · 最近布置的批次，点击查看详情</p>
+              </div>
+              <FileCheck size={20} className="text-indigo-500 shrink-0" aria-hidden />
+            </div>
+            <ul className="space-y-2 min-h-0">
+              {recentHomework.length === 0 ? (
+                <li className="text-sm text-slate-400 py-4 text-center">暂无作业评价记录</li>
+              ) : (
+                recentHomework.map((h) => {
+                  const course = courseById(h.courseId);
+                  const canNav = Boolean(onOpenHomeworkEval);
+                  return (
+                    <li key={h.id}>
+                      {canNav ? (
+                        <button
+                          type="button"
+                          onClick={() => onOpenHomeworkEval?.(h.id)}
+                          className="w-full text-left rounded-lg border border-slate-100 bg-slate-50/50 px-3 py-2.5 transition hover:border-indigo-200 hover:bg-indigo-50/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-400"
+                        >
+                          <div className="text-sm font-medium text-slate-900 line-clamp-2">
+                            {h.homeworkTitle}
+                          </div>
+                          <div className="text-xs text-slate-500 mt-1.5">
+                            布置 {fmtShortDate(h.assignedAt)} · 均分 {h.averageScore}
+                            {course ? ` · ${course.name}` : ""}
+                          </div>
+                        </button>
+                      ) : (
+                        <div className="rounded-lg border border-slate-100 bg-slate-50/30 px-3 py-2.5">
+                          <div className="text-sm font-medium text-slate-900 line-clamp-2">
+                            {h.homeworkTitle}
+                          </div>
+                          <div className="text-xs text-slate-500 mt-1.5">
+                            布置 {fmtShortDate(h.assignedAt)} · 均分 {h.averageScore}
+                            {course ? ` · ${course.name}` : ""}
+                          </div>
+                        </div>
+                      )}
+                    </li>
+                  );
+                })
+              )}
+            </ul>
+          </div>
+          <div className="bg-white rounded-xl border border-slate-200 p-4 flex flex-col min-h-[10.5rem]">
+            <div className="flex items-start justify-between gap-2 mb-3">
+              <div>
+                <div className="text-slate-500 mb-0.5">近期考试</div>
+                <p className="text-xs text-slate-400">协同评价 · 最近考试场次，点击查看详情</p>
+              </div>
+              <ClipboardX size={20} className="text-violet-500 shrink-0" aria-hidden />
+            </div>
+            <ul className="space-y-2 min-h-0">
+              {recentExams.length === 0 ? (
+                <li className="text-sm text-slate-400 py-4 text-center">暂无考试评价记录</li>
+              ) : (
+                recentExams.map((e) => {
+                  const course = courseById(e.courseId);
+                  const canNav = Boolean(onOpenExamEval);
+                  const classAvg = examAvgForClass(e, id);
+                  return (
+                    <li key={e.id}>
+                      {canNav ? (
+                        <button
+                          type="button"
+                          onClick={() => onOpenExamEval?.(e.id)}
+                          className="w-full text-left rounded-lg border border-slate-100 bg-slate-50/50 px-3 py-2.5 transition hover:border-violet-200 hover:bg-violet-50/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-violet-400"
+                        >
+                          <div className="text-sm font-medium text-slate-900 line-clamp-2">
+                            {e.examTitle}
+                          </div>
+                          <div className="text-xs text-slate-500 mt-1.5">
+                            {fmtShortDate(e.examAt)} · 本班均分 {classAvg.toFixed(1)} · 参考{" "}
+                            {e.submittedCount}/{e.totalStudents}
+                            {course ? ` · ${course.name}` : ""}
+                          </div>
+                        </button>
+                      ) : (
+                        <div className="rounded-lg border border-slate-100 bg-slate-50/30 px-3 py-2.5">
+                          <div className="text-sm font-medium text-slate-900 line-clamp-2">
+                            {e.examTitle}
+                          </div>
+                          <div className="text-xs text-slate-500 mt-1.5">
+                            {fmtShortDate(e.examAt)} · 本班均分 {classAvg.toFixed(1)} · 参考{" "}
+                            {e.submittedCount}/{e.totalStudents}
+                            {course ? ` · ${course.name}` : ""}
+                          </div>
+                        </div>
+                      )}
+                    </li>
+                  );
+                })
+              )}
+            </ul>
           </div>
         </div>
         <div className="col-span-12 bg-white rounded-xl border border-slate-200 p-5">
@@ -291,145 +604,7 @@ export function ClassProfileDetail({
             </div>
           </div>
         </div>
-        <div className="col-span-12 bg-white rounded-xl border border-slate-200 p-5">
-          <div className="text-slate-500 mb-3">快速入口</div>
-          <div className="flex gap-2 flex-wrap">
-            <Quick label={`查看 ${cls.studentCount} 人学情分析`} />
-            <Quick label="最近作业" />
-            {plan ? (
-              <Quick
-                label={`本班当前计划《${plan.title}》`}
-                onClick={() => (onOpenPlan ? onOpenPlan(plan.id) : onGoPlans())}
-              />
-            ) : (
-              <Quick label="本班对应的教学计划" onClick={onGoPlans} />
-            )}
-          </div>
-        </div>
-        <div className="col-span-12 bg-white rounded-xl border border-slate-200 p-5">
-          <div className="flex flex-wrap items-baseline justify-between gap-2 mb-4">
-            <div>
-              <div className="text-slate-900 font-medium">全班学情档案</div>
-              <div className="text-slate-500 text-sm mt-0.5">
-                共 {classStudents.length} 人 · 已生成画像 {classStudents.filter((s) => studentProfileByStudentId(s.id)).length}{" "}
-                人 · 重点关注排前
-              </div>
-            </div>
-          </div>
-          <div className="overflow-x-auto -mx-1">
-            <table className="w-full text-sm min-w-[720px]">
-              <thead>
-                <tr className="text-left text-slate-500 border-b border-slate-200">
-                  <th className="py-2.5 pr-3 font-medium w-10">#</th>
-                  <th className="py-2.5 pr-3 font-medium">姓名</th>
-                  <th className="py-2.5 pr-3 font-medium">学号</th>
-                  <th className="py-2.5 pr-3 font-medium">关注</th>
-                  <th className="py-2.5 pr-3 font-medium">近期均分</th>
-                  <th className="py-2.5 pr-3 font-medium">学习风格</th>
-                  <th className="py-2.5 pr-3 font-medium">课堂活跃</th>
-                  <th className="py-2.5 pr-2 font-medium">学情摘要</th>
-                </tr>
-              </thead>
-              <tbody>
-                {classStudents.map((s, index) => {
-                  const p = studentProfileByStudentId(s.id);
-                  const avg = recentProfileAvg(p);
-                  return (
-                    <tr
-                      key={s.id}
-                      onClick={() => onOpenStudent?.(s.id)}
-                      className={`border-b border-slate-100 last:border-0 ${
-                        onOpenStudent ? "cursor-pointer hover:bg-slate-50/80" : ""
-                      }`}
-                    >
-                      <td className="py-2.5 pr-3 text-slate-400 tabular-nums">{index + 1}</td>
-                      <td className="py-2.5 pr-3 text-slate-900 whitespace-nowrap">
-                        {s.teacherFocus && (
-                          <Star
-                            className="inline-block mr-1.5 -mt-0.5 text-amber-500"
-                            size={14}
-                            fill="currentColor"
-                          />
-                        )}
-                        {s.name}
-                      </td>
-                      <td className="py-2.5 pr-3 text-slate-600 font-mono text-xs whitespace-nowrap">
-                        {s.studentNo}
-                      </td>
-                      <td className="py-2.5 pr-3 whitespace-nowrap">
-                        {s.teacherFocus ? (
-                          <span className="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md bg-amber-50 text-amber-800 text-xs">
-                            重点关注
-                          </span>
-                        ) : (
-                          <span className="text-slate-300">—</span>
-                        )}
-                      </td>
-                      <td className="py-2.5 pr-3">
-                        {avg != null ? (
-                          <span
-                            className={`px-2 py-0.5 rounded-md ${
-                              avg >= 85
-                                ? "bg-emerald-50 text-emerald-700"
-                                : avg >= 70
-                                ? "bg-amber-50 text-amber-700"
-                                : "bg-rose-50 text-rose-700"
-                            }`}
-                          >
-                            {avg}
-                          </span>
-                        ) : (
-                          <span className="text-slate-400">—</span>
-                        )}
-                      </td>
-                      <td className="py-2.5 pr-3 text-slate-700">
-                        {p ? p.learningStyle : "—"}
-                      </td>
-                      <td className="py-2.5 pr-3">
-                        {p ? (
-                          <span
-                            className={`px-2 py-0.5 rounded-md ${
-                              p.activity === "高"
-                                ? "bg-emerald-50 text-emerald-700"
-                                : p.activity === "中"
-                                ? "bg-amber-50 text-amber-700"
-                                : "bg-rose-50 text-rose-700"
-                            }`}
-                          >
-                            {p.activity}
-                          </span>
-                        ) : (
-                          <span className="text-slate-400">—</span>
-                        )}
-                      </td>
-                      <td className="py-2.5 pr-2 text-slate-600 max-w-md">
-                        {p ? (
-                          <span className="line-clamp-2" title={p.aiSummary}>
-                            {p.aiSummary}
-                          </span>
-                        ) : (
-                          <span className="text-slate-400">暂无学情档案</span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
       </div>
     </div>
-  );
-}
-
-function Quick({ label, onClick }: { label: string; onClick?: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/40 text-slate-700"
-    >
-      <FileText size={14} /> {label} <ChevronRight size={14} className="text-slate-400" />
-    </button>
   );
 }

@@ -1,4 +1,5 @@
-import type { ExamEvalSummary } from "./types";
+import type { ExamEvalInput, ExamEvalSummary } from "./types";
+import { withExamStudentResults } from "./evalResultBuilders";
 
 /**
  * 考试评价汇总
@@ -8,7 +9,7 @@ import type { ExamEvalSummary } from "./types";
  * - 法学期中 1 次
  * - 护理期中 1 次
  */
-export const examEvaluations: ExamEvalSummary[] = [
+const examEvaluationsRaw: ExamEvalInput[] = [
   // ====================================================================
   // 1. 主线期中考试（2301 + 2302 联考，真实数据）
   // ====================================================================
@@ -68,6 +69,13 @@ export const examEvaluations: ExamEvalSummary[] = [
     classComparison: [
       { classId: "cls-mech-2301", avgScore: 79.8, passRate: 0.96 },
       { classId: "cls-mech-2302", avgScore: 68.3, passRate: 0.76 },
+    ],
+    questionAccuracy: [
+      { questionNo: 1, title: "投影与三视图基础", knowledgeNodeId: "kn-mech-018", accuracy: 0.88 },
+      { questionNo: 2, title: "点线面综合", knowledgeNodeId: "kn-mech-022", accuracy: 0.75 },
+      { questionNo: 3, title: "组合体读图与补线", knowledgeNodeId: "kn-mech-031", accuracy: 0.58 },
+      { questionNo: 4, title: "截交线与相贯线", knowledgeNodeId: "kn-mech-029", accuracy: 0.52 },
+      { questionNo: 5, title: "剖视图与机件表达", knowledgeNodeId: "kn-mech-039", accuracy: 0.69 },
     ],
   },
 
@@ -142,6 +150,12 @@ export const examEvaluations: ExamEvalSummary[] = [
       },
     ],
     classComparison: [{ classId: "cls-law-2301", avgScore: 78.4, passRate: 0.96 }],
+    questionAccuracy: [
+      { questionNo: 1, title: "单选与概念辨析", knowledgeNodeId: "kn-law-014", accuracy: 0.90 },
+      { questionNo: 2, title: "表见代理与构成要件", knowledgeNodeId: "kn-law-015", accuracy: 0.68 },
+      { questionNo: 3, title: "诉讼时效中止与中断", knowledgeNodeId: "kn-law-021", accuracy: 0.62 },
+      { questionNo: 4, title: "案例分析", knowledgeNodeId: "kn-law-015", accuracy: 0.74 },
+    ],
   },
 
   // ====================================================================
@@ -181,5 +195,14 @@ export const examEvaluations: ExamEvalSummary[] = [
       },
     ],
     classComparison: [{ classId: "cls-nurse-2301", avgScore: 82.7, passRate: 1.0 }],
+    questionAccuracy: [
+      { questionNo: 1, title: "基础护理单选", knowledgeNodeId: "kn-nur-002", accuracy: 0.92 },
+      { questionNo: 2, title: "情景综合判断", knowledgeNodeId: "kn-nur-002", accuracy: 0.73 },
+      { questionNo: 3, title: "药物剂量换算", knowledgeNodeId: "kn-nur-014", accuracy: 0.81 },
+      { questionNo: 4, title: "生命体征与记录", knowledgeNodeId: "kn-nur-012", accuracy: 0.87 },
+    ],
   },
 ];
+
+export const examEvaluations: ExamEvalSummary[] =
+  examEvaluationsRaw.map((e) => withExamStudentResults(e));

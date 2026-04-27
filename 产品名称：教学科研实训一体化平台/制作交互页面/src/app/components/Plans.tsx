@@ -1,5 +1,5 @@
 import { Plus, Search, Users } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { teachingPlans, teachingStrategies, classes } from "@mock";
 import type { TeachingPlan } from "@mock";
 import { classById, teacherById, courseById } from "../data/lookups";
@@ -214,15 +214,33 @@ export function PlansList({
 
 export function PlanDetail({
   id,
+  focusSectionId,
   onBack,
   onOpenSection,
 }: {
   id: string;
+  /** 从作业评价等入口进入时，自动切到「教学路径」并滚动高亮该小节 */
+  focusSectionId?: string;
   onBack: () => void;
   onOpenSection: (planId: string, sectionId: string) => void;
 }) {
   const p = teachingPlans.find((x) => x.id === id);
   const [tab, setTab] = useState<"path" | "info" | "strategy" | "ai">("path");
+
+  useEffect(() => {
+    if (focusSectionId) setTab("path");
+  }, [focusSectionId]);
+
+  useEffect(() => {
+    if (!focusSectionId || tab !== "path" || !p) return;
+    const t = window.setTimeout(() => {
+      document
+        .getElementById(`plan-section-${focusSectionId}`)
+        ?.scrollIntoView({ block: "center", behavior: "smooth" });
+    }, 120);
+    return () => clearTimeout(t);
+  }, [focusSectionId, tab, p]);
+
   if (!p) {
     return (
       <div>
@@ -318,9 +336,13 @@ export function PlanDetail({
                     return (
                       <div key={s.id} className="flex items-center">
                         <button
+                          type="button"
+                          id={`plan-section-${s.id}`}
                           onClick={() => onOpenSection(p.id, s.id)}
                           className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition ${
-                            isFocus
+                            focusSectionId === s.id
+                              ? "border-amber-400 bg-amber-50 text-amber-900 ring-2 ring-amber-200"
+                              : isFocus
                               ? "border-indigo-400 bg-indigo-50 text-indigo-800 ring-2 ring-indigo-100"
                               : s.hasDesign
                               ? "border-emerald-200 bg-emerald-50 text-emerald-700"

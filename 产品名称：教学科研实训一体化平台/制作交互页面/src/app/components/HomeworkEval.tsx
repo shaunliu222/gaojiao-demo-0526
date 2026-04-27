@@ -1,5 +1,10 @@
-import { useMemo, useState } from "react";
-import { TrendingUp, AlertTriangle, ChevronRight } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import {
+  EvalCoopRoster,
+  EvalStudentSheet,
+  type Focus,
+} from "./EvalCoopCommon";
+import { TrendingUp, AlertTriangle, ChevronRight, BookOpen } from "lucide-react";
 import {
   LineChart,
   Line,
@@ -139,11 +144,12 @@ export function HwOverview({ onOpen }: { onOpen: (id: string) => void }) {
                 <button
                   key={h.id}
                   onClick={() => onOpen(h.id)}
-                  className="w-full text-left px-5 py-4 hover:bg-slate-50 flex items-center gap-4"
+                  className="w-full text-left px-5 py-4 hover:bg-slate-50 flex flex-col gap-3 md:flex-row md:items-stretch"
                 >
-                  <div className="flex-1">
-                    <div className="text-slate-900">{h.homeworkTitle}</div>
-                    <div className="text-slate-500 mt-0.5">
+                  {/* 左半：作业元信息与易错点（与右半对半分中间区域） */}
+                  <div className="min-w-0 flex-1 md:pr-4 md:border-r md:border-slate-100">
+                    <div className="text-slate-900 font-medium">{h.homeworkTitle}</div>
+                    <div className="text-slate-500 mt-0.5 text-sm">
                       {h.assignedAt} 发布 · {h.submissionCount}/{h.totalStudents} 提交 · {cls?.name}
                     </div>
                     {h.hotWrongPoints.length > 0 && (
@@ -151,7 +157,7 @@ export function HwOverview({ onOpen }: { onOpen: (id: string) => void }) {
                         {h.hotWrongPoints.slice(0, 2).map((hs) => (
                           <span
                             key={hs.name}
-                            className="px-2 py-0.5 rounded-md bg-rose-50 text-rose-700"
+                            className="px-2 py-0.5 rounded-md bg-rose-50 text-rose-700 text-xs"
                           >
                             {hs.name} {Math.round(hs.wrongRate * 100)}%
                           </span>
@@ -159,13 +165,48 @@ export function HwOverview({ onOpen }: { onOpen: (id: string) => void }) {
                       </div>
                     )}
                   </div>
-                  <div className="text-right">
-                    <div className="text-slate-900">均分 {h.averageScore.toFixed(1)}</div>
-                    <div className="text-slate-500">
-                      优良 {h.aiRatings.excellent + h.aiRatings.good} · 不及格 {failCount(h)} · 通过 {pr}%
-                    </div>
+                  {/* 右半：AI 评价 */}
+                  <div className="min-w-0 flex-1 md:pl-4 md:pr-2">
+                    {h.aiInsights.length > 0 ? (
+                      <div className="h-full rounded-lg border border-indigo-100 bg-indigo-50/50 px-3 py-2.5 flex flex-col">
+                        <div className="flex items-start gap-2 min-w-0">
+                          <span className="shrink-0">
+                            <AiBadge />
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <div className="text-sm font-medium text-slate-900 leading-snug">
+                              {h.aiInsights[0].title}
+                            </div>
+                            <p className="text-xs text-slate-600 mt-1 line-clamp-3 leading-relaxed">
+                              {h.aiInsights[0].summary}
+                            </p>
+                            {h.aiInsights.length > 1 && (
+                              <div className="text-[0.6875rem] text-indigo-600 mt-1.5">
+                                共 {h.aiInsights.length} 条，详情页查看全部
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="h-full min-h-[3.5rem] rounded-lg border border-dashed border-slate-200 bg-slate-50/50 px-3 py-2 flex items-center text-xs text-slate-400">
+                        暂无 AI 评价摘要
+                      </div>
+                    )}
                   </div>
-                  <ChevronRight size={16} className="text-slate-400" />
+                  {/* 最右：成绩指标 + 进入 */}
+                  <div className="flex shrink-0 items-center gap-3 md:pl-3 md:ml-1 md:border-l md:border-slate-100 self-stretch">
+                    <div className="text-right min-w-[7rem]">
+                      <div className="text-slate-900 font-medium">
+                        均分 {h.averageScore.toFixed(1)}
+                      </div>
+                      <div className="text-slate-500 text-sm mt-0.5">
+                        优良 {h.aiRatings.excellent + h.aiRatings.good} · 不及格 {failCount(h)} · 通过{" "}
+                        {pr}%
+                      </div>
+                    </div>
+                    <ChevronRight size={16} className="text-slate-400 shrink-0" />
+                  </div>
                 </button>
               );
             })}
@@ -179,8 +220,28 @@ export function HwOverview({ onOpen }: { onOpen: (id: string) => void }) {
   );
 }
 
-export function HwDetail({ id, onBack }: { id: string; onBack: () => void }) {
+export function HwDetail({
+  id,
+  onBack,
+  onAdjustCourse,
+}: {
+  id: string;
+  onBack: () => void;
+  /** 跳转教学计划详情「教学路径」，定位到对应小节以便增删调课时 */
+  onAdjustCourse?: (planId: string, sectionId: string) => void;
+}) {
+  const [rangeFilter, setRangeFilter] = useState<string | null>(null);
+  const [questionFocus, setQuestionFocus] = useState<Focus>({ k: "none" });
+  const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
+
+  useEffect(() => {
+    setRangeFilter(null);
+    setQuestionFocus({ k: "none" });
+    setSelectedStudentId(null);
+  }, [id]);
+
   const h = homeworkEvaluations.find((x) => x.id === id);
+
   if (!h) {
     return (
       <div>
@@ -200,28 +261,51 @@ export function HwDetail({ id, onBack }: { id: string; onBack: () => void }) {
     { n: "不及格", v: h.aiRatings.fail, c: "#f43f5e" },
   ].filter((d) => d.v > 0);
 
-  const distData = h.scoreBuckets.map((b) => ({ bin: b.range, count: b.count }));
+  const distData = h.scoreBuckets.map((b) => ({
+    bin: b.range,
+    count: b.count,
+    range: b.range,
+  }));
   const warning =
     h.aiRatings.fail >= 3 ||
     (h.maxScore - h.minScore >= 40 && h.scoreBuckets[0]?.count >= 3 && h.scoreBuckets[h.scoreBuckets.length - 1]?.count >= 3);
   const pr = passRate(h);
 
   return (
-    <div>
-      <PageHeader
-        back={onBack}
-        title={
-          <span>
-            {h.homeworkTitle} · {cls?.name ?? h.classId} · {h.assignedAt} → {h.dueAt}
-          </span>
-        }
-      />
-      {warning && (
-        <div className="mx-6 mt-4 px-4 py-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 flex items-center gap-2">
-          <AlertTriangle size={16} /> 预警：不及格 {h.aiRatings.fail} 人，分数跨度 {h.maxScore - h.minScore} 分，建议启动分层辅导。
-        </div>
-      )}
-      <div className="p-6 grid grid-cols-12 gap-4">
+    <div className="flex h-[calc(100dvh-3.5rem)] max-h-full min-h-0 w-full max-w-full flex-col overflow-hidden">
+      <div className="shrink-0">
+        <PageHeader
+          back={onBack}
+          title={
+            <span>
+              {h.homeworkTitle} · {cls?.name ?? h.classId} · {h.assignedAt} → {h.dueAt}
+            </span>
+          }
+        />
+        {warning && (
+          <div className="mx-6 mt-4 px-4 py-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 flex items-center gap-2">
+            <AlertTriangle size={16} /> 预警：不及格 {h.aiRatings.fail} 人，分数跨度{" "}
+            {h.maxScore - h.minScore} 分，建议启动分层辅导。
+          </div>
+        )}
+      </div>
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden lg:flex-row">
+        <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain max-lg:min-h-0">
+          {selectedStudentId ? (
+            <EvalStudentSheet
+              studentId={selectedStudentId}
+              results={h.studentResults}
+              questionAccuracy={h.questionAccuracy}
+              keyReasons={h.keyStudents.map((ks) => ({
+                studentId: ks.studentId,
+                reason: ks.reason,
+              }))}
+              title="本次作业"
+              submittedAt={h.dueAt}
+              onBack={() => setSelectedStudentId(null)}
+            />
+          ) : (
+          <div className="grid grid-cols-12 gap-4 p-6">
         <div className="col-span-12 grid grid-cols-5 gap-3">
           <Metric label="提交" value={`${h.submissionCount}/${h.totalStudents}`} />
           <Metric label="均分" value={h.averageScore.toFixed(1)} />
@@ -231,6 +315,7 @@ export function HwDetail({ id, onBack }: { id: string; onBack: () => void }) {
         </div>
         <div className="col-span-7 bg-white rounded-xl border border-slate-200 p-5">
           <div className="text-slate-900 mb-2">分数分布 {course ? `· ${course.name}` : ""}</div>
+          <p className="text-xs text-slate-400 mb-2">点击柱形按分数段筛选右侧名单，再次点击同一分段可取消</p>
           <div className="h-56">
             <ResponsiveContainer>
               <BarChart data={distData}>
@@ -238,7 +323,25 @@ export function HwDetail({ id, onBack }: { id: string; onBack: () => void }) {
                 <XAxis dataKey="bin" tick={{ fontSize: 12, fill: "#64748b" }} />
                 <YAxis tick={{ fontSize: 12, fill: "#64748b" }} />
                 <Tooltip />
-                <Bar dataKey="count" fill="#6366f1" radius={[6, 6, 0, 0]} />
+                <Bar dataKey="count" fill="#6366f1" radius={[6, 6, 0, 0]}>
+                  {distData.map((entry, i) => {
+                    const r = entry.range;
+                    const isSel = rangeFilter === r;
+                    return (
+                      <Cell
+                        key={r + i}
+                        fill="#6366f1"
+                        fillOpacity={rangeFilter && !isSel ? 0.4 : 1}
+                        stroke={isSel ? "#4f46e5" : undefined}
+                        strokeWidth={isSel ? 2 : 0}
+                        style={{ cursor: "pointer" }}
+                        onClick={() =>
+                          setRangeFilter((cur) => (cur === r ? null : r))
+                        }
+                      />
+                    );
+                  })}
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -260,11 +363,35 @@ export function HwDetail({ id, onBack }: { id: string; onBack: () => void }) {
         </div>
         <div className="col-span-7 bg-white rounded-xl border border-slate-200 p-5">
           <div className="text-slate-900 mb-3">题目正确率</div>
+          <p className="text-xs text-slate-400 mb-2 -mt-1">点击题目标题行筛出该题答错学生</p>
           <div className="space-y-2">
-            {h.questionAccuracy.map((q) => {
+            {h.questionAccuracy.map((q, qi) => {
               const rate = Math.round(q.accuracy * 100);
+              const isSel =
+                questionFocus.k === "question" && questionFocus.qIndex === qi;
               return (
-                <div key={q.questionNo} className="flex items-center gap-3">
+                <button
+                  key={q.questionNo}
+                  type="button"
+                  onClick={() => {
+                    setQuestionFocus((cur) =>
+                      cur.k === "question" && cur.qIndex === qi
+                        ? { k: "none" }
+                        : {
+                            k: "question",
+                            questionNo: q.questionNo,
+                            title: q.title,
+                            qIndex: qi,
+                          },
+                    );
+                    setRangeFilter(null);
+                  }}
+                  className={`w-full text-left flex items-center gap-3 rounded-lg px-1 py-0.5 -mx-1 transition ${
+                    isSel
+                      ? "ring-2 ring-indigo-400 ring-offset-0 bg-indigo-50/50"
+                      : "hover:bg-slate-50"
+                  }`}
+                >
                   <span className="w-8 text-slate-500">Q{q.questionNo}</span>
                   <span className="flex-1 text-slate-700 truncate">{q.title}</span>
                   <div className="w-48 h-4 bg-slate-100 rounded overflow-hidden">
@@ -276,7 +403,7 @@ export function HwDetail({ id, onBack }: { id: string; onBack: () => void }) {
                     />
                   </div>
                   <span className="w-12 text-right text-slate-700">{rate}%</span>
-                </div>
+                </button>
               );
             })}
           </div>
@@ -303,42 +430,11 @@ export function HwDetail({ id, onBack }: { id: string; onBack: () => void }) {
             )}
           </div>
         </div>
-        {h.keyStudents.length > 0 && (
-          <div className="col-span-12 bg-white rounded-xl border border-slate-200 p-5">
-            <div className="text-slate-900 mb-3">重点关注学生</div>
-            <div className="grid grid-cols-4 gap-3">
-              {h.keyStudents.map((s) => (
-                <div key={s.studentId} className="border border-slate-200 rounded-lg p-3">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-slate-900">{s.studentName}</span>
-                    {s.score != null && (
-                      <span
-                        className={`px-2 py-0.5 rounded-md ${
-                          s.score >= 90
-                            ? "bg-emerald-50 text-emerald-700"
-                            : s.score >= 60
-                            ? "bg-amber-50 text-amber-700"
-                            : "bg-rose-50 text-rose-700"
-                        }`}
-                      >
-                        {s.score}
-                      </span>
-                    )}
-                  </div>
-                  <div className="text-slate-500">{s.reason}</div>
-                  {s.changeTrend && (
-                    <div className="mt-1 text-slate-400">趋势 · {s.changeTrend}</div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
         <div className="col-span-12 bg-white rounded-xl border border-slate-200 p-5">
           <div className="text-slate-900 mb-3">AI 洞察与行动建议</div>
           <div className="grid grid-cols-3 gap-3">
             {h.aiInsights.map((a) => (
-              <div key={a.id} className="border border-slate-200 rounded-lg p-4">
+              <div key={a.id} className="border border-slate-200 rounded-lg p-4 flex flex-col">
                 <div className="flex items-center gap-2 mb-1.5">
                   <AiBadge />
                 </div>
@@ -347,6 +443,22 @@ export function HwDetail({ id, onBack }: { id: string; onBack: () => void }) {
                 <div className="mt-2 px-3 py-2 rounded-md bg-indigo-50/60 border border-indigo-100 text-indigo-700 whitespace-pre-line">
                   {a.actionSuggestion}
                 </div>
+                {a.adjustCourse && onAdjustCourse && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onAdjustCourse(a.adjustCourse!.planId, a.adjustCourse!.sectionId)
+                    }
+                    className="mt-3 self-start inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-indigo-200 bg-white text-indigo-700 text-sm font-medium hover:bg-indigo-50"
+                  >
+                    <BookOpen size={14} className="shrink-0" />
+                    调整课程
+                    {a.adjustCourse.label && (
+                      <span className="text-indigo-500 font-normal">· {a.adjustCourse.label}</span>
+                    )}
+                    <ChevronRight size={14} className="opacity-70" />
+                  </button>
+                )}
               </div>
             ))}
             {h.aiInsights.length === 0 && (
@@ -354,6 +466,23 @@ export function HwDetail({ id, onBack }: { id: string; onBack: () => void }) {
             )}
           </div>
         </div>
+      </div>
+          )}
+        </div>
+        <EvalCoopRoster
+          classIds={h.classId}
+          results={h.studentResults}
+          questionAccuracy={h.questionAccuracy}
+          rangeFilter={rangeFilter}
+          onRangeFilter={(r) => {
+            setRangeFilter(r);
+            if (r != null) setQuestionFocus({ k: "none" });
+          }}
+          questionFocus={questionFocus}
+          onQuestionFocus={setQuestionFocus}
+          selectedStudentId={selectedStudentId}
+          onSelectStudent={setSelectedStudentId}
+        />
       </div>
     </div>
   );

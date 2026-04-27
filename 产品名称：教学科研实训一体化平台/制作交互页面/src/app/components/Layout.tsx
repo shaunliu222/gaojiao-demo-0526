@@ -7,7 +7,6 @@ import {
   ClipboardX,
   FileCheck,
   Users,
-  UserCircle2,
   Network,
   Library,
   FlaskConical,
@@ -32,8 +31,7 @@ export type TeacherNavKey =
   | "designs"
   | "hw-eval"
   | "exam-eval"
-  | "class-profiles"
-  | "student-profiles"
+  | "class-learning"
   | "graph"
   | "courses"
   | "resources"
@@ -79,9 +77,13 @@ const teachMenu: MenuNode[] = [
     children: [
       { key: "hw-eval", label: "作业评价", icon: FileCheck },
       { key: "exam-eval", label: "考试评价", icon: ClipboardX },
-      { key: "class-profiles", label: "班级档案", icon: Users },
-      { key: "student-profiles", label: "学情分析", icon: UserCircle2 },
     ],
+  },
+  {
+    kind: "item",
+    key: "class-learning",
+    label: "学情分析",
+    icon: Users,
   },
 ];
 
@@ -491,7 +493,7 @@ export function Layout({
             </div>
           )}
         </aside>
-        <main className="flex-1 overflow-auto">{children}</main>
+        <main className="flex-1 min-h-0 overflow-auto">{children}</main>
       </div>
     </div>
   );

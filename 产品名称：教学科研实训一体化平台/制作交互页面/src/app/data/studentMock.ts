@@ -643,6 +643,314 @@ export const aiPushesByStudent: Record<string, AiPush[]> = {
   ],
 };
 
+// ============ 数据：错题本 ============
+
+export type WrongQuestionStatus = "unreviewed" | "reviewing" | "mastered";
+export type WrongQuestionType = "选择题" | "判断题" | "填空题" | "作图题" | "简答题";
+
+export interface WrongQuestion {
+  id: string;
+  studentId: string;
+  questionNo: string;
+  questionType: WrongQuestionType;
+  questionContent: string;
+  wrongAnswer: string;
+  correctAnswer: string;
+  explanation: string;
+  knowledgePointId: string;
+  knowledgePointName: string;
+  source: string; // 来源（作业/考试名称）
+  occurredAt: string; // 第一次做错日期
+  wrongCount: number; // 累计做错次数
+  status: WrongQuestionStatus;
+  aiDiagnosis: string; // AI 诊断原因
+}
+
+const wrongQuestionsData: WrongQuestion[] = [
+  // ===== 张伟（s-mech2301-01）· 尖子生：少量错题，主要集中在相贯线 =====
+  {
+    id: "wq-zw-1",
+    studentId: "s-mech2301-01",
+    questionNo: "第3章-作业2-第5题",
+    questionType: "作图题",
+    questionContent: "两圆柱正交时，试求其相贯线的正面投影（大圆柱直径 40mm，小圆柱直径 20mm）。",
+    wrongAnswer: "画成了两段直线（未考虑曲率变化）",
+    correctAnswer: "两段弧形曲线，最高点与最低点连接形成对称图形",
+    explanation: "两等直径圆柱相贯时相贯线为两条椭圆弧；不等直径时小圆柱正面投影内画对称弯曲曲线，需用辅助平面法求 3~5 个特殊点后光滑连接。",
+    knowledgePointId: "n-intersect-curve",
+    knowledgePointName: "相贯线",
+    source: "第3章综合作业",
+    occurredAt: "2026-03-24",
+    wrongCount: 2,
+    status: "reviewing",
+    aiDiagnosis: "对辅助平面法的应用不够熟练，找点时只找极限点而漏掉了中间过渡点，导致连线失真。",
+  },
+  {
+    id: "wq-zw-2",
+    studentId: "s-mech2301-01",
+    questionNo: "第3章-作业2-第7题",
+    questionType: "选择题",
+    questionContent: "当两个等直径圆柱轴线相交垂直时，相贯线的正面投影形状是（   ）。",
+    wrongAnswer: "B. 两段椭圆弧",
+    correctAnswer: "C. 两段直线（交叉成 ×）",
+    explanation: "等直径正交圆柱的相贯线是两条空间椭圆，但其正面投影退化为两段相交直线（互相垂直的对角线），这是该特殊情况的简化结果。",
+    knowledgePointId: "n-intersect-curve",
+    knowledgePointName: "相贯线",
+    source: "第3章综合作业",
+    occurredAt: "2026-03-24",
+    wrongCount: 1,
+    status: "unreviewed",
+    aiDiagnosis: "混淆了等径相交与不等径相交两种情形的投影特征，建议重点记忆「等径正面投影退化为直线」这一特例。",
+  },
+  {
+    id: "wq-zw-3",
+    studentId: "s-mech2301-01",
+    questionNo: "期中考试-第12题",
+    questionType: "填空题",
+    questionContent: "俯视图反映物体的______和______方向尺寸，不反映______方向尺寸。",
+    wrongAnswer: "长、宽；高",
+    correctAnswer: "长（左右）、宽（前后）；高（上下）",
+    explanation: "俯视图即从上方投影到水平面（H 面），可见物体的左右（长）和前后（宽）方向，不反映高度（上下）。注意和正视图（长、高）、侧视图（宽、高）区分。",
+    knowledgePointId: "n-three-views",
+    knowledgePointName: "三视图",
+    source: "期中考试",
+    occurredAt: "2026-04-01",
+    wrongCount: 1,
+    status: "mastered",
+    aiDiagnosis: "已通过学习中心专项练习巩固，连续 2 次答对，已标记为掌握。",
+  },
+
+  // ===== 陈浩宇（s-mech2302-01）· 薄弱生：错题多，投影和组合体两块 =====
+  {
+    id: "wq-ch-1",
+    studentId: "s-mech2302-01",
+    questionNo: "第2章-作业1-第3题",
+    questionType: "判断题",
+    questionContent: "正立投影面（V 面）与水平投影面（H 面）展开后，H 面绕 OX 轴向下翻转 90°。",
+    wrongAnswer: "×（错误）",
+    correctAnswer: "√（正确）",
+    explanation: "V 面和 H 面展开时，H 面绕 OX 轴向下翻转 90°，这样才能保证「长对正、宽相等」的三视图对应关系正确建立。",
+    knowledgePointId: "n-projection-system",
+    knowledgePointName: "投影面体系",
+    source: "第2章投影基础作业",
+    occurredAt: "2026-03-04",
+    wrongCount: 3,
+    status: "unreviewed",
+    aiDiagnosis: "多次做错同一题，根源是对「三面展开方式」的空间想象能力不足，建议配合实物模型辅助理解。",
+  },
+  {
+    id: "wq-ch-2",
+    studentId: "s-mech2302-01",
+    questionNo: "第2章-作业1-第6题",
+    questionType: "作图题",
+    questionContent: "已知主视图和俯视图，补画左视图。",
+    wrongAnswer: "左视图宽度与俯视图不相等，虚线位置错误",
+    correctAnswer: "左视图宽度 = 俯视图宽度（宽相等原则），虚线对应内部不可见轮廓",
+    explanation: "「宽相等」指俯视图的前后宽度与左视图的前后宽度相等，可以通过 45° 斜线辅助转移。虚线代表被遮挡的轮廓，需根据正面形状判断位置。",
+    knowledgePointId: "n-three-views",
+    knowledgePointName: "三视图",
+    source: "第2章投影基础作业",
+    occurredAt: "2026-03-04",
+    wrongCount: 4,
+    status: "reviewing",
+    aiDiagnosis: "「宽相等」原则理解不到位，同时不会用 45° 辅助线转移宽度，导致左视图宽度反复出错。",
+  },
+  {
+    id: "wq-ch-3",
+    studentId: "s-mech2302-01",
+    questionNo: "第2章-作业2-第4题",
+    questionType: "选择题",
+    questionContent: "下列关于三视图投影规律的描述，正确的是（   ）。",
+    wrongAnswer: "A. 主视图与左视图等高，主视图与俯视图等宽",
+    correctAnswer: "B. 主视图与左视图等高，主视图与俯视图等长",
+    explanation: "三视图规律：主视图（V）和俯视图（H）共享「长」（左右方向）；主视图和左视图（W）共享「高」（上下方向）；俯视图和左视图共享「宽」（前后方向）。即「长对正、高平齐、宽相等」。",
+    knowledgePointId: "n-three-views",
+    knowledgePointName: "三视图",
+    source: "第2章综合作业",
+    occurredAt: "2026-03-08",
+    wrongCount: 2,
+    status: "unreviewed",
+    aiDiagnosis: "把「等宽」和「等长」的对应视图关系搞混，建议用顺口溜「主俯长对正，主左高平齐，俯左宽相等」反复记忆。",
+  },
+  {
+    id: "wq-ch-4",
+    studentId: "s-mech2302-01",
+    questionNo: "第3章-作业1-第2题",
+    questionType: "作图题",
+    questionContent: "画出下面组合体（底板 + 圆柱体）的三视图，标出可见与不可见轮廓。",
+    wrongAnswer: "俯视图中圆柱投影圆心偏移，虚线漏画",
+    correctAnswer: "圆柱俯视为整圆且圆心与底板中心对齐，主视图上沿与底板上表面平齐用粗实线，底板被挡部分用虚线",
+    explanation: "组合体叠加时，上方圆柱的中心线要对齐底板的几何中心。可见轮廓用粗实线，不可见轮廓用虚线，中心线用点划线。",
+    knowledgePointId: "n-combination-solid",
+    knowledgePointName: "组合体",
+    source: "第3章组合体作业",
+    occurredAt: "2026-03-20",
+    wrongCount: 2,
+    status: "reviewing",
+    aiDiagnosis: "对组合体位置关系的空间想象能力薄弱，建议先在实训中心找实物模型对照再画图。",
+  },
+  {
+    id: "wq-ch-5",
+    studentId: "s-mech2302-01",
+    questionNo: "第2章-作业3-第1题",
+    questionType: "填空题",
+    questionContent: "在三投影面体系中，正面投影面用字母______表示，水平投影面用______表示，侧面投影面用______表示。",
+    wrongAnswer: "H、V、W",
+    correctAnswer: "V、H、W",
+    explanation: "标准命名：V 面（正面/主视面）、H 面（水平面/俯视面）、W 面（侧面/左视面）。记忆方法：V-Vertical（垂直），H-Horizontal（水平），W-Width（宽度方向）。",
+    knowledgePointId: "n-projection-system",
+    knowledgePointName: "投影面体系",
+    source: "第2章投影基础作业",
+    occurredAt: "2026-03-06",
+    wrongCount: 2,
+    status: "mastered",
+    aiDiagnosis: "经过 2 次专项练习后已完全掌握，连续 3 次答对，自动标记为已掌握。",
+  },
+];
+
+export function wrongQuestionsByStudent(studentId: string): WrongQuestion[] {
+  return wrongQuestionsData.filter((q) => q.studentId === studentId);
+}
+
+// ============ 数据：知识掌握程度（按章节维度） ============
+
+export type KnowledgeDomain = "掌握" | "基本掌握" | "待加强" | "薄弱" | "未学习";
+
+export interface ChapterKnowledgeMastery {
+  chapterId: string;
+  chapterName: string;
+  overallMastery: number; // 0-100
+  domain: KnowledgeDomain;
+  points: Array<{
+    id: string;
+    name: string;
+    mastery: number;
+    domain: KnowledgeDomain;
+    practiceCount: number; // 练习次数
+    wrongCount: number; // 错题数
+    lastPracticedAt?: string;
+  }>;
+}
+
+function domainOf(mastery: number): KnowledgeDomain {
+  if (mastery === 0) return "未学习";
+  if (mastery >= 88) return "掌握";
+  if (mastery >= 72) return "基本掌握";
+  if (mastery >= 55) return "待加强";
+  return "薄弱";
+}
+
+const chapterKnowledgeMasteryData: Record<string, ChapterKnowledgeMastery[]> = {
+  "s-mech2301-01": [
+    {
+      chapterId: "ch-1",
+      chapterName: "第1章 制图基本规范",
+      overallMastery: 93,
+      domain: "掌握",
+      points: [
+        { id: "n-standard-line", name: "图线种类与用途", mastery: 95, domain: "掌握", practiceCount: 12, wrongCount: 0, lastPracticedAt: "2026-02-25" },
+        { id: "n-standard-scale", name: "比例与标注规则", mastery: 92, domain: "掌握", practiceCount: 10, wrongCount: 1, lastPracticedAt: "2026-02-25" },
+        { id: "n-standard-font", name: "字体与图框格式", mastery: 91, domain: "掌握", practiceCount: 8, wrongCount: 0, lastPracticedAt: "2026-02-23" },
+      ],
+    },
+    {
+      chapterId: "ch-2",
+      chapterName: "第2章 正投影与三视图",
+      overallMastery: 90,
+      domain: "掌握",
+      points: [
+        { id: "n-projection-system", name: "投影面体系", mastery: 92, domain: "掌握", practiceCount: 15, wrongCount: 0, lastPracticedAt: "2026-03-04" },
+        { id: "n-three-views", name: "三视图规律", mastery: 94, domain: "掌握", practiceCount: 20, wrongCount: 1, lastPracticedAt: "2026-04-01" },
+        { id: "n-visible-line", name: "可见/不可见轮廓线", mastery: 88, domain: "掌握", practiceCount: 14, wrongCount: 1, lastPracticedAt: "2026-03-11" },
+        { id: "n-auxiliary-view", name: "辅助视图", mastery: 85, domain: "掌握", practiceCount: 10, wrongCount: 2, lastPracticedAt: "2026-03-11" },
+      ],
+    },
+    {
+      chapterId: "ch-3",
+      chapterName: "第3章 截交线与相贯线",
+      overallMastery: 78,
+      domain: "基本掌握",
+      points: [
+        { id: "n-cross-section", name: "截交线（平面体）", mastery: 88, domain: "掌握", practiceCount: 12, wrongCount: 1, lastPracticedAt: "2026-03-18" },
+        { id: "n-cross-section-curve", name: "截交线（曲面体）", mastery: 82, domain: "基本掌握", practiceCount: 9, wrongCount: 2, lastPracticedAt: "2026-03-23" },
+        { id: "n-combination-solid", name: "组合体", mastery: 88, domain: "掌握", practiceCount: 10, wrongCount: 0, lastPracticedAt: "2026-03-18" },
+        { id: "n-intersect-curve", name: "相贯线", mastery: 72, domain: "基本掌握", practiceCount: 8, wrongCount: 3, lastPracticedAt: "2026-03-25" },
+      ],
+    },
+    {
+      chapterId: "ch-4",
+      chapterName: "第4章 轴测图",
+      overallMastery: 0,
+      domain: "未学习",
+      points: [
+        { id: "n-isometric", name: "正等测画法", mastery: 0, domain: "未学习", practiceCount: 0, wrongCount: 0 },
+        { id: "n-oblique-axon", name: "斜二测画法", mastery: 0, domain: "未学习", practiceCount: 0, wrongCount: 0 },
+      ],
+    },
+    {
+      chapterId: "ch-5",
+      chapterName: "第5章 机件表达方法",
+      overallMastery: 0,
+      domain: "未学习",
+      points: [
+        { id: "n-section-view", name: "剖视图", mastery: 0, domain: "未学习", practiceCount: 0, wrongCount: 0 },
+        { id: "n-detail-view", name: "局部视图与斜视图", mastery: 0, domain: "未学习", practiceCount: 0, wrongCount: 0 },
+      ],
+    },
+  ],
+  "s-mech2302-01": [
+    {
+      chapterId: "ch-1",
+      chapterName: "第1章 制图基本规范",
+      overallMastery: 80,
+      domain: "基本掌握",
+      points: [
+        { id: "n-standard-line", name: "图线种类与用途", mastery: 82, domain: "基本掌握", practiceCount: 8, wrongCount: 2, lastPracticedAt: "2026-02-25" },
+        { id: "n-standard-scale", name: "比例与标注规则", mastery: 78, domain: "基本掌握", practiceCount: 6, wrongCount: 3, lastPracticedAt: "2026-02-25" },
+        { id: "n-standard-font", name: "字体与图框格式", mastery: 85, domain: "掌握", practiceCount: 6, wrongCount: 1, lastPracticedAt: "2026-02-23" },
+      ],
+    },
+    {
+      chapterId: "ch-2",
+      chapterName: "第2章 正投影与三视图",
+      overallMastery: 52,
+      domain: "待加强",
+      points: [
+        { id: "n-projection-system", name: "投影面体系", mastery: 50, domain: "待加强", practiceCount: 10, wrongCount: 5, lastPracticedAt: "2026-03-06" },
+        { id: "n-three-views", name: "三视图规律", mastery: 45, domain: "薄弱", practiceCount: 14, wrongCount: 6, lastPracticedAt: "2026-03-08" },
+        { id: "n-visible-line", name: "可见/不可见轮廓线", mastery: 60, domain: "待加强", practiceCount: 8, wrongCount: 3, lastPracticedAt: "2026-03-04" },
+        { id: "n-auxiliary-view", name: "辅助视图", mastery: 52, domain: "待加强", practiceCount: 5, wrongCount: 3, lastPracticedAt: "2026-03-11" },
+      ],
+    },
+    {
+      chapterId: "ch-3",
+      chapterName: "第3章 截交线与相贯线",
+      overallMastery: 55,
+      domain: "待加强",
+      points: [
+        { id: "n-cross-section", name: "截交线（平面体）", mastery: 65, domain: "待加强", practiceCount: 7, wrongCount: 3, lastPracticedAt: "2026-03-18" },
+        { id: "n-combination-solid", name: "组合体", mastery: 52, domain: "待加强", practiceCount: 6, wrongCount: 2, lastPracticedAt: "2026-03-20" },
+        { id: "n-cross-section-curve", name: "截交线（曲面体）", mastery: 48, domain: "薄弱", practiceCount: 4, wrongCount: 4, lastPracticedAt: "2026-03-23" },
+        { id: "n-intersect-curve", name: "相贯线", mastery: 35, domain: "薄弱", practiceCount: 3, wrongCount: 5, lastPracticedAt: "2026-03-25" },
+      ],
+    },
+    {
+      chapterId: "ch-4",
+      chapterName: "第4章 轴测图",
+      overallMastery: 0,
+      domain: "未学习",
+      points: [
+        { id: "n-isometric", name: "正等测画法", mastery: 0, domain: "未学习", practiceCount: 0, wrongCount: 0 },
+        { id: "n-oblique-axon", name: "斜二测画法", mastery: 0, domain: "未学习", practiceCount: 0, wrongCount: 0 },
+      ],
+    },
+  ],
+};
+
+export function chapterMasteryByStudent(studentId: string): ChapterKnowledgeMastery[] {
+  return chapterKnowledgeMasteryData[studentId] ?? [];
+}
+
 // ============ 数据：当前班级计划 ============
 
 /**

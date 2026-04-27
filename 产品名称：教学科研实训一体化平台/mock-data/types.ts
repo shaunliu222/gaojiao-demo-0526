@@ -405,6 +405,38 @@ export interface AiInsight {
   title: string;
   summary: string;
   actionSuggestion: string; // 给老师的行动建议
+  /**
+   * 若填写，则展示「调整课程」入口：跳转教学计划详情 → 教学路径，并定位到该小节
+   *（用于根据答题结果建议增删调课时/更换进度节点）
+   */
+  adjustCourse?: {
+    planId: ID;
+    sectionId: ID;
+    /** 副标题/按钮说明，如「3.4 截交线与相贯线专题」 */
+    label?: string;
+  };
+}
+
+/**
+ * 单次作业/考试中一名学生的批阅结果（与 questionAccuracy 题目顺序一一对应；未提交无逐题数据）
+ * 由 evalResultBuilders 生成，与汇总字段在 Demo 级大致一致，非严格联立方程解。
+ */
+export interface QuestionAttempt {
+  questionNo: number;
+  score: number;
+  maxScore: number;
+  studentAnswer: string;
+  correctAnswer: string;
+  aiComment: string;
+  knowledgeNodeId?: ID;
+}
+
+export interface StudentEvalResult {
+  studentId: ID;
+  submitted: boolean;
+  totalScore?: number;
+  questionCorrect?: boolean[];
+  questionAttempts?: QuestionAttempt[];
 }
 
 /** 作业评价汇总（每次作业一条） */
@@ -440,7 +472,12 @@ export interface HomeworkEvalSummary {
     knowledgeNodeId?: ID;
     accuracy: number;
   }>;
+  /** 本班已提交/未交学生的逐题批阅（用于协同评价详情名单联动） */
+  studentResults: StudentEvalResult[];
 }
+
+/** 写入 studentResults 前 homework 行数据的形状 */
+export type HomeworkEvalInput = Omit<HomeworkEvalSummary, "studentResults">;
 
 /** 考试评价汇总 */
 export interface ExamEvalSummary {
@@ -465,7 +502,21 @@ export interface ExamEvalSummary {
     avgScore: number;
     passRate: number;
   }>;
+  /**
+   * 大题/知识点正确率（与作业评价「题目正确率」同构；未开考的考试可省略）
+   */
+  questionAccuracy?: Array<{
+    questionNo: number;
+    title: string;
+    knowledgeNodeId?: ID;
+    accuracy: number;
+  }>;
+  /** 参考班级内已交卷/缺考学生的逐题批阅 */
+  studentResults: StudentEvalResult[];
 }
+
+/** 写入 studentResults 前考试行数据（无 questionAccuracy 时由生成器跳过逐题列） */
+export type ExamEvalInput = Omit<ExamEvalSummary, "studentResults">;
 
 // ============ 工具类型 ============
 

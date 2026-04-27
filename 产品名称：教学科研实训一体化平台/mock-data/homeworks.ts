@@ -1,4 +1,5 @@
-import type { HomeworkEvalSummary } from "./types";
+import type { HomeworkEvalInput, HomeworkEvalSummary } from "./types";
+import { withHomeworkStudentResults } from "./evalResultBuilders";
 
 /**
  * 作业评价汇总（AI 批阅后的总览数据，用于协同评价页面）
@@ -8,7 +9,7 @@ import type { HomeworkEvalSummary } from "./types";
  * 护理 2 次
  * 合计 10 次
  */
-export const homeworkEvaluations: HomeworkEvalSummary[] = [
+const homeworkEvaluationsRaw: HomeworkEvalInput[] = [
   // ====================================================================
   // 1. 主线 · 第2章投影基础小测（进行中班前期）
   // ====================================================================
@@ -44,7 +45,17 @@ export const homeworkEvaluations: HomeworkEvalSummary[] = [
       { studentId: "s-mech2301-01", studentName: "张伟", reason: "满分突出", score: 98, changeTrend: "稳定" },
     ],
     aiInsights: [
-      { id: "ai-m-001", title: "重影点识别是本次薄弱点", summary: "32% 学生在重影点题失分，需补充可见性规则讲解。", actionSuggestion: "第2章结束前增加 10 分钟可见性专题。" },
+      {
+        id: "ai-m-001",
+        title: "重影点识别是本次薄弱点",
+        summary: "32% 学生在重影点题失分，需补充可见性规则讲解。",
+        actionSuggestion: "第2章结束前增加 10 分钟可见性专题。",
+        adjustCourse: {
+          planId: "plan-main",
+          sectionId: "sec-2-3",
+          label: "2.3 点、线的投影",
+        },
+      },
     ],
     questionAccuracy: [
       { questionNo: 1, title: "点的三面投影", knowledgeNodeId: "kn-mech-017", accuracy: 0.96 },
@@ -101,12 +112,22 @@ export const homeworkEvaluations: HomeworkEvalSummary[] = [
           "截交线遗漏率 43%、相贯线判别错误 39%，两个专题在下一小节（3.4）需要重点拆解。结合 2301 班空间想象力（76 分）中等，建议补充 3D 演示与手工剪切模型。",
         actionSuggestion:
           "行动建议：\n① 把 3.4 节原定的 2 课时扩展为 3 课时；\n② 课前 24 小时让学生观看《截交线 · 相贯线典型例题集》视频；\n③ 课堂引入 SolidWorks 三维切割演示。",
+        adjustCourse: {
+          planId: "plan-main",
+          sectionId: "sec-3-4",
+          label: "3.4 截交线与相贯线专题",
+        },
       },
       {
         id: "ai-m-003-2",
         title: "王一鸣的「软件依赖倾向」值得关注",
         summary: "王一鸣 CAD 题 95 分 vs 手绘题 48 分，差距显著。建议安排 2 次徒手绘图专项练习。",
         actionSuggestion: "安排朋辈辅导（张伟为例），在下次小组作业中鼓励他先手绘后 CAD。",
+        adjustCourse: {
+          planId: "plan-main",
+          sectionId: "sec-3-2",
+          label: "3.2 组合体三视图绘制",
+        },
       },
       {
         id: "ai-m-003-3",
@@ -114,6 +135,7 @@ export const homeworkEvaluations: HomeworkEvalSummary[] = [
         summary:
           "2302 班同作业平均分 68.5 vs 2301 班 79.3，差距 10 分以上。建议 2302 班单独加一次答疑。",
         actionSuggestion: "打开协同评价进入 cls-mech-2302 详情查看并下发「基础补救作业包」。",
+        adjustCourse: { planId: "plan-main", sectionId: "sec-3-2", label: "3.2 组合体三视图（班级对照基准小节）" },
       },
     ],
     questionAccuracy: [
@@ -170,6 +192,11 @@ export const homeworkEvaluations: HomeworkEvalSummary[] = [
         summary:
           "52% 学生在最基础的「三视图对应规律」上出错，这属于 2.2 节的内容。当前继续向前推进风险高，建议安排一次「投影基础回顾测验」。",
         actionSuggestion: "紧急：本周内安排 2 课时基础回顾 + 一对一答疑。陈浩宇等学生进入「基础补救小组」。",
+        adjustCourse: {
+          planId: "plan-main",
+          sectionId: "sec-2-2",
+          label: "2.2 投影法与三视图形成",
+        },
       },
     ],
     questionAccuracy: [
@@ -213,7 +240,13 @@ export const homeworkEvaluations: HomeworkEvalSummary[] = [
     ],
     keyStudents: [{ studentId: "s-mech2301-06", studentName: "周子航", reason: "刚及格边缘 · 已连续 4 次", score: 64, changeTrend: "稳定" }],
     aiInsights: [
-      { id: "ai-m-004-1", title: "剖视图类整体掌握较好", summary: "平均分较上次作业提升 2.2 分，此前的 3D 演示起到明显效果。", actionSuggestion: "继续沿用 3D 演示策略，准备 5.1 节同样配备模型。" },
+      {
+        id: "ai-m-004-1",
+        title: "剖视图类整体掌握较好",
+        summary: "平均分较上次作业提升 2.2 分，此前的 3D 演示起到明显效果。",
+        actionSuggestion: "继续沿用 3D 演示策略，准备 5.1 节同样配备模型。",
+        adjustCourse: { planId: "plan-main", sectionId: "sec-5-1", label: "5.1 螺纹基础与画法" },
+      },
     ],
     questionAccuracy: [
       { questionNo: 1, title: "全剖视图绘制", accuracy: 0.88 },
@@ -455,3 +488,6 @@ export const homeworkEvaluations: HomeworkEvalSummary[] = [
     ],
   },
 ];
+
+export const homeworkEvaluations: HomeworkEvalSummary[] =
+  homeworkEvaluationsRaw.map((h) => withHomeworkStudentResults(h));

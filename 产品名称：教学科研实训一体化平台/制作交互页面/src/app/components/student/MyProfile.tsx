@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import {
   TrendingUp,
   GraduationCap,
@@ -17,6 +17,11 @@ import {
   Lightbulb,
   Route,
   Star,
+  FileX2,
+  BarChart3,
+  RefreshCw,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import {
   XAxis,
@@ -41,6 +46,12 @@ import {
   learnScenariosByStudent,
   personalPlansByStudent,
   getPlanProgressSummary,
+  wrongQuestionsByStudent,
+  chapterMasteryByStudent,
+  type WrongQuestion,
+  type WrongQuestionStatus,
+  type ChapterKnowledgeMastery,
+  type KnowledgeDomain,
 } from "../../data/studentMock";
 
 // ======== 三档分类 ========
@@ -123,6 +134,8 @@ export function MyProfile({
   const deviceUsage = deviceUsageByStudent[studentId] ?? [];
   const scenarios = learnScenariosByStudent(studentId);
   const personalPlans = personalPlansByStudent(studentId);
+  const wrongQuestions = wrongQuestionsByStudent(studentId);
+  const chapterMastery = chapterMasteryByStudent(studentId);
 
   const weakPoints = useMemo(
     () =>
@@ -499,6 +512,16 @@ export function MyProfile({
           </Card>
         </div>
 
+        {/* 知识掌握程度 */}
+        <div className="col-span-12">
+          <KnowledgeMasteryPanel chapters={chapterMastery} onGoLearn={onGoLearn} />
+        </div>
+
+        {/* 错题本 */}
+        <div className="col-span-12">
+          <WrongQuestionBook questions={wrongQuestions} onGoLearn={onGoLearn} />
+        </div>
+
         {/* 底部：AI 成长建议 */}
         <div className="col-span-12">
           <Card title="AI 成长建议" icon={<Lightbulb size={14} />}>
@@ -829,6 +852,323 @@ function buildGrowthTips(studentId: string, tier: Tier): GrowthTip[] {
       btnText: "text-white",
     },
   ];
+}
+
+// ======== 知识掌握程度面板 ========
+
+const domainConfig: Record<KnowledgeDomain, { label: string; bar: string; text: string; badge: string }> = {
+  掌握: { label: "掌握", bar: "linear-gradient(90deg,#10b981,#34d399)", text: "text-emerald-700", badge: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+  基本掌握: { label: "基本掌握", bar: "linear-gradient(90deg,#6366f1,#818cf8)", text: "text-indigo-700", badge: "bg-indigo-50 text-indigo-700 border-indigo-200" },
+  待加强: { label: "待加强", bar: "linear-gradient(90deg,#f59e0b,#fbbf24)", text: "text-amber-700", badge: "bg-amber-50 text-amber-700 border-amber-200" },
+  薄弱: { label: "薄弱", bar: "linear-gradient(90deg,#ef4444,#f87171)", text: "text-rose-700", badge: "bg-rose-50 text-rose-700 border-rose-200" },
+  未学习: { label: "未学习", bar: "#e2e8f0", text: "text-slate-400", badge: "bg-slate-50 text-slate-400 border-slate-200" },
+};
+
+function KnowledgeMasteryPanel({
+  chapters,
+  onGoLearn,
+}: {
+  chapters: ChapterKnowledgeMastery[];
+  onGoLearn: (nodeIds?: string[]) => void;
+}) {
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  const studied = chapters.filter((c) => c.domain !== "未学习");
+  const avgMastery = studied.length
+    ? Math.round(studied.reduce((s, c) => s + c.overallMastery, 0) / studied.length)
+    : 0;
+
+  const weakestPoints = chapters
+    .flatMap((c) => c.points)
+    .filter((p) => p.mastery > 0 && p.mastery < 72)
+    .sort((a, b) => a.mastery - b.mastery)
+    .slice(0, 3);
+
+  return (
+    <Card title="知识掌握程度" icon={<BarChart3 size={14} />}
+      extra={
+        <span className="text-slate-500 text-[0.75rem]">
+          已学 {studied.length}/{chapters.length} 章 · 综合掌握 {avgMastery}%
+        </span>
+      }
+    >
+      {/* 总览雷达条 */}
+      <div className="space-y-2 mb-4">
+        {chapters.map((ch) => {
+          const cfg = domainConfig[ch.domain];
+          const expanded = expandedId === ch.chapterId;
+          return (
+            <div key={ch.chapterId} className="rounded-xl border border-slate-100 overflow-hidden">
+              <button
+                onClick={() => setExpandedId(expanded ? null : ch.chapterId)}
+                className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-slate-50 transition"
+              >
+                <span className="w-44 text-left text-slate-800 truncate text-[0.8125rem]">
+                  {ch.chapterName}
+                </span>
+                <span className={`px-1.5 py-0.5 rounded border text-[0.6875rem] shrink-0 ${cfg.badge}`}>
+                  {cfg.label}
+                </span>
+                <div className="flex-1 h-3 bg-slate-100 rounded overflow-hidden">
+                  <div
+                    className="h-full rounded transition-all"
+                    style={{
+                      width: `${ch.overallMastery}%`,
+                      background: cfg.bar,
+                    }}
+                  />
+                </div>
+                <span className={`w-10 text-right text-[0.8125rem] shrink-0 ${cfg.text}`}>
+                  {ch.overallMastery > 0 ? `${ch.overallMastery}%` : "—"}
+                </span>
+                {expanded ? (
+                  <ChevronUp size={14} className="text-slate-400 shrink-0" />
+                ) : (
+                  <ChevronDown size={14} className="text-slate-400 shrink-0" />
+                )}
+              </button>
+              {expanded && (
+                <div className="px-4 pb-3 pt-1 bg-slate-50/60 border-t border-slate-100">
+                  <div className="grid grid-cols-2 gap-2 mt-1">
+                    {ch.points.map((pt) => {
+                      const pcfg = domainConfig[pt.domain];
+                      return (
+                        <button
+                          key={pt.id}
+                          onClick={() => onGoLearn([pt.id])}
+                          className="text-left flex items-center gap-2 p-2 rounded-lg bg-white border border-slate-100 hover:border-indigo-200 hover:bg-indigo-50/40 transition"
+                        >
+                          <span className="flex-1 text-slate-700 text-[0.8125rem] truncate">{pt.name}</span>
+                          <span className={`text-[0.6875rem] px-1.5 py-0.5 rounded border shrink-0 ${pcfg.badge}`}>
+                            {pcfg.label}
+                          </span>
+                          <div className="w-20 h-2.5 bg-slate-100 rounded overflow-hidden shrink-0">
+                            <div
+                              className="h-full rounded"
+                              style={{ width: `${pt.mastery}%`, background: pcfg.bar }}
+                            />
+                          </div>
+                          <span className={`w-8 text-right text-[0.75rem] shrink-0 ${pcfg.text}`}>
+                            {pt.mastery > 0 ? `${pt.mastery}` : "—"}
+                          </span>
+                          {pt.wrongCount > 0 && (
+                            <span className="px-1 py-0.5 rounded bg-rose-50 text-rose-600 text-[0.625rem] border border-rose-100 shrink-0">
+                              错 {pt.wrongCount}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* AI 推荐 */}
+      {weakestPoints.length > 0 && (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 flex gap-2 text-[0.8125rem]">
+          <AlertTriangle size={14} className="text-amber-500 mt-0.5 shrink-0" />
+          <div className="flex-1 text-amber-800">
+            AI 建议优先攻克：
+            {weakestPoints.map((p, i) => (
+              <span key={p.id}>
+                {i > 0 && "、"}
+                <button
+                  onClick={() => onGoLearn([p.id])}
+                  className="underline underline-offset-2 hover:text-amber-900"
+                >
+                  {p.name}（{p.mastery}%）
+                </button>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+    </Card>
+  );
+}
+
+// ======== 错题本 ========
+
+const wqStatusConfig: Record<WrongQuestionStatus, { label: string; badge: string }> = {
+  unreviewed: { label: "未复习", badge: "bg-rose-50 text-rose-700 border-rose-200" },
+  reviewing: { label: "复习中", badge: "bg-amber-50 text-amber-700 border-amber-200" },
+  mastered: { label: "已掌握", badge: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+};
+
+const wqTypeColor: Record<string, string> = {
+  选择题: "bg-indigo-50 text-indigo-600 border-indigo-100",
+  判断题: "bg-violet-50 text-violet-600 border-violet-100",
+  填空题: "bg-sky-50 text-sky-600 border-sky-100",
+  作图题: "bg-orange-50 text-orange-600 border-orange-100",
+  简答题: "bg-teal-50 text-teal-600 border-teal-100",
+};
+
+function WrongQuestionBook({
+  questions,
+  onGoLearn,
+}: {
+  questions: WrongQuestion[];
+  onGoLearn: (nodeIds?: string[]) => void;
+}) {
+  const [activeStatus, setActiveStatus] = useState<WrongQuestionStatus | "all">("all");
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+
+  const filtered = activeStatus === "all" ? questions : questions.filter((q) => q.status === activeStatus);
+  const counts = {
+    all: questions.length,
+    unreviewed: questions.filter((q) => q.status === "unreviewed").length,
+    reviewing: questions.filter((q) => q.status === "reviewing").length,
+    mastered: questions.filter((q) => q.status === "mastered").length,
+  };
+
+  const tabs: Array<{ key: WrongQuestionStatus | "all"; label: string }> = [
+    { key: "all", label: "全部" },
+    { key: "unreviewed", label: "未复习" },
+    { key: "reviewing", label: "复习中" },
+    { key: "mastered", label: "已掌握" },
+  ];
+
+  return (
+    <Card
+      title="错题本"
+      icon={<FileX2 size={14} />}
+      extra={
+        <span className="text-slate-500 text-[0.75rem]">
+          共 {counts.all} 题 · 未复习 {counts.unreviewed} 题
+        </span>
+      }
+    >
+      {questions.length === 0 ? (
+        <div className="py-8 text-center text-slate-400 text-[0.8125rem]">
+          暂无错题记录，继续加油！
+        </div>
+      ) : (
+        <>
+          {/* 分类 Tab */}
+          <div className="flex gap-2 mb-4">
+            {tabs.map((t) => (
+              <button
+                key={t.key}
+                onClick={() => setActiveStatus(t.key)}
+                className={`px-3 py-1 rounded-lg border text-[0.8125rem] transition ${
+                  activeStatus === t.key
+                    ? "bg-indigo-600 text-white border-indigo-600"
+                    : "bg-white text-slate-600 border-slate-200 hover:border-indigo-200 hover:bg-indigo-50"
+                }`}
+              >
+                {t.label}
+                <span
+                  className={`ml-1.5 px-1.5 py-0.5 rounded text-[0.625rem] ${
+                    activeStatus === t.key ? "bg-white/20 text-white" : "bg-slate-100 text-slate-500"
+                  }`}
+                >
+                  {counts[t.key]}
+                </span>
+              </button>
+            ))}
+          </div>
+
+          {/* 错题列表 */}
+          <div className="space-y-2">
+            {filtered.map((q) => {
+              const scfg = wqStatusConfig[q.status];
+              const tcfg = wqTypeColor[q.questionType] ?? "bg-slate-50 text-slate-500 border-slate-100";
+              const expanded = expandedId === q.id;
+              return (
+                <div key={q.id} className={`rounded-xl border transition ${
+                  q.status === "unreviewed" ? "border-rose-100 bg-rose-50/30" :
+                  q.status === "reviewing" ? "border-amber-100 bg-amber-50/30" :
+                  "border-emerald-100 bg-emerald-50/10"
+                }`}>
+                  <button
+                    onClick={() => setExpandedId(expanded ? null : q.id)}
+                    className="w-full flex items-start gap-3 px-4 py-3 text-left"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap mb-1">
+                        <span className={`px-1.5 py-0.5 rounded border text-[0.6875rem] shrink-0 ${tcfg}`}>
+                          {q.questionType}
+                        </span>
+                        <span className={`px-1.5 py-0.5 rounded border text-[0.6875rem] shrink-0 ${scfg.badge}`}>
+                          {scfg.label}
+                        </span>
+                        <span className="text-slate-400 text-[0.6875rem] shrink-0">
+                          {q.source} · {q.occurredAt.slice(5)}
+                        </span>
+                        {q.wrongCount > 1 && (
+                          <span className="text-rose-500 text-[0.6875rem] shrink-0">
+                            已错 {q.wrongCount} 次
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-slate-800 text-[0.8125rem] line-clamp-2 leading-relaxed">
+                        {q.questionContent}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0 mt-0.5">
+                      <span className="text-slate-400 text-[0.6875rem] px-1.5 py-0.5 rounded bg-white border border-slate-100">
+                        {q.knowledgePointName}
+                      </span>
+                      {expanded ? (
+                        <ChevronUp size={14} className="text-slate-400" />
+                      ) : (
+                        <ChevronDown size={14} className="text-slate-400" />
+                      )}
+                    </div>
+                  </button>
+
+                  {/* 展开：错误答案 → 正确答案 → 解析 → AI 诊断 */}
+                  {expanded && (
+                    <div className="px-4 pb-4 space-y-3 border-t border-slate-100/80 pt-3">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="rounded-lg bg-rose-50 border border-rose-100 p-3">
+                          <div className="text-rose-500 text-[0.6875rem] mb-1">我的错误答案</div>
+                          <div className="text-rose-800 text-[0.8125rem] leading-relaxed">{q.wrongAnswer}</div>
+                        </div>
+                        <div className="rounded-lg bg-emerald-50 border border-emerald-100 p-3">
+                          <div className="text-emerald-600 text-[0.6875rem] mb-1">正确答案</div>
+                          <div className="text-emerald-800 text-[0.8125rem] leading-relaxed">{q.correctAnswer}</div>
+                        </div>
+                      </div>
+                      <div className="rounded-lg bg-indigo-50/60 border border-indigo-100 p-3">
+                        <div className="text-indigo-500 text-[0.6875rem] mb-1">解析</div>
+                        <div className="text-slate-700 text-[0.8125rem] leading-relaxed">{q.explanation}</div>
+                      </div>
+                      <div className="rounded-lg bg-violet-50/60 border border-violet-100 p-3 flex gap-2">
+                        <Sparkles size={13} className="text-violet-500 mt-0.5 shrink-0" />
+                        <div>
+                          <div className="text-violet-600 text-[0.6875rem] mb-0.5">AI 错因诊断</div>
+                          <div className="text-slate-700 text-[0.8125rem] leading-relaxed">{q.aiDiagnosis}</div>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => onGoLearn([q.knowledgePointId])}
+                          className="px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-[0.75rem] inline-flex items-center gap-1 hover:bg-indigo-700"
+                        >
+                          <Sparkles size={12} /> 去学习中心练这个知识点
+                        </button>
+                        <button
+                          onClick={() => onGoLearn([q.knowledgePointId])}
+                          className="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 text-[0.75rem] inline-flex items-center gap-1 hover:bg-slate-50"
+                        >
+                          <RefreshCw size={12} /> 重做类似题
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
+    </Card>
+  );
 }
 
 // 把 "28 分" / "1 小时 48 分" / "45 分钟" 等标签粗略换成分钟

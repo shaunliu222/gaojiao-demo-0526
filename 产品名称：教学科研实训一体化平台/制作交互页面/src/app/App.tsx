@@ -8,7 +8,6 @@ import {
   StudentNavKey,
 } from "./components/Layout";
 import {
-  classById,
   courseById,
   examById,
   homeworkById,
@@ -17,14 +16,16 @@ import {
   studentById,
   trainingById,
 } from "./data/lookups";
-import { ClassProfileList, ClassProfileDetail } from "./components/ClassProfiles";
+import {
+  DEFAULT_LEARNING_CLASS_ID,
+  LearningAnalyticsHub,
+} from "./components/ClassProfiles";
 import { PlansList, PlanDetail } from "./components/Plans";
 import { PlanWizard } from "./components/PlanWizard";
 import { DesignWorkbench } from "./components/DesignWorkbench";
 import { DesignDashboard } from "./components/DesignDashboard";
 import { HwOverview, HwDetail } from "./components/HomeworkEval";
 import { ExamOverview, ExamDetail } from "./components/ExamEval";
-import { StudentList, StudentDetail } from "./components/StudentProfiles";
 import { CourseList, CourseDetail } from "./components/Courses";
 import { ResourceLibrary } from "./components/ResourceLibrary";
 import { TrainingList, TrainingDetail } from "./components/TrainingLibrary";
@@ -37,11 +38,10 @@ import { personalPlanById } from "./data/studentMock";
 import { DEMO_DESIGN_PLAN_ID, DEMO_DESIGN_SECTION_ID } from "@mock";
 
 type TeacherView =
-  | { k: "class-list" }
-  | { k: "class-detail"; id: string }
+  | { k: "learning-analytics"; classId: string; selectedStudentId?: string }
   | { k: "plans-list" }
   | { k: "plan-wizard" }
-  | { k: "plan-detail"; id: string }
+  | { k: "plan-detail"; id: string; focusSectionId?: string }
   | { k: "design-dashboard" }
   | {
       k: "design";
@@ -54,8 +54,6 @@ type TeacherView =
   | { k: "hw-detail"; id: string }
   | { k: "exam-overview" }
   | { k: "exam-detail"; id: string }
-  | { k: "student-list" }
-  | { k: "student-detail"; id: string; fromClassId?: string }
   | { k: "graph" }
   | { k: "course-list" }
   | { k: "course-detail"; id: string }
@@ -78,10 +76,11 @@ const PLATFORM_TITLE = "教学科研实训一体化平台";
 
 function titleForView(view: View): string {
   switch (view.k) {
-    case "class-list":
-      return "班级档案";
-    case "class-detail":
-      return classById(view.id)?.name ?? "班级详情";
+    case "learning-analytics":
+      if (view.selectedStudentId) {
+        return studentById(view.selectedStudentId)?.name ?? "学情分析";
+      }
+      return "学情分析";
     case "plans-list":
       return "教学计划";
     case "plan-wizard":
@@ -108,10 +107,6 @@ function titleForView(view: View): string {
       return "考试评价";
     case "exam-detail":
       return examById(view.id)?.examTitle ?? "考试详情";
-    case "student-list":
-      return "学情分析";
-    case "student-detail":
-      return studentById(view.id)?.name ?? "学生详情";
     case "graph":
       return "知识图谱";
     case "course-list":
@@ -162,8 +157,11 @@ export default function App() {
   const goTeacherNav = (n: TeacherNavKey) => {
     setNav(n);
     switch (n) {
-      case "class-profiles":
-        setView({ k: "class-list" });
+      case "class-learning":
+        setView({
+          k: "learning-analytics",
+          classId: DEFAULT_LEARNING_CLASS_ID,
+        });
         break;
       case "plans":
         setView({ k: "plans-list" });
@@ -176,9 +174,6 @@ export default function App() {
         break;
       case "exam-eval":
         setView({ k: "exam-overview" });
-        break;
-      case "student-profiles":
-        setView({ k: "student-list" });
         break;
       case "graph":
         setView({ k: "graph" });
@@ -258,24 +253,24 @@ export default function App() {
 
   const teacherContent = () => {
     switch (view.k) {
-      case "class-list":
-        return <ClassProfileList onOpen={(id) => setView({ k: "class-detail", id })} />;
-      case "class-detail":
+      case "learning-analytics":
         return (
-          <ClassProfileDetail
-            id={view.id}
-            onBack={() => setView({ k: "class-list" })}
-            onGoPlans={() => {
-              setNav("plans");
-              setView({ k: "plans-list" });
-            }}
-            onOpenPlan={(planId) => {
-              setNav("plans");
-              setView({ k: "plan-detail", id: planId });
-            }}
-            onOpenStudent={(studentId) =>
-              setView({ k: "student-detail", id: studentId, fromClassId: view.id })
+          <LearningAnalyticsHub
+            classId={view.classId}
+            selectedStudentId={view.selectedStudentId}
+            onClassIdChange={(id) => setView({ k: "learning-analytics", classId: id })}
+            onSelectStudent={(id) =>
+              setView({ k: "learning-analytics", classId: view.classId, selectedStudentId: id })
             }
+            onClearStudent={() => setView({ k: "learning-analytics", classId: view.classId })}
+            onOpenHomeworkEval={(id) => {
+              setNav("hw-eval");
+              setView({ k: "hw-detail", id });
+            }}
+            onOpenExamEval={(id) => {
+              setNav("exam-eval");
+              setView({ k: "exam-detail", id });
+            }}
           />
         );
       case "plans-list":
@@ -313,6 +308,7 @@ export default function App() {
         return (
           <PlanDetail
             id={view.id}
+            focusSectionId={view.focusSectionId}
             onBack={() => {
               setNav("plans");
               setView({ k: "plans-list" });
@@ -369,26 +365,20 @@ export default function App() {
       case "hw-overview":
         return <HwOverview onOpen={(id) => setView({ k: "hw-detail", id })} />;
       case "hw-detail":
-        return <HwDetail id={view.id} onBack={() => setView({ k: "hw-overview" })} />;
+        return (
+          <HwDetail
+            id={view.id}
+            onBack={() => setView({ k: "hw-overview" })}
+            onAdjustCourse={(planId, sectionId) => {
+              setNav("plans");
+              setView({ k: "plan-detail", id: planId, focusSectionId: sectionId });
+            }}
+          />
+        );
       case "exam-overview":
         return <ExamOverview onOpen={(id) => setView({ k: "exam-detail", id })} />;
       case "exam-detail":
         return <ExamDetail id={view.id} onBack={() => setView({ k: "exam-overview" })} />;
-      case "student-list":
-        return <StudentList onOpen={(id) => setView({ k: "student-detail", id })} />;
-      case "student-detail":
-        return (
-          <StudentDetail
-            id={view.id}
-            onBack={() =>
-              setView(
-                view.fromClassId
-                  ? { k: "class-detail", id: view.fromClassId }
-                  : { k: "student-list" },
-              )
-            }
-          />
-        );
       case "graph":
         return (
           <GraphBrowse

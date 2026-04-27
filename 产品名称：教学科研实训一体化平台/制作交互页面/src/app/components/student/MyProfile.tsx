@@ -159,6 +159,7 @@ export function MyProfile({
   );
 
   const growthTips = buildGrowthTips(studentId, tier);
+  const [timelineExpanded, setTimelineExpanded] = useState(false);
 
   if (!s || !p) {
     return (
@@ -276,7 +277,74 @@ export function MyProfile({
       </div>
 
       <div className="p-6 grid grid-cols-12 gap-4">
-        {/* 左：AI 画像 + 擅长 + 兴趣 */}
+        {/* 知识掌握程度 */}
+        <div className="col-span-12">
+          <KnowledgeMasteryPanel chapters={chapterMastery} onGoLearn={onGoLearn} />
+        </div>
+
+        {/* 错题本 */}
+        <div className="col-span-12">
+          <WrongQuestionBook questions={wrongQuestions} onGoLearn={onGoLearn} />
+        </div>
+
+        {/* 学习历程（默认折叠） */}
+        <div className="col-span-12">
+          <div className="bg-white rounded-xl border border-slate-200 p-5">
+            <button
+              type="button"
+              aria-expanded={timelineExpanded}
+              onClick={() => setTimelineExpanded((v) => !v)}
+              className="flex items-center justify-between gap-2 w-full text-left rounded-lg -m-1 p-1 hover:bg-slate-50 transition"
+            >
+              <div className="flex items-center gap-1.5 text-slate-900 min-w-0">
+                <span className="text-indigo-500 inline-flex shrink-0">
+                  <Clock size={14} />
+                </span>
+                <span>学习历程</span>
+                {timeline.length > 0 && (
+                  <span className="text-slate-400 text-[0.75rem] font-normal truncate">
+                    {timeline.length} 条记录
+                  </span>
+                )}
+              </div>
+              {timelineExpanded ? (
+                <ChevronUp size={16} className="text-slate-400 shrink-0" />
+              ) : (
+                <ChevronDown size={16} className="text-slate-400 shrink-0" />
+              )}
+            </button>
+            {timelineExpanded && (
+              <div className="mt-3">
+                {timeline.length === 0 ? (
+                  <div className="text-slate-400 text-[0.8125rem] text-center py-6">
+                    暂无学习历程记录
+                  </div>
+                ) : (
+                  <ol className="relative border-l-2 border-slate-100 ml-3">
+                    {timeline.map((e, idx) => (
+                      <li key={idx} className="pl-5 pb-4 relative last:pb-0">
+                        <span
+                          className={`absolute -left-[9px] top-0 size-4 rounded-full flex items-center justify-center ${e.dotBg} ${e.dotText}`}
+                        >
+                          <e.icon size={10} />
+                        </span>
+                        <div className="text-slate-500 text-[0.6875rem]">
+                          {e.date}
+                        </div>
+                        <div className="text-slate-900">{e.title}</div>
+                        <div className="text-slate-500 text-[0.75rem] mt-0.5">
+                          {e.detail}
+                        </div>
+                      </li>
+                    ))}
+                  </ol>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* 学情画像与趋势（靠后展示） */}
         <div className="col-span-4 space-y-4">
           <Card title="AI 学情画像" icon={<Sparkles size={14} />}>
             <p className="text-slate-700 leading-relaxed">
@@ -339,7 +407,6 @@ export function MyProfile({
           )}
         </div>
 
-        {/* 中：分数趋势 + 热力图 */}
         <div className="col-span-8 space-y-4">
           <Card
             title="近期分数趋势"
@@ -480,46 +547,6 @@ export function MyProfile({
               </div>
             )}
           </Card>
-        </div>
-
-        {/* 时间线 */}
-        <div className="col-span-12">
-          <Card title="学习历程" icon={<Clock size={14} />}>
-            {timeline.length === 0 ? (
-              <div className="text-slate-400 text-[0.8125rem] text-center py-6">
-                暂无学习历程记录
-              </div>
-            ) : (
-              <ol className="relative border-l-2 border-slate-100 ml-3">
-                {timeline.map((e, idx) => (
-                  <li key={idx} className="pl-5 pb-4 relative last:pb-0">
-                    <span
-                      className={`absolute -left-[9px] top-0 size-4 rounded-full flex items-center justify-center ${e.dotBg} ${e.dotText}`}
-                    >
-                      <e.icon size={10} />
-                    </span>
-                    <div className="text-slate-500 text-[0.6875rem]">
-                      {e.date}
-                    </div>
-                    <div className="text-slate-900">{e.title}</div>
-                    <div className="text-slate-500 text-[0.75rem] mt-0.5">
-                      {e.detail}
-                    </div>
-                  </li>
-                ))}
-              </ol>
-            )}
-          </Card>
-        </div>
-
-        {/* 知识掌握程度 */}
-        <div className="col-span-12">
-          <KnowledgeMasteryPanel chapters={chapterMastery} onGoLearn={onGoLearn} />
-        </div>
-
-        {/* 错题本 */}
-        <div className="col-span-12">
-          <WrongQuestionBook questions={wrongQuestions} onGoLearn={onGoLearn} />
         </div>
 
         {/* 底部：AI 成长建议 */}

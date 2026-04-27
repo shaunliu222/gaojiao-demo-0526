@@ -32,6 +32,7 @@ import { TrainingList, TrainingDetail } from "./components/TrainingLibrary";
 import { GraphBrowse, ResourceDetail } from "./components/Graph";
 import { MyPlansList, MyPlanDetail } from "./components/student/MyPlans";
 import { LearnCenter } from "./components/student/LearnCenter";
+import type { LearnCenterSessionContext } from "./data/learnCenterSession";
 import { TrainingLab } from "./components/student/TrainingLab";
 import { MyProfile } from "./components/student/MyProfile";
 import { personalPlanById } from "./data/studentMock";
@@ -65,7 +66,12 @@ type TeacherView =
 type StudentView =
   | { k: "my-plans-list" }
   | { k: "my-plan-detail"; id: string; kind: "course" | "personal" }
-  | { k: "learn-center"; presetSectionId?: string; presetGoalNodeIds?: string[] }
+  | {
+      k: "learn-center";
+      presetSectionId?: string;
+      presetGoalNodeIds?: string[];
+      sessionPreset?: LearnCenterSessionContext;
+    }
   | { k: "training-lab" }
   | { k: "training-detail-student"; id: string }
   | { k: "my-profile" };
@@ -478,6 +484,7 @@ export default function App() {
             studentId={studentId}
             presetSectionId={view.presetSectionId}
             presetGoalNodeIds={view.presetGoalNodeIds}
+            sessionPreset={view.sessionPreset}
           />
         );
       case "training-lab":

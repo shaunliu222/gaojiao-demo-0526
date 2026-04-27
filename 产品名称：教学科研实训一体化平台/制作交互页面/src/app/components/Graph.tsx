@@ -48,7 +48,7 @@ export function GraphBrowse({
   const canManageGraph = role === "college_admin";
   const scopeTeacherId = role === "teacher" ? currentTeacherId : undefined;
   const [profId, setProfId] = useState<string>("prof-mech");
-  const [selected, setSelected] = useState<string | null>("kn-mech-031");
+  const [selected, setSelected] = useState<string | null>(null);
   const [hiddenClusters, setHiddenClusters] = useState<Set<string>>(() => new Set());
   const [nodeOverrides, setNodeOverrides] = useState<
     Record<string, { name?: string; description?: string }>

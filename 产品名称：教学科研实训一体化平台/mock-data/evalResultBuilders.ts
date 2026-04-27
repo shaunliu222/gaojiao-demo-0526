@@ -4,11 +4,13 @@
 
 import type { Student } from "./types";
 import type {
+  EvalTierTag,
   HomeworkEvalInput,
   HomeworkEvalSummary,
   ExamEvalInput,
   ExamEvalSummary,
   QuestionAttempt,
+  StudentEvalNarrative,
   StudentEvalResult,
 } from "./types";
 import { students } from "./students";
@@ -17,6 +19,50 @@ function idHash(s: string): number {
   let h = 0;
   for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
   return Math.abs(h);
+}
+
+/** 与协同评价 UI 卷面等级分界一致 */
+function tierFromScore(score: number): EvalTierTag {
+  if (score >= 90) return "excellent";
+  if (score >= 80) return "good";
+  if (score >= 60) return "pass";
+  return "fail";
+}
+
+function wrongQuestionCount(row: StudentEvalResult): number {
+  if (row.questionAttempts?.length) {
+    return row.questionAttempts.filter((a) => a.score < a.maxScore).length;
+  }
+  if (row.questionCorrect?.length) {
+    return row.questionCorrect.filter((x) => x === false).length;
+  }
+  return 0;
+}
+
+function questionTotalCount(row: StudentEvalResult): number {
+  if (row.questionAttempts?.length) return row.questionAttempts.length;
+  if (row.questionCorrect?.length) return row.questionCorrect.length;
+  return 0;
+}
+
+function buildAiEvalForRow(row: StudentEvalResult): StudentEvalNarrative {
+  const score = row.totalScore ?? 0;
+  const tier = tierFromScore(score);
+  const wrongQ = wrongQuestionCount(row);
+  const totalQ = questionTotalCount(row);
+  const wrongHint =
+    totalQ > 0 && wrongQ > 0
+      ? ` 本次共 ${totalQ} 题，其中 ${wrongQ} 题未得满分。`
+      : "";
+  const body =
+    tier === "excellent"
+      ? `卷面表现优秀，整体掌握扎实。${wrongHint || " 继续保持当前学习节奏。"}`
+      : tier === "good"
+        ? `整体良好，主要知识点基本到位。${wrongHint || " 可对易错点做针对性回顾。"}`
+        : tier === "pass"
+          ? `已达到及格要求，基础尚可巩固。${wrongHint || " 建议补齐薄弱章节并完成同类练习。"}`
+          : `本次未达及格线，需加强基础训练。${wrongHint || " 建议先回顾核心概念与例题，再重练同类题。"}`;
+  return { tier, comment: body.trim() };
 }
 
 /** 与 homeworks 中 scoreBuckets 的 range 字符串一致 */
@@ -466,6 +512,7 @@ export function buildHomeworkStudentResults(
         row.totalScore = k.score;
       }
     }
+    row.aiEval = buildAiEvalForRow(row);
     byId.set(sid, row);
   }
 
@@ -544,6 +591,7 @@ export function buildExamStudentResults(
     for (const k of e.keyStudents) {
       if (k.studentId === sid && k.score != null) row.totalScore = k.score;
     }
+    row.aiEval = buildAiEvalForRow(row);
     byId.set(sid, row);
   }
   for (const s of inPool) {

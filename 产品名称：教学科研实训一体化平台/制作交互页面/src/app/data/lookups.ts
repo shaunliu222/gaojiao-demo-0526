@@ -22,6 +22,8 @@ import {
   trainingProjects,
   teachingStrategies,
   teachingPlans,
+  designsBySection,
+  designsBySectionLearningAdjust,
   classProfiles,
   studentProfiles,
   homeworkEvaluations,
@@ -42,6 +44,7 @@ import type {
   TrainingProject,
   TeachingStrategy,
   TeachingPlan,
+  TeachingDesign,
   ClassProfile,
   StudentProfile,
   HomeworkEvalSummary,
@@ -143,6 +146,78 @@ export const currentPlanForClass = (classId: string): TeachingPlan | undefined =
   );
 };
 
+export interface FlatPlanSectionRef {
+  sectionId: string;
+  title: string;
+  chapterTitle: string;
+}
+
+/** 按章节顺序扁平化教学计划中的全部小节 */
+export function flattenPlanSections(plan: TeachingPlan): FlatPlanSectionRef[] {
+  const out: FlatPlanSectionRef[] = [];
+  for (const ch of plan.chapters) {
+    for (const sec of ch.sections) {
+      out.push({
+        sectionId: sec.id,
+        title: sec.title,
+        chapterTitle: ch.title,
+      });
+    }
+  }
+  return out;
+}
+
+/** 返回某小节在计划中的下一小节 id；已是最后一节则 undefined */
+export function nextSectionId(plan: TeachingPlan, sectionId: string): string | undefined {
+  const flat = flattenPlanSections(plan);
+  const i = flat.findIndex((s) => s.sectionId === sectionId);
+  if (i < 0 || i >= flat.length - 1) return undefined;
+  return flat[i + 1]!.sectionId;
+}
+
+/**
+ * 学情 → 教学设计跳转：默认打开「进度小节的下一节」工作台；巩固小节 id 来自画像。
+ * 进度 id 不在当前班级计划内时返回 null。
+ */
+/** 教学设计工作台数据源：常规入口用 designsBySection；学情入口优先用学情专用假数据 */
+export function designsForWorkbenchSection(
+  planId: string,
+  sectionId: string,
+  learningAdjust: boolean,
+): TeachingDesign[] {
+  const key = `${planId}::${sectionId}`;
+  if (learningAdjust) {
+    const adj = designsBySectionLearningAdjust[key];
+    if (adj?.length) return adj;
+  }
+  return designsBySection[key] ?? [];
+}
+
+export function resolveTeachingDesignJumpFromClass(classId: string): {
+  planId: string;
+  sectionId: string;
+  progressSectionId: string;
+  reviewSectionIds: string[];
+} | null {
+  const plan = currentPlanForClass(classId);
+  const profile = classProfileByClassId(classId);
+  if (!plan || !profile?.progressSectionId) return null;
+  const flat = flattenPlanSections(plan);
+  const flatIds = new Set(flat.map((s) => s.sectionId));
+  if (!flatIds.has(profile.progressSectionId)) return null;
+  const targetSectionId =
+    nextSectionId(plan, profile.progressSectionId) ?? profile.progressSectionId;
+  const reviewSectionIds = (profile.designReviewSectionIds ?? []).filter((id) =>
+    flatIds.has(id),
+  );
+  return {
+    planId: plan.id,
+    sectionId: targetSectionId,
+    progressSectionId: profile.progressSectionId,
+    reviewSectionIds,
+  };
+}
+
 /** 某班级的学生名单 */
 export const studentsByClass = (classId: string) =>
   students.filter((s) => s.classId === classId);
@@ -154,3 +229,42 @@ export const classesByProfession = (professionId: string): Class[] =>
 /** 节点 safe fallback：nodeById 没覆盖到的按原 graphNodes 遍历 */
 export const graphNodeById = (id: string): GraphNode | undefined =>
   nodeById[id] ?? graphNodes.find((n) => n.id === id);
+
+// ==========================================================================
+// 教师数据范围（主任全量 / 普通教师仅本人相关）
+// ==========================================================================
+
+/** 教研室主任等：可查看本专业全部课程、资源、实训等 */
+export function teacherSeesAllScopedContent(teacherId: string): boolean {
+  return teacherById(teacherId)?.isDepartmentLead === true;
+}
+
+/**
+ * 普通教师可见的班级（班主任 + 其创建的教学计划覆盖的班级）。
+ * 返回 null 表示不限制（主任视角）。
+ */
+export function classIdsVisibleToTeacher(teacherId: string): string[] | null {
+  if (teacherSeesAllScopedContent(teacherId)) return null;
+  const ids = new Set<string>();
+  for (const p of teachingPlans) {
+    if (p.creatorTeacherId === teacherId) {
+      for (const cid of p.classIds) ids.add(cid);
+    }
+  }
+  for (const c of classes) {
+    if (c.headTeacherId === teacherId) ids.add(c.id);
+  }
+  return Array.from(ids);
+}
+
+/** 学情分析页默认选中的班级 tab */
+export function defaultLearningClassIdForTeacher(teacherId: string): string {
+  const unrestricted = classIdsVisibleToTeacher(teacherId);
+  if (unrestricted === null) return classProfiles[0]!.classId;
+  const visible = new Set(unrestricted);
+  for (const p of classProfiles) {
+    if (visible.has(p.classId)) return p.classId;
+  }
+  if (unrestricted.length > 0) return unrestricted[0]!;
+  return classProfiles[0]!.classId;
+}

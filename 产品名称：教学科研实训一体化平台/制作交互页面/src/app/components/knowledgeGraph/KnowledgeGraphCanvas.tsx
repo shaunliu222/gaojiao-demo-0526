@@ -7,6 +7,20 @@ import {
 } from "../../data/graphLayout";
 import { edgeStrokeByRelation, NEUTRAL_EDGE, type EdgeStroke } from "./edgeStyles";
 
+/** 选中节点及其无向 1 跳邻居（含自身） */
+export function neighborIdsForFocus(
+  focusId: string | null | undefined,
+  edges: GraphEdge[],
+): Set<string> | null {
+  if (!focusId) return null;
+  const s = new Set<string>([focusId]);
+  for (const e of edges) {
+    if (e.from === focusId) s.add(e.to);
+    if (e.to === focusId) s.add(e.from);
+  }
+  return s;
+}
+
 type LayoutOverrides = Partial<
   Pick<
     LayoutOptions,
@@ -42,6 +56,11 @@ export type KnowledgeGraphCanvasProps = {
   /** 为节点包一层可点击域（如全库浏览/计划路径选节点）；不上则只展示 */
   onNodeClick?: (node: GraphNode) => void;
   renderNode: (args: { node: GraphNode; x: number; y: number }) => ReactNode;
+  /**
+   * 选中节点 id：对该节点及其直接相连的边做视图放大，其余边与节点淡化。
+   * 传 null/undefined 时不做聚焦。
+   */
+  focusNodeId?: string | null;
   className?: string;
   style?: React.CSSProperties;
   svgClassName?: string;
@@ -52,12 +71,13 @@ function defaultEdgeElement(
   from: NodeXY,
   to: NodeXY,
   mode: "neutral" | "byRelation",
+  opacityMul = 1,
 ): ReactNode {
   const st: EdgeStroke =
     mode === "byRelation" ? edgeStrokeByRelation(e) : NEUTRAL_EDGE;
+  const baseOp = st.opacity ?? 1;
   return (
     <line
-      key={e.id}
       x1={from.x}
       y1={from.y}
       x2={to.x}
@@ -66,7 +86,7 @@ function defaultEdgeElement(
       strokeWidth={st.strokeWidth}
       strokeLinecap="round"
       strokeDasharray={st.strokeDasharray}
-      opacity={st.opacity ?? 1}
+      opacity={baseOp * opacityMul}
     />
   );
 }
@@ -84,6 +104,7 @@ export function KnowledgeGraphCanvas({
   renderEdge,
   onNodeClick,
   renderNode,
+  focusNodeId = null,
   className,
   style,
   svgClassName,
@@ -98,30 +119,86 @@ export function KnowledgeGraphCanvas({
     [nodes, edges, width, height, layoutOverrides],
   );
 
+  const neighborSet = useMemo(
+    () => neighborIdsForFocus(focusNodeId, edges),
+    [focusNodeId, edges],
+  );
+
+  const focusTransform = useMemo(() => {
+    if (!neighborSet || neighborSet.size === 0 || !focusNodeId) return null;
+    const pts: NodeXY[] = [];
+    for (const n of nodes) {
+      if (!neighborSet.has(n.id)) continue;
+      const p = coords.get(n.id);
+      if (p) pts.push(p);
+    }
+    if (pts.length === 0) return null;
+    let minX = pts[0]!.x;
+    let maxX = pts[0]!.x;
+    let minY = pts[0]!.y;
+    let maxY = pts[0]!.y;
+    for (let i = 1; i < pts.length; i++) {
+      const p = pts[i]!;
+      minX = Math.min(minX, p.x);
+      maxX = Math.max(maxX, p.x);
+      minY = Math.min(minY, p.y);
+      maxY = Math.max(maxY, p.y);
+    }
+    const bw = Math.max(maxX - minX, 120);
+    const bh = Math.max(maxY - minY, 120);
+    const midX = (minX + maxX) / 2;
+    const midY = (minY + maxY) / 2;
+    const pad = Math.max(56, 0.14 * (bw + bh));
+    const fit = Math.min(width / (bw + 2 * pad), height / (bh + 2 * pad));
+    const scale = Math.min(Math.max(fit, 1), 2.75);
+    return { midX, midY, scale };
+  }, [neighborSet, focusNodeId, nodes, coords, width, height]);
+
+  const gTransform =
+    focusTransform != null
+      ? `translate(${width / 2} ${height / 2}) scale(${focusTransform.scale}) translate(${-focusTransform.midX} ${-focusTransform.midY})`
+      : undefined;
+
+  const edgeDim = 0.12;
+  const nodeDim = 0.24;
+
   return (
     <svg
       viewBox={`0 0 ${width} ${height}`}
       className={svgClassName ?? "w-full h-full block"}
       style={style}
     >
-      <g className={className}>
+      <g className={className} transform={gTransform}>
         {edges.map((e) => {
           const a = coords.get(e.from);
           const b = coords.get(e.to);
           if (!a || !b) return null;
-          if (renderEdge) return <g key={e.id}>{renderEdge(e, a, b)}</g>;
+          const inFocus =
+            !neighborSet ||
+            (neighborSet.has(e.from) && neighborSet.has(e.to));
+          const eOp = inFocus ? 1 : edgeDim;
+          if (renderEdge) {
+            return (
+              <g key={e.id} opacity={eOp}>
+                {renderEdge(e, a, b)}
+              </g>
+            );
+          }
           return (
             <g key={e.id}>
-              {defaultEdgeElement(e, a, b, edgeStrokeMode)}
+              {defaultEdgeElement(e, a, b, edgeStrokeMode, eOp)}
             </g>
           );
         })}
         {nodes.map((n) => {
           const xy = coords.get(n.id);
           if (!xy) return null;
+          const inFocus = !neighborSet || neighborSet.has(n.id);
+          const nOp = inFocus ? 1 : nodeDim;
           return (
             <g
               key={n.id}
+              opacity={nOp}
               onClick={onNodeClick ? () => onNodeClick(n) : undefined}
               style={{ cursor: onNodeClick ? "pointer" : undefined }}
             >

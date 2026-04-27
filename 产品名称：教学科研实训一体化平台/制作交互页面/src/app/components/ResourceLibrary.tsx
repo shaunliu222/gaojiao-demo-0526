@@ -15,7 +15,11 @@ import {
 } from "lucide-react";
 import { resources, professions } from "@mock";
 import type { ResourceType } from "@mock";
-import { teacherById, professionById } from "../data/lookups";
+import {
+  teacherById,
+  professionById,
+  teacherSeesAllScopedContent,
+} from "../data/lookups";
 import { PageHeader, AiBadge } from "./Layout";
 import {
   Dialog,
@@ -48,19 +52,27 @@ const ADD_TYPE_OPTIONS: { value: ResourceType; label: string }[] = [
   { value: "quiz", label: "题库" },
 ];
 
-export function ResourceLibrary({ onOpen }: { onOpen: (id: string) => void }) {
+export function ResourceLibrary({
+  currentTeacherId,
+  onOpen,
+}: {
+  currentTeacherId: string;
+  onOpen: (id: string) => void;
+}) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [addTitle, setAddTitle] = useState("");
   const [addType, setAddType] = useState<ResourceType>("doc");
-  const [demoHint, setDemoHint] = useState<string | null>(null);
+  const [statusHint, setStatusHint] = useState<string | null>(null);
   const [typeFilter, setTypeFilter] = useState<ResourceType | "all">("all");
   const [profFilter, setProfFilter] = useState<string>("all");
   const [aiOnly, setAiOnly] = useState<boolean>(false);
   const [q, setQ] = useState<string>("");
 
   const list = useMemo(() => {
+    const seesAll = teacherSeesAllScopedContent(currentTeacherId);
     return resources.filter((r) => {
+      if (!seesAll && r.uploaderTeacherId !== currentTeacherId) return false;
       if (typeFilter !== "all" && r.type !== typeFilter) return false;
       if (profFilter !== "all" && r.professionId !== profFilter) return false;
       if (aiOnly && !r.isAiGenerated) return false;
@@ -76,13 +88,17 @@ export function ResourceLibrary({ onOpen }: { onOpen: (id: string) => void }) {
       }
       return true;
     });
-  }, [typeFilter, profFilter, aiOnly, q]);
+  }, [typeFilter, profFilter, aiOnly, q, currentTeacherId]);
 
   const typeStats = useMemo(() => {
+    const seesAll = teacherSeesAllScopedContent(currentTeacherId);
     const out: Record<string, number> = {};
-    for (const r of resources) out[r.type] = (out[r.type] ?? 0) + 1;
+    for (const r of resources) {
+      if (!seesAll && r.uploaderTeacherId !== currentTeacherId) continue;
+      out[r.type] = (out[r.type] ?? 0) + 1;
+    }
     return out;
-  }, []);
+  }, [currentTeacherId]);
 
   return (
     <div>
@@ -94,9 +110,7 @@ export function ResourceLibrary({ onOpen }: { onOpen: (id: string) => void }) {
         onChange={(e) => {
           const n = e.target.files?.length ?? 0;
           if (n > 0) {
-            setDemoHint(
-              `已选择 ${n} 个文件（演示环境，未执行实际上传/解析）`,
-            );
+            setStatusHint(`已选择 ${n} 个文件`);
           }
           e.target.value = "";
         }}
@@ -139,9 +153,6 @@ export function ResourceLibrary({ onOpen }: { onOpen: (id: string) => void }) {
                 ))}
               </select>
             </div>
-            <p className="text-slate-500 text-xs">
-              本交互为演示：确定后不会写入下方列表，也不会调用后端。
-            </p>
           </div>
           <DialogFooter>
             <button
@@ -155,8 +166,8 @@ export function ResourceLibrary({ onOpen }: { onOpen: (id: string) => void }) {
               type="button"
               onClick={() => {
                 const name = addTitle.trim() || "未命名资源";
-                setDemoHint(
-                  `已登记「${name}」（${ADD_TYPE_OPTIONS.find((x) => x.value === addType)?.label ?? addType}，演示环境不写入列表）`,
+                setStatusHint(
+                  `已登记「${name}」（${ADD_TYPE_OPTIONS.find((x) => x.value === addType)?.label ?? addType}）`,
                 );
                 setAddOpen(false);
               }}
@@ -213,12 +224,12 @@ export function ResourceLibrary({ onOpen }: { onOpen: (id: string) => void }) {
           </div>
         }
       />
-      {demoHint && (
+      {statusHint && (
         <div className="px-6 py-2 bg-amber-50 border-b border-amber-200 text-amber-900 text-sm flex items-start justify-between gap-3">
-          <span className="leading-snug pt-0.5">{demoHint}</span>
+          <span className="leading-snug pt-0.5">{statusHint}</span>
           <button
             type="button"
-            onClick={() => setDemoHint(null)}
+            onClick={() => setStatusHint(null)}
             className="shrink-0 text-amber-700/80 hover:text-amber-900 px-1"
             aria-label="关闭提示"
           >

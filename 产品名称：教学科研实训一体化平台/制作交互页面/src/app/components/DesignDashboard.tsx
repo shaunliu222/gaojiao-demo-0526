@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import { teachingPlans, designsBySection } from "@mock";
 import type { TeachingDesign, TeachingPlan } from "@mock";
-import { classById, courseById } from "../data/lookups";
+import { classById, courseById, teacherSeesAllScopedContent } from "../data/lookups";
 import { PageHeader } from "./Layout";
 
 interface SectionRef {
@@ -51,6 +51,7 @@ function collectAllSections(): SectionRef[] {
           isFocus:
             isFocusChapter ||
             sec.id === "sec-3-2" || // 主线焦点小节
+            sec.id === "sec-wgw-1-2" || // 王海峰 · 金工量具对读
             sec.title.includes("焦点"),
           latestUpdatedAt: latest,
         });
@@ -61,11 +62,17 @@ function collectAllSections(): SectionRef[] {
 }
 
 export function DesignDashboard({
+  currentTeacherId,
   onOpenSection,
 }: {
+  currentTeacherId: string;
   onOpenSection: (planId: string, sectionId: string) => void;
 }) {
-  const all = useMemo(collectAllSections, []);
+  const all = useMemo(() => {
+    const rows = collectAllSections();
+    if (teacherSeesAllScopedContent(currentTeacherId)) return rows;
+    return rows.filter((s) => s.plan.creatorTeacherId === currentTeacherId);
+  }, [currentTeacherId]);
 
   const totalSections = all.length;
   const designedCount = all.filter((s) => s.hasDesign).length;

@@ -24,6 +24,18 @@ export interface Profession {
   college: string; // 所属学院
   description: string;
   hasKnowledgeGraph: boolean; // 是否已经建立知识图谱
+  /** 知识图谱页可点开查看的培养计划（人才培养方案）假文档 id，见 knowledgeGraphTrainingPlanDocs */
+  knowledgeGraphTrainingPlanDocumentId?: string;
+}
+
+/** 知识图谱配套：专业关联的本科人才培养方案文档（假数据，供交互页弹层展示） */
+export interface KnowledgeGraphTrainingPlanDocument {
+  id: ID;
+  professionId: ID;
+  /** 列表、下载区展示用文件名 */
+  fileName: string;
+  /** 弹层中展示的正文（拟真节选） */
+  content: string;
 }
 
 /** 学科/科目（挂在专业下） */
@@ -68,6 +80,8 @@ export interface Teacher {
   college: string;
   department: string; // 教研室
   subjectIds: ID[]; // 所教学科
+  /** 教研室主任等：可查看本专业全部课程 / 资源 / 实训等教学数据 */
+  isDepartmentLead?: boolean;
   avatar?: string;
   email?: string;
 }
@@ -98,6 +112,10 @@ export interface ClassProfile {
   aiSummary: string; // AI 生成的班级画像文字总结
   generatedAt: ISODateTime; // 画像生成时间
   generatedBy: "ai" | "manual";
+  /** 当前教/学到的小节 id（与 currentPlanForClass 对应计划内 section.id 一致） */
+  progressSectionId?: ID;
+  /** 学情建议在教学设计中穿插巩固的小节 id */
+  designReviewSectionIds?: ID[];
 }
 
 /** 学生画像 */
@@ -152,7 +170,7 @@ export interface GraphEdge {
   relation: GraphEdgeRelation;
 }
 
-// -------- 教学计划专属知识路径（与专业库图谱数据独立，仅表达本计划内的学习顺序与模块） --------
+// -------- 教学计划专属知识路径（节点 ID 必须与专业知识图谱 graphNodes 一致；边为全库边的子集） --------
 
 export interface PlanKGraphNode {
   id: ID;
@@ -172,7 +190,7 @@ export interface PlanKGraphEdge {
   relation: GraphEdgeRelation;
 }
 
-/** 单份教学计划专属知识路径图（虚拟演示数据） */
+/** 单份教学计划知识路径图（节点来自全库，边为诱导子图或已写入全库的补边） */
 export interface PlanKnowledgePathGraph {
   planId: ID;
   /** 简短说明，展示在图上方 */
@@ -376,6 +394,11 @@ export interface TeachingDesign {
   mcpIds: ID[];
   chatHistory: ChatMessage[];
   outputs: DesignOutput[];
+  /**
+   * 学情首屏模拟：AI 首条回复「生成」前，右栏产物仅用本列表（可与 outputs 形成「草案→定稿」对比）。
+   * 未设置时不影响现有页面。
+   */
+  outputsBeforeInitialAiReply?: DesignOutput[];
   updatedAt: ISODateTime;
 }
 
@@ -431,12 +454,25 @@ export interface QuestionAttempt {
   knowledgeNodeId?: ID;
 }
 
+/** 与汇总 aiRatings 四档一致：优秀 / 良好 / 及格 / 待帮扶 */
+export type EvalTierTag = "excellent" | "good" | "pass" | "fail";
+
+/** 总评：标准等级标签（单选）+ 评语 */
+export interface StudentEvalNarrative {
+  tier: EvalTierTag;
+  comment: string;
+}
+
 export interface StudentEvalResult {
   studentId: ID;
   submitted: boolean;
   totalScore?: number;
   questionCorrect?: boolean[];
   questionAttempts?: QuestionAttempt[];
+  /** AI 总评（优先生成/展示） */
+  aiEval?: StudentEvalNarrative;
+  /** 教师总评（可由会话内编辑覆盖展示） */
+  teacherEval?: StudentEvalNarrative;
 }
 
 /** 作业评价汇总（每次作业一条） */

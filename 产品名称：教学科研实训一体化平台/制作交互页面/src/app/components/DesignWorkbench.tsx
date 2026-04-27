@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   FileText,
   Brain,
@@ -19,14 +19,19 @@ import {
   Code2,
   Headphones,
 } from "lucide-react";
-import { designsBySection, teachingPlans } from "@mock";
+import { teachingPlans } from "@mock";
 import type {
   ChatMessage,
   DesignOutput,
   DesignTab,
   TeachingDesign,
 } from "@mock";
-import { personaById, skillOrMcpById, classById } from "../data/lookups";
+import {
+  personaById,
+  skillOrMcpById,
+  classById,
+  designsForWorkbenchSection,
+} from "../data/lookups";
 import { PageHeader, AiBadge } from "./Layout";
 
 type TabKey = DesignTab;
@@ -114,6 +119,8 @@ function fileSourceLabel(s: "local" | "knowledge_base" | "resource_library" | "i
 /** 本地临时消息（发送后 append，不写回 mock） */
 interface LocalMessage extends ChatMessage {
   pending?: boolean;
+  /** 学情模式：占位一条，用于展示 AI 生成中的 loading */
+  loadingPlaceholder?: boolean;
 }
 
 export function DesignWorkbench({
@@ -121,12 +128,15 @@ export function DesignWorkbench({
   sectionId,
   onBack,
   onOpenDemoSection,
+  /** true 时使用学情专用假数据（仅部分小节有独立剧本） */
+  learningAdjust = false,
 }: {
   planId: string;
   sectionId: string;
   onBack: () => void;
   /** 假跳转：进入带完整假数据的焦点小节教学设计 */
   onOpenDemoSection?: () => void;
+  learningAdjust?: boolean;
 }) {
   const plan = teachingPlans.find((p) => p.id === planId);
   const section = useMemo(() => {
@@ -139,8 +149,10 @@ export function DesignWorkbench({
     return undefined;
   }, [plan, sectionId]);
 
-  const key = `${planId}::${sectionId}`;
-  const designs: TeachingDesign[] = designsBySection[key] ?? [];
+  const designs: TeachingDesign[] = useMemo(
+    () => designsForWorkbenchSection(planId, sectionId, learningAdjust),
+    [planId, sectionId, learningAdjust],
+  );
 
   const [tab, setTab] = useState<TabKey>("讲义");
   const [extraMsgs, setExtraMsgs] = useState<Record<string, LocalMessage[]>>({});
@@ -212,12 +224,14 @@ export function DesignWorkbench({
         />
       ) : (
         <DesignBody
+          key={currentDesign.id}
           tab={tab}
           design={currentDesign}
           extra={extraMsgs[currentDesign.id] ?? []}
           input={input}
           onChange={setInput}
           onSend={send}
+          learningAdjustSimulateInitialReply={learningAdjust}
         />
       )}
     </div>
@@ -231,6 +245,7 @@ function DesignBody({
   input,
   onChange,
   onSend,
+  learningAdjustSimulateInitialReply = false,
 }: {
   tab: TabKey;
   design: TeachingDesign;
@@ -238,11 +253,81 @@ function DesignBody({
   input: string;
   onChange: (v: string) => void;
   onSend: () => void;
+  /** 学情入口：先展示首条用户消息，1s 后再展示首条 AI 回复 */
+  learningAdjustSimulateInitialReply?: boolean;
 }) {
   const persona = personaById(design.personaId);
   const skills = design.skillIds.map(skillOrMcpById).filter(Boolean);
   const mcps = design.mcpIds.map(skillOrMcpById).filter(Boolean);
-  const messages: LocalMessage[] = [...design.chatHistory, ...extra];
+
+  const firstUser = design.chatHistory.find((m) => m.role === "user");
+  const firstAssistant = design.chatHistory.find((m) => m.role === "assistant");
+
+  const [initialAssistantReady, setInitialAssistantReady] = useState(
+    !learningAdjustSimulateInitialReply,
+  );
+  const [initialLoading, setInitialLoading] = useState(learningAdjustSimulateInitialReply);
+
+  useEffect(() => {
+    if (!learningAdjustSimulateInitialReply) {
+      setInitialAssistantReady(true);
+      setInitialLoading(false);
+      return;
+    }
+    setInitialAssistantReady(false);
+    setInitialLoading(true);
+    const t = window.setTimeout(() => {
+      setInitialLoading(false);
+      setInitialAssistantReady(true);
+    }, 1000);
+    return () => clearTimeout(t);
+  }, [learningAdjustSimulateInitialReply, design.id]);
+
+  const messages: LocalMessage[] = useMemo(() => {
+    if (learningAdjustSimulateInitialReply && firstUser) {
+      const out: LocalMessage[] = [{ ...firstUser } as LocalMessage];
+      if (initialLoading) {
+        out.push({
+          id: `__la-loading-${design.id}`,
+          role: "assistant",
+          content: "",
+          createdAt: new Date().toISOString(),
+          loadingPlaceholder: true,
+        });
+      } else if (initialAssistantReady && firstAssistant) {
+        out.push({ ...firstAssistant } as LocalMessage);
+      }
+      out.push(...extra);
+      return out;
+    }
+    return [...design.chatHistory, ...extra];
+  }, [
+    learningAdjustSimulateInitialReply,
+    firstUser,
+    firstAssistant,
+    initialLoading,
+    initialAssistantReady,
+    design.chatHistory,
+    design.id,
+    extra,
+  ]);
+
+  const visibleOutputs: DesignOutput[] = useMemo(() => {
+    if (!learningAdjustSimulateInitialReply) return design.outputs;
+    if (initialLoading) return design.outputsBeforeInitialAiReply ?? [];
+    return design.outputs;
+  }, [
+    learningAdjustSimulateInitialReply,
+    initialLoading,
+    design.outputs,
+    design.outputsBeforeInitialAiReply,
+  ]);
+
+  const showLearningOutputsPending =
+    learningAdjustSimulateInitialReply &&
+    initialLoading &&
+    design.outputs.length > visibleOutputs.length;
+
   const templates = TEMPLATES_BY_TAB[tab];
 
   return (
@@ -281,27 +366,51 @@ function DesignBody({
 
       <div className="col-span-7 flex flex-col bg-slate-50 min-h-0">
         <div className="flex-1 overflow-auto p-5 space-y-3">
-          {messages.map((m) => (
-            <div
-              key={m.id}
-              className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}
-            >
-              <div
-                className={`max-w-[72%] px-3.5 py-2.5 rounded-2xl text-[12.5px] ${
-                  m.role === "user"
-                    ? "bg-indigo-600 text-white rounded-br-sm"
-                    : "bg-white border border-slate-200 rounded-bl-sm text-slate-800"
-                }`}
-              >
-                {m.role === "assistant" && (
+          {messages.map((m) =>
+            m.loadingPlaceholder ? (
+              <div key={m.id} className="flex justify-start">
+                <div className="max-w-[72%] px-3.5 py-2.5 rounded-2xl rounded-bl-sm border border-slate-200 bg-white text-[12.5px] text-slate-800">
                   <div className="mb-1">
                     <AiBadge>AI 助手</AiBadge>
                   </div>
-                )}
-                <p className="leading-relaxed whitespace-pre-line">{m.content}</p>
+                  <div className="flex items-center gap-2 py-1 text-slate-500">
+                    <span className="inline-flex gap-1" aria-label="正在生成">
+                      <span className="size-1.5 rounded-full bg-indigo-400 animate-pulse" />
+                      <span
+                        className="size-1.5 rounded-full bg-indigo-400 animate-pulse"
+                        style={{ animationDelay: "150ms" }}
+                      />
+                      <span
+                        className="size-1.5 rounded-full bg-indigo-400 animate-pulse"
+                        style={{ animationDelay: "300ms" }}
+                      />
+                    </span>
+                    <span className="text-[11px]">正在生成回复…</span>
+                  </div>
+                </div>
               </div>
-            </div>
-          ))}
+            ) : (
+              <div
+                key={m.id}
+                className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}
+              >
+                <div
+                  className={`max-w-[72%] px-3.5 py-2.5 rounded-2xl text-[12.5px] ${
+                    m.role === "user"
+                      ? "bg-indigo-600 text-white rounded-br-sm"
+                      : "bg-white border border-slate-200 rounded-bl-sm text-slate-800"
+                  }`}
+                >
+                  {m.role === "assistant" && (
+                    <div className="mb-1">
+                      <AiBadge>AI 助手</AiBadge>
+                    </div>
+                  )}
+                  <p className="leading-relaxed whitespace-pre-line">{m.content}</p>
+                </div>
+              </div>
+            ),
+          )}
           {messages.length === 0 && (
             <div className="text-center text-slate-400 py-10 text-[12px]">
               暂无对话记录，可在下方输入需求让 AI 生成初稿。
@@ -357,19 +466,34 @@ function DesignBody({
         <div className="h-px bg-slate-100 my-2.5" />
 
         <div className="space-y-2">
-          {design.outputs.map((o) => {
+          {visibleOutputs.map((o) => {
             const Icon = iconForOutput(o.type);
+            const draftTone =
+              learningAdjustSimulateInitialReply &&
+              initialLoading &&
+              design.outputsBeforeInitialAiReply?.some((d) => d.id === o.id);
             return (
               <div
                 key={o.id}
-                className="border border-slate-200 rounded-lg p-2.5 hover:border-indigo-300 transition"
+                className={`border rounded-lg p-2.5 transition ${
+                  draftTone
+                    ? "border-amber-200 bg-amber-50/40 hover:border-amber-300"
+                    : "border-slate-200 hover:border-indigo-300"
+                }`}
               >
                 <div className="flex items-center gap-2">
                   <div className="size-8 rounded-md bg-indigo-50 text-indigo-600 flex items-center justify-center">
                     <Icon size={14} />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="truncate text-slate-900 text-[12.5px]">{o.title}</div>
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <div className="truncate text-slate-900 text-[12.5px]">{o.title}</div>
+                      {draftTone && (
+                        <span className="shrink-0 text-[0.625rem] px-1 py-px rounded bg-amber-100 text-amber-800 border border-amber-200">
+                          草案
+                        </span>
+                      )}
+                    </div>
                     <div className="text-slate-500 text-[11px]">
                       {[o.type, o.sizeLabel, o.durationLabel].filter(Boolean).join(" · ")}
                     </div>
@@ -399,7 +523,15 @@ function DesignBody({
               </div>
             );
           })}
-          {design.outputs.length === 0 && (
+          {showLearningOutputsPending && (
+            <div className="border border-dashed border-indigo-200 rounded-lg px-3 py-3 bg-indigo-50/30 animate-pulse">
+              <div className="text-[11px] text-indigo-800 font-medium mb-1">学情衔接产物生成中</div>
+              <p className="text-[11px] text-slate-600 leading-relaxed">
+                将按学情建议补充巩固与衔接类产物（如 2.1 相关条目等），与左侧 AI 回复同步完成…
+              </p>
+            </div>
+          )}
+          {visibleOutputs.length === 0 && !showLearningOutputsPending && (
             <div className="text-slate-400 text-center py-5 text-[11.5px]">
               暂无产物，发送指令让 AI 生成
             </div>

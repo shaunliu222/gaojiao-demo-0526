@@ -1,16 +1,25 @@
 import type { Class } from "./types";
 
 /**
- * 班级数据（共 6 个班，~160 人）
+ * 班级数据（6 个班，覆盖大一～大四同专业不同年级段）
  *
- * - 机制 2301 主班 28 人（主故事线）
- * - 机制 2302 对照班 25 人（两极分化，演示异常洞察）
- * - 机制 2201 上届班 26 人（已结业，历史数据）
- * - 法学 2301 26 人
- * - 护理 2301 30 人
- * - 学前 2301 24 人
+ * - 机制 2401：大一新生（辅线：专业导论）
+ * - 机制 2301 / 2302：大二（主故事线《机械制图与CAD》）
+ * - 机制 2303：大二平行班（辅线：工业机器人）
+ * - 机制 2201：大三上届班（历史制图计划）
+ * - 机制 2101：大四（辅线：互换性与技术测量等）
  */
 export const classes: Class[] = [
+  {
+    id: "cls-mech-2401",
+    professionId: "prof-mech",
+    name: "机制 2401",
+    grade: 2024,
+    studentCount: 6,
+    headTeacherId: "t-sun",
+    status: "in_session",
+    description: "大一新生班，本学期以专业导论与工程认知为主，逐步衔接工程图学。",
+  },
   {
     id: "cls-mech-2301",
     professionId: "prof-mech",
@@ -32,6 +41,16 @@ export const classes: Class[] = [
     description: "王海峰带班，学情两极分化明显，前 1/4 和后 1/4 差距较大。",
   },
   {
+    id: "cls-mech-2303",
+    professionId: "prof-mech",
+    name: "机制 2303",
+    grade: 2023,
+    studentCount: 26,
+    headTeacherId: "t-zhao",
+    status: "in_session",
+    description: "大二平行班，整体偏动手与仿真，与 2301/2302 同修制图课，辅修工业机器人技术。",
+  },
+  {
     id: "cls-mech-2201",
     professionId: "prof-mech",
     name: "机制 2201",
@@ -39,36 +58,16 @@ export const classes: Class[] = [
     studentCount: 26,
     headTeacherId: "t-li",
     status: "in_session",
-    description: "李建国上届带班，大二课程已完成，用于历史数据对照。",
+    description: "李建国上届带班，大三阶段，用于历史制图数据对照。",
   },
   {
-    id: "cls-law-2301",
-    professionId: "prof-law",
-    name: "法学 2301",
-    grade: 2023,
-    studentCount: 26,
-    headTeacherId: "t-zhao",
-    status: "in_session",
-    description: "赵文静带班，女生比例较高，课堂讨论活跃。",
-  },
-  {
-    id: "cls-nurse-2301",
-    professionId: "prof-nurse",
-    name: "护理 2301",
-    grade: 2023,
+    id: "cls-mech-2101",
+    professionId: "prof-mech",
+    name: "机制 2101",
+    grade: 2021,
     studentCount: 30,
     headTeacherId: "t-wanglh",
     status: "in_session",
-    description: "王丽华带班，班风勤奋，护理操作动手能力普遍较强。",
-  },
-  {
-    id: "cls-edu-2301",
-    professionId: "prof-edu",
-    name: "学前 2301",
-    grade: 2023,
-    studentCount: 24,
-    headTeacherId: "t-sun",
-    status: "in_session",
-    description: "孙小艳带班，学前专业首届学生，学院正推进知识图谱建设。",
+    description: "大四毕业班，重点修读互换性与技术测量、制造工艺等综合课程。",
   },
 ];

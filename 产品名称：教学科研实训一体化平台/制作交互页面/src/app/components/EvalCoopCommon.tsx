@@ -1,6 +1,11 @@
-import { useMemo, useState } from "react";
-import { CheckCircle2, ChevronLeft, Search, XCircle } from "lucide-react";
-import type { Student, StudentEvalResult } from "@mock";
+import { useEffect, useMemo, useState } from "react";
+import { CheckCircle2, ChevronLeft, Pencil, Search, XCircle } from "lucide-react";
+import type {
+  EvalTierTag,
+  Student,
+  StudentEvalNarrative,
+  StudentEvalResult,
+} from "@mock";
 import { classById, studentById } from "../data/lookups";
 import { AiBadge } from "./Layout";
 
@@ -229,6 +234,108 @@ function gradeLabel(score: number | undefined) {
   return { text: "待帮扶", cls: "bg-rose-50 text-rose-700" };
 }
 
+const EVAL_TIER_ORDER: EvalTierTag[] = ["excellent", "good", "pass", "fail"];
+
+function tierLabel(t: EvalTierTag): string {
+  switch (t) {
+    case "excellent":
+      return "优秀";
+    case "good":
+      return "良好";
+    case "pass":
+      return "及格";
+    case "fail":
+      return "待帮扶";
+  }
+}
+
+function tierFromScore(score: number): EvalTierTag {
+  if (score >= 90) return "excellent";
+  if (score >= 80) return "good";
+  if (score >= 60) return "pass";
+  return "fail";
+}
+
+function tierChipClass(t: EvalTierTag): string {
+  switch (t) {
+    case "excellent":
+      return "bg-emerald-50 text-emerald-800 border-emerald-200";
+    case "good":
+      return "bg-indigo-50 text-indigo-800 border-indigo-200";
+    case "pass":
+      return "bg-amber-50 text-amber-800 border-amber-200";
+    case "fail":
+      return "bg-rose-50 text-rose-800 border-rose-200";
+  }
+}
+
+function tierButtonClass(active: boolean, t: EvalTierTag): string {
+  const base = "px-2.5 py-1.5 rounded-lg text-xs font-medium border transition";
+  if (active) {
+    return `${base} ring-2 ring-indigo-400 ring-offset-1 ${tierChipClass(t)}`;
+  }
+  return `${base} border-slate-200 bg-white text-slate-600 hover:bg-slate-50`;
+}
+
+export function defaultTeacherEvalNarrative(): StudentEvalNarrative {
+  return { tier: "pass", comment: "" };
+}
+
+/** 学生端等场景：只读展示 AI / 教师总评（顺序：AI 在上） */
+export function ReadonlyEvalNarratives({
+  ai,
+  teacher,
+  scoreFallback,
+}: {
+  ai?: StudentEvalNarrative | null;
+  teacher?: StudentEvalNarrative | null;
+  scoreFallback?: number;
+}) {
+  const aiNarrative: StudentEvalNarrative =
+    ai ??
+    (scoreFallback != null
+      ? {
+          tier: tierFromScore(scoreFallback),
+          comment: "暂无 AI 总评。",
+        }
+      : { tier: "pass", comment: "暂无 AI 总评。" });
+  return (
+    <div className="space-y-3">
+      <div className="rounded-xl border border-indigo-100 bg-indigo-50/50 p-4 space-y-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          <AiBadge />
+          <span className="text-sm font-medium text-slate-900">AI 总评</span>
+          <span
+            className={`text-xs px-2 py-0.5 rounded-md border ${tierChipClass(aiNarrative.tier)}`}
+          >
+            {tierLabel(aiNarrative.tier)}
+          </span>
+        </div>
+        <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">
+          {aiNarrative.comment}
+        </p>
+      </div>
+      <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-2">
+        <div className="text-sm font-medium text-slate-900">教师总评</div>
+        {teacher ? (
+          <>
+            <span
+              className={`inline-block text-xs px-2 py-0.5 rounded-md border ${tierChipClass(teacher.tier)}`}
+            >
+              {tierLabel(teacher.tier)}
+            </span>
+            <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">
+              {teacher.comment.trim() || "（无文字评语）"}
+            </p>
+          </>
+        ) : (
+          <p className="text-sm text-slate-500">教师尚未填写总评</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function EvalStudentSheet({
   studentId,
   results,
@@ -237,6 +344,8 @@ export function EvalStudentSheet({
   title = "本卷",
   submittedAt,
   onBack,
+  teacherEvalValue,
+  onTeacherEvalChange,
 }: {
   studentId: string;
   results: StudentEvalResult[];
@@ -245,7 +354,23 @@ export function EvalStudentSheet({
   title?: string;
   submittedAt: string;
   onBack: () => void;
+  teacherEvalValue: StudentEvalNarrative;
+  onTeacherEvalChange: (next: StudentEvalNarrative) => void;
 }) {
+  const [teacherEditing, setTeacherEditing] = useState(false);
+  const [teacherDraft, setTeacherDraft] =
+    useState<StudentEvalNarrative>(teacherEvalValue);
+
+  useEffect(() => {
+    setTeacherEditing(false);
+  }, [studentId]);
+
+  useEffect(() => {
+    if (!teacherEditing) {
+      setTeacherDraft(teacherEvalValue);
+    }
+  }, [teacherEvalValue, teacherEditing]);
+
   const s = studentById(studentId);
   const res = results.find((r) => r.studentId === studentId);
   if (!s || !res) {
@@ -284,6 +409,12 @@ export function EvalStudentSheet({
     );
   }
   const note = keyReasons.find((k) => k.studentId === studentId)?.reason;
+  const scoreN = res.totalScore ?? 0;
+  const aiNarrative: StudentEvalNarrative =
+    res.aiEval ?? {
+      tier: tierFromScore(scoreN),
+      comment: "暂无 AI 总评。",
+    };
   const grade = gradeLabel(res.totalScore);
   const attempts = res.questionAttempts;
   /** 错题优先，同组内按题号升序 */
@@ -354,15 +485,127 @@ export function EvalStudentSheet({
       </div>
 
       <div className="px-6 pb-6 space-y-4">
-        {note && (
-          <div className="rounded-xl border border-indigo-100 bg-indigo-50/60 p-4 text-indigo-700">
-            <div className="flex items-center gap-2 mb-1">
-              <AiBadge />
-              <span className="text-sm font-medium">教师重点备注</span>
+        <div className="rounded-xl border border-indigo-100 bg-indigo-50/50 p-4">
+          <div className="flex flex-row flex-wrap items-start gap-x-6 gap-y-3 min-w-0">
+            {note ? (
+              <div className="min-w-0 w-full sm:w-auto sm:max-w-[min(100%,20rem)] sm:shrink-0 sm:border-r sm:border-indigo-100 sm:pr-6 text-indigo-900">
+                <div className="flex items-center gap-2 mb-1.5">
+                  <AiBadge />
+                  <span className="text-sm font-medium whitespace-nowrap">
+                    学情摘要（班级关注）
+                  </span>
+                </div>
+                <p className="text-sm leading-relaxed">{note}</p>
+              </div>
+            ) : null}
+            <div className="min-w-0 flex-1 basis-[min(100%,16rem)] space-y-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <AiBadge />
+                <span className="text-sm font-medium text-slate-900">AI 总评</span>
+                <span
+                  className={`text-xs px-2 py-0.5 rounded-md border ${tierChipClass(aiNarrative.tier)}`}
+                >
+                  {tierLabel(aiNarrative.tier)}
+                </span>
+              </div>
+              <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">
+                {aiNarrative.comment}
+              </p>
             </div>
-            <p className="text-sm leading-relaxed">{note}</p>
           </div>
-        )}
+        </div>
+
+        <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="text-sm font-medium text-slate-900">教师总评</div>
+            {!teacherEditing ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setTeacherDraft(teacherEvalValue);
+                  setTeacherEditing(true);
+                }}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 hover:border-slate-300"
+              >
+                <Pencil size={14} className="text-slate-500" />
+                编辑
+              </button>
+            ) : (
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    onTeacherEvalChange(teacherDraft);
+                    setTeacherEditing(false);
+                  }}
+                  className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700"
+                >
+                  保存
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTeacherDraft(teacherEvalValue);
+                    setTeacherEditing(false);
+                  }}
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
+                >
+                  取消
+                </button>
+              </div>
+            )}
+          </div>
+
+          {!teacherEditing ? (
+            <div className="space-y-2 rounded-lg border border-slate-100 bg-slate-50/80 px-3 py-3">
+              <span
+                className={`inline-block text-xs px-2 py-0.5 rounded-md border ${tierChipClass(teacherEvalValue.tier)}`}
+              >
+                {tierLabel(teacherEvalValue.tier)}
+              </span>
+              <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">
+                {teacherEvalValue.comment.trim()
+                  ? teacherEvalValue.comment
+                  : "（尚未填写评语，点击「编辑」添加）"}
+              </p>
+            </div>
+          ) : (
+            <>
+              <div className="flex flex-wrap gap-2">
+                {EVAL_TIER_ORDER.map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() =>
+                      setTeacherDraft((d) => ({
+                        ...d,
+                        tier: t,
+                      }))
+                    }
+                    className={tierButtonClass(teacherDraft.tier === t, t)}
+                  >
+                    {tierLabel(t)}
+                  </button>
+                ))}
+              </div>
+              <div>
+                <label className="text-xs text-slate-500 block mb-1">评语</label>
+                <textarea
+                  value={teacherDraft.comment}
+                  onChange={(e) =>
+                    setTeacherDraft((d) => ({
+                      ...d,
+                      comment: e.target.value,
+                    }))
+                  }
+                  rows={4}
+                  placeholder="填写对该生的文字评价…"
+                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                />
+              </div>
+            </>
+          )}
+        </div>
 
         {attemptList.map((a) => {
           const q = questionAccuracy.find((item) => item.questionNo === a.questionNo);

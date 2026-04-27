@@ -4,6 +4,7 @@ import {
   ClipboardX,
   Download,
   FileCheck,
+  PenTool,
   Search,
   Star,
 } from "lucide-react";
@@ -32,6 +33,7 @@ import {
   studentProfileByStudentId,
   homeworksByClass,
   examsByClass,
+  resolveTeachingDesignJumpFromClass,
 } from "../data/lookups";
 import { PageHeader, AiBadge } from "./Layout";
 import { StudentDetail } from "./StudentProfiles";
@@ -211,22 +213,38 @@ function LearningStudentRoster({
 
 export function LearningAnalyticsHub({
   classId,
+  allowedClassIds,
   selectedStudentId,
   onClassIdChange,
   onSelectStudent,
   onClearStudent,
   onOpenHomeworkEval,
   onOpenExamEval,
+  onJumpToTeachingDesign,
 }: {
   classId: string;
+  /** null = 不限制（主任等）；否则仅展示这些班级的画像 tab */
+  allowedClassIds: string[] | null;
   selectedStudentId?: string;
   onClassIdChange: (id: string) => void;
   onSelectStudent: (id: string) => void;
   onClearStudent: () => void;
   onOpenHomeworkEval: (homeworkEvalId: string) => void;
   onOpenExamEval: (examEvalId: string) => void;
+  onJumpToTeachingDesign?: (payload: {
+    planId: string;
+    sectionId: string;
+    progressSectionId: string;
+    reviewSectionIds: string[];
+  }) => void;
 }) {
   const [scoreBinFilter, setScoreBinFilter] = useState<ScoreBinKey | null>(null);
+  const profileTabs = useMemo(() => {
+    if (!allowedClassIds) return classProfiles;
+    const set = new Set(allowedClassIds);
+    return classProfiles.filter((p) => set.has(p.classId));
+  }, [allowedClassIds]);
+
   // 占满主内容区一屏高（与 Layout 顶栏 h-14 对应），主区/右栏分栏内滚动，避免整页被名单撑高
   return (
     <div className="flex h-[calc(100dvh-3.5rem)] max-h-full min-h-0 w-full max-w-full flex-col overflow-hidden">
@@ -238,7 +256,7 @@ export function LearningAnalyticsHub({
             role="tablist"
             aria-label="班级"
           >
-            {classProfiles.map((p) => {
+            {profileTabs.map((p) => {
               const cls = classById(p.classId);
               const name = cls?.name ?? p.classId;
               const active = classId === p.classId;
@@ -263,11 +281,18 @@ export function LearningAnalyticsHub({
               );
             })}
           </div>
+          {profileTabs.length === 0 && (
+            <p className="px-6 pb-2 text-sm text-slate-500">
+              当前账号下暂无关联班级画像，请联系教研室或教务授权。
+            </p>
+          )}
         </div>
       </div>
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden lg:flex-row">
         <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain max-lg:min-h-0">
-          {selectedStudentId ? (
+          {profileTabs.length === 0 ? (
+            <div className="p-12 text-center text-slate-400">暂无可查看的班级学情</div>
+          ) : selectedStudentId ? (
             <StudentDetail
               id={selectedStudentId}
               variant="hub"
@@ -283,15 +308,18 @@ export function LearningAnalyticsHub({
               }
               onOpenHomeworkEval={onOpenHomeworkEval}
               onOpenExamEval={onOpenExamEval}
+              onJumpToTeachingDesign={onJumpToTeachingDesign}
             />
           )}
         </div>
-        <LearningStudentRoster
-          classId={classId}
-          selectedStudentId={selectedStudentId}
-          onSelect={onSelectStudent}
-          scoreBinFilter={scoreBinFilter}
-        />
+        {profileTabs.length > 0 && (
+          <LearningStudentRoster
+            classId={classId}
+            selectedStudentId={selectedStudentId}
+            onSelect={onSelectStudent}
+            scoreBinFilter={scoreBinFilter}
+          />
+        )}
       </div>
     </div>
   );
@@ -323,6 +351,7 @@ export function ClassProfileDetail({
   onScoreBinFilterChange,
   onOpenHomeworkEval,
   onOpenExamEval,
+  onJumpToTeachingDesign,
 }: {
   id: string;
   variant?: "default" | "hub";
@@ -334,6 +363,13 @@ export function ClassProfileDetail({
   onOpenHomeworkEval?: (homeworkEvalId: string) => void;
   /** 跳转到考试评价详情 */
   onOpenExamEval?: (examEvalId: string) => void;
+  /** 学情 hub：根据画像进度跳转教学设计工作台 */
+  onJumpToTeachingDesign?: (payload: {
+    planId: string;
+    sectionId: string;
+    progressSectionId: string;
+    reviewSectionIds: string[];
+  }) => void;
 }) {
   const recentHomework = useMemo(
     () =>
@@ -351,6 +387,8 @@ export function ClassProfileDetail({
         .slice(0, 4),
     [id],
   );
+
+  const designJump = useMemo(() => resolveTeachingDesignJumpFromClass(id), [id]);
 
   const profile = classProfiles.find((x) => x.classId === id);
   const cls = classes.find((c) => c.id === id);
@@ -388,9 +426,29 @@ export function ClassProfileDetail({
           </span>
         }
         actions={
-          <button className="flex items-center gap-1 px-3 py-1.5 rounded-md border border-slate-200 hover:bg-slate-50">
-            <Download size={14} /> 下载 PDF
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            {variant === "hub" && onJumpToTeachingDesign && (
+              <button
+                type="button"
+                disabled={!designJump}
+                title={
+                  designJump
+                    ? undefined
+                    : "当前班级画像未配置教学进度，或进度不在本班当前教学计划中"
+                }
+                onClick={() => designJump && onJumpToTeachingDesign(designJump)}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-md bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 disabled:pointer-events-none disabled:cursor-not-allowed"
+              >
+                <PenTool size={14} /> 根据学情调整教学设计
+              </button>
+            )}
+            <button
+              type="button"
+              className="flex items-center gap-1 px-3 py-1.5 rounded-md border border-slate-200 hover:bg-slate-50"
+            >
+              <Download size={14} /> 下载 PDF
+            </button>
+          </div>
         }
       />
       {risk && (

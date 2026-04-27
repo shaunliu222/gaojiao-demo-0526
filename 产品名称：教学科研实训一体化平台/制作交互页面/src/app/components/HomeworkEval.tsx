@@ -2,8 +2,10 @@ import { useEffect, useMemo, useState } from "react";
 import {
   EvalCoopRoster,
   EvalStudentSheet,
+  defaultTeacherEvalNarrative,
   type Focus,
 } from "./EvalCoopCommon";
+import type { StudentEvalNarrative } from "@mock";
 import { TrendingUp, AlertTriangle, ChevronRight, BookOpen } from "lucide-react";
 import {
   LineChart,
@@ -21,7 +23,12 @@ import {
 } from "recharts";
 import { homeworkEvaluations, classes } from "@mock";
 import type { HomeworkEvalSummary } from "@mock";
-import { classById, courseById, teacherById } from "../data/lookups";
+import {
+  classById,
+  courseById,
+  teacherById,
+  teacherSeesAllScopedContent,
+} from "../data/lookups";
 import { PageHeader, AiBadge } from "./Layout";
 
 function passRate(h: HomeworkEvalSummary): number {
@@ -35,19 +42,37 @@ function failCount(h: HomeworkEvalSummary): number {
   return h.aiRatings.fail;
 }
 
-export function HwOverview({ onOpen }: { onOpen: (id: string) => void }) {
+export function HwOverview({
+  currentTeacherId,
+  onOpen,
+}: {
+  currentTeacherId: string;
+  onOpen: (id: string) => void;
+}) {
+  const scopedHw = useMemo(() => {
+    if (teacherSeesAllScopedContent(currentTeacherId)) return homeworkEvaluations;
+    return homeworkEvaluations.filter((h) => h.teacherId === currentTeacherId);
+  }, [currentTeacherId]);
+
   // 所有出现过作业的班级作为筛选项
   const classIds = useMemo(() => {
     const set = new Set<string>();
-    for (const h of homeworkEvaluations) set.add(h.classId);
+    for (const h of scopedHw) set.add(h.classId);
     return Array.from(set);
-  }, []);
+  }, [scopedHw]);
 
   const [clsFilter, setClsFilter] = useState<string>(
-    classIds.includes("cls-mech-2301") ? "cls-mech-2301" : classIds[0],
+    classIds.includes("cls-mech-2301") ? "cls-mech-2301" : classIds[0] ?? "",
   );
 
-  const filtered = homeworkEvaluations
+  useEffect(() => {
+    if (classIds.length === 0) return;
+    if (!classIds.includes(clsFilter)) {
+      setClsFilter(classIds[0]!);
+    }
+  }, [classIds, clsFilter]);
+
+  const filtered = scopedHw
     .filter((h) => h.classId === clsFilter)
     .slice()
     .sort((a, b) => a.assignedAt.localeCompare(b.assignedAt));
@@ -222,10 +247,12 @@ export function HwOverview({ onOpen }: { onOpen: (id: string) => void }) {
 
 export function HwDetail({
   id,
+  currentTeacherId,
   onBack,
   onAdjustCourse,
 }: {
   id: string;
+  currentTeacherId: string;
   onBack: () => void;
   /** 跳转教学计划详情「教学路径」，定位到对应小节以便增删调课时 */
   onAdjustCourse?: (planId: string, sectionId: string) => void;
@@ -233,11 +260,15 @@ export function HwDetail({
   const [rangeFilter, setRangeFilter] = useState<string | null>(null);
   const [questionFocus, setQuestionFocus] = useState<Focus>({ k: "none" });
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
+  const [teacherEvalOverrides, setTeacherEvalOverrides] = useState<
+    Record<string, StudentEvalNarrative>
+  >({});
 
   useEffect(() => {
     setRangeFilter(null);
     setQuestionFocus({ k: "none" });
     setSelectedStudentId(null);
+    setTeacherEvalOverrides({});
   }, [id]);
 
   const h = homeworkEvaluations.find((x) => x.id === id);
@@ -250,6 +281,21 @@ export function HwDetail({
       </div>
     );
   }
+
+  if (
+    !teacherSeesAllScopedContent(currentTeacherId) &&
+    h.teacherId !== currentTeacherId
+  ) {
+    return (
+      <div>
+        <PageHeader back={onBack} title="作业评价" />
+        <div className="p-16 text-center text-slate-500">
+          当前账号仅可查看本人布置的作业评价。
+        </div>
+      </div>
+    );
+  }
+
   const cls = classById(h.classId);
   const course = courseById(h.courseId);
   const teacher = teacherById(h.teacherId);
@@ -270,6 +316,14 @@ export function HwDetail({
     h.aiRatings.fail >= 3 ||
     (h.maxScore - h.minScore >= 40 && h.scoreBuckets[0]?.count >= 3 && h.scoreBuckets[h.scoreBuckets.length - 1]?.count >= 3);
   const pr = passRate(h);
+
+  const selectedRow = selectedStudentId
+    ? h.studentResults.find((r) => r.studentId === selectedStudentId)
+    : undefined;
+  const teacherEvalForSheet: StudentEvalNarrative =
+    selectedStudentId && teacherEvalOverrides[selectedStudentId] !== undefined
+      ? teacherEvalOverrides[selectedStudentId]!
+      : selectedRow?.teacherEval ?? defaultTeacherEvalNarrative();
 
   return (
     <div className="flex h-[calc(100dvh-3.5rem)] max-h-full min-h-0 w-full max-w-full flex-col overflow-hidden">
@@ -303,6 +357,14 @@ export function HwDetail({
               title="本次作业"
               submittedAt={h.dueAt}
               onBack={() => setSelectedStudentId(null)}
+              teacherEvalValue={teacherEvalForSheet}
+              onTeacherEvalChange={(next) => {
+                if (!selectedStudentId) return;
+                setTeacherEvalOverrides((prev) => ({
+                  ...prev,
+                  [selectedStudentId]: next,
+                }));
+              }}
             />
           ) : (
           <div className="grid grid-cols-12 gap-4 p-6">

@@ -13,7 +13,6 @@ import {
   Code2,
   Database,
   Download,
-  Network,
   Plus,
   School,
   Search,
@@ -28,10 +27,10 @@ import {
   professionById,
   resourcesByCourse,
   trainingsByCourse,
-  graphNodeById,
+  teacherSeesAllScopedContent,
 } from "../data/lookups";
-import { colorOfCluster } from "../data/graphLayout";
 import { PageHeader } from "./Layout";
+import { AssociatedKnowledgeNodes } from "./AssociatedKnowledgeNodes";
 
 const IMPORT_SOURCES: {
   key: string;
@@ -81,7 +80,13 @@ function summarizeTags(tags: string[]): string {
   return `${tags[0]}、${tags[1]} 等 ${tags.length} 项`;
 }
 
-export function CourseList({ onOpen }: { onOpen: (id: string) => void }) {
+export function CourseList({
+  currentTeacherId,
+  onOpen,
+}: {
+  currentTeacherId: string;
+  onOpen: (id: string) => void;
+}) {
   const [selectedProfIds, setSelectedProfIds] = useState<Set<string>>(
     () => new Set(professions.map((p) => p.id))
   );
@@ -90,11 +95,15 @@ export function CourseList({ onOpen }: { onOpen: (id: string) => void }) {
   const [profSearch, setProfSearch] = useState("");
 
   const list = useMemo(() => {
+    const seesAll = teacherSeesAllScopedContent(currentTeacherId);
     let rows = courses.filter((c) => selectedProfIds.has(c.professionId));
+    if (!seesAll) {
+      rows = rows.filter((c) => c.ownerTeacherId === currentTeacherId);
+    }
     const q = courseQuery.trim().toLowerCase();
     if (q) rows = rows.filter((c) => c.name.toLowerCase().includes(q));
     return rows;
-  }, [selectedProfIds, courseQuery]);
+  }, [selectedProfIds, courseQuery, currentTeacherId]);
 
   const professionsFiltered = useMemo(() => {
     const q = profSearch.trim().toLowerCase();
@@ -315,8 +324,13 @@ export function CourseList({ onOpen }: { onOpen: (id: string) => void }) {
                 {list.map((c) => {
                   const owner = teacherById(c.ownerTeacherId);
                   const prof = professionById(c.professionId);
-                  const resCount = resourcesByCourse(c.id).length;
-                  const trainCount = trainingsByCourse(c.id).length;
+                  const seesAll = teacherSeesAllScopedContent(currentTeacherId);
+                  const resCount = resourcesByCourse(c.id).filter(
+                    (r) => seesAll || r.uploaderTeacherId === currentTeacherId,
+                  ).length;
+                  const trainCount = trainingsByCourse(c.id).filter(
+                    (t) => seesAll || t.ownerTeacherId === currentTeacherId,
+                  ).length;
                   return (
                     <tr
                       key={c.id}
@@ -368,28 +382,20 @@ export function CourseList({ onOpen }: { onOpen: (id: string) => void }) {
 
 export function CourseDetail({
   id,
+  currentTeacherId,
   onBack,
   onOpenResource,
   onOpenTraining,
+  onOpenKnowledgeInGraph,
 }: {
   id: string;
+  currentTeacherId: string;
   onBack: () => void;
   onOpenResource: (id: string) => void;
   onOpenTraining: (id: string) => void;
+  onOpenKnowledgeInGraph: (nodeId: string) => void;
 }) {
   const c = courses.find((x) => x.id === id);
-
-  const nodesByCluster = useMemo(() => {
-    const map: Record<string, Array<{ id: string; name: string; cluster: string }>> = {};
-    if (!c) return map;
-    for (const nid of c.knowledgeNodeIds) {
-      const n = graphNodeById(nid);
-      if (!n) continue;
-      if (!map[n.cluster]) map[n.cluster] = [];
-      map[n.cluster].push({ id: n.id, name: n.name, cluster: n.cluster });
-    }
-    return map;
-  }, [c]);
 
   if (!c) {
     return (
@@ -399,10 +405,27 @@ export function CourseDetail({
       </div>
     );
   }
+
+  const seesAll = teacherSeesAllScopedContent(currentTeacherId);
+  if (!seesAll && c.ownerTeacherId !== currentTeacherId) {
+    return (
+      <div>
+        <PageHeader back={onBack} title="课程详情" />
+        <div className="p-16 text-center text-slate-500">
+          当前账号仅可查看本人负责的课程。
+        </div>
+      </div>
+    );
+  }
+
   const owner = teacherById(c.ownerTeacherId);
   const prof = professionById(c.professionId);
-  const resources = resourcesByCourse(c.id);
-  const trainings = trainingsByCourse(c.id);
+  const resources = resourcesByCourse(c.id).filter(
+    (r) => seesAll || r.uploaderTeacherId === currentTeacherId,
+  );
+  const trainings = trainingsByCourse(c.id).filter(
+    (t) => seesAll || t.ownerTeacherId === currentTeacherId,
+  );
 
   return (
     <div>
@@ -443,7 +466,7 @@ export function CourseDetail({
             <Info k="主讲教师" v={owner ? `${owner.name} · ${owner.title}` : "—"} />
             <Info k="所属专业" v={prof?.name ?? "—"} />
             <Info
-              k="挂载知识点"
+              k="关联知识点"
               v={`${c.knowledgeNodeIds.length} 个`}
             />
             <Info k="教学资源" v={`${resources.length} 个`} />
@@ -452,41 +475,11 @@ export function CourseDetail({
         </aside>
 
         <section className="col-span-12 bg-white rounded-xl border border-slate-200 p-5">
-          <div className="flex items-center gap-2 mb-3">
-            <Network size={16} className="text-indigo-500" />
-            <span className="text-slate-900">挂载知识点</span>
-            <span className="text-slate-400">（{c.knowledgeNodeIds.length}）</span>
-          </div>
-          {Object.keys(nodesByCluster).length === 0 ? (
-            <div className="text-slate-400">
-              该课程所属专业尚未建立知识图谱，暂无挂载节点。
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {Object.entries(nodesByCluster).map(([cluster, ns]) => (
-                <div key={cluster}>
-                  <div className="flex items-center gap-2 mb-1.5">
-                    <span
-                      className="size-2.5 rounded-full"
-                      style={{ background: colorOfCluster(cluster) }}
-                    />
-                    <span className="text-slate-700">{cluster}</span>
-                    <span className="text-slate-400">（{ns.length}）</span>
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {ns.map((n) => (
-                      <span
-                        key={n.id}
-                        className="px-2 py-1 rounded-md border border-slate-200 bg-slate-50 text-slate-700"
-                      >
-                        {n.name}
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+          <AssociatedKnowledgeNodes
+            knowledgeNodeIds={c.knowledgeNodeIds}
+            onNodeClick={onOpenKnowledgeInGraph}
+            emptyMessage="该课程所属专业尚未建立知识图谱，暂无关联节点。"
+          />
         </section>
 
         <section className="col-span-7 bg-white rounded-xl border border-slate-200 p-5">

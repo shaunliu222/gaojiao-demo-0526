@@ -4,9 +4,9 @@ import { withHomeworkStudentResults } from "./evalResultBuilders";
 /**
  * 作业评价汇总（AI 批阅后的总览数据，用于协同评价页面）
  *
- * 主线《机械制图与CAD》6 次（其中 hw-m-003"组合体三视图"数据最详细，是主故事线的关键评价节点）
- * 法学 2 次
- * 护理 2 次
+ * 主线《机械制图与CAD》6 次（其中 hw-m-003「组合体三视图」数据最详细）
+ * 辅线 · 互换性与技术测量 2 次（大四 2101）
+ * 辅线 · 工业机器人 2 次（大二 2303）
  * 合计 10 次
  */
 const homeworkEvaluationsRaw: HomeworkEvalInput[] = [
@@ -337,157 +337,238 @@ const homeworkEvaluationsRaw: HomeworkEvalInput[] = [
   },
 
   // ====================================================================
-  // 7-8. 法学 2 次
+  // 6b. 主线 · 7.1 拓展（收集中，用于学生端「未提交」演示）
   // ====================================================================
   {
-    id: "hw-l-001",
-    homeworkTitle: "第3章 · 案例分析作业（表见代理）",
-    courseId: "course-law-civil",
-    planId: "plan-law",
-    sectionId: "sec-law-3-3",
-    classId: "cls-law-2301",
-    teacherId: "t-zhao",
+    id: "hw-m-007",
+    homeworkTitle: "第7.1节 · AutoCAD 综合应用（拓展练习 · 收集中）",
+    courseId: "course-mech-draw",
+    planId: "plan-main",
+    sectionId: "sec-7-1",
+    classId: "cls-mech-2301",
+    teacherId: "t-li",
+    assignedAt: "2026-05-02",
+    dueAt: "2026-05-12",
+    submissionCount: 9,
+    totalStudents: 28,
+    averageScore: 81.4,
+    maxScore: 100,
+    minScore: 64,
+    scoreBuckets: [
+      { range: "90-100", count: 2 },
+      { range: "80-89", count: 4 },
+      { range: "70-79", count: 2 },
+      { range: "60-69", count: 1 },
+      { range: "<60", count: 0 },
+    ],
+    aiRatings: { excellent: 2, good: 4, pass: 3, fail: 0 },
+    hotWrongPoints: [],
+    keyStudents: [],
+    aiInsights: [
+      {
+        id: "ai-m-007-1",
+        title: "本作业仍在提交窗口内",
+        summary: "教师端暂不生成班级热点错因；待截止后统一批阅与讲评。",
+        actionSuggestion: "提醒学生检查草图约束与图层模板后再提交附件。",
+      },
+    ],
+    questionAccuracy: [
+      {
+        questionNo: 1,
+        title: "草图基准与全约束：按附图完成支架草图（含对称与重合约束）",
+        knowledgeNodeId: "kn-mech-054",
+        accuracy: 0.82,
+      },
+      {
+        questionNo: 2,
+        title: "拉伸与切除：板厚 10mm，两侧 R6 圆角，中间腰形孔贯通",
+        knowledgeNodeId: "kn-mech-056",
+        accuracy: 0.76,
+      },
+      {
+        questionNo: 3,
+        title: "图层与线型：轮廓/中心线/虚线分层，线宽随层",
+        knowledgeNodeId: "kn-mech-055",
+        accuracy: 0.79,
+      },
+      {
+        questionNo: 4,
+        title: "交付物：导出 DWG + PDF，文件命名 学号-姓名-7.1拓展",
+        knowledgeNodeId: "kn-mech-057",
+        accuracy: 0.71,
+      },
+    ],
+  },
+
+  // ====================================================================
+  // 7-8. 互换性与技术测量 · 2101 班 2 次
+  // ====================================================================
+  {
+    id: "hw-tol-001",
+    homeworkTitle: "公差带与配合选用作业（减速器输出轴）",
+    courseId: "course-mech-tolerance",
+    planId: "plan-mech-tolerance",
+    sectionId: "sec-tol-1-2",
+    classId: "cls-mech-2101",
+    teacherId: "t-wanglh",
     assignedAt: "2026-03-24",
     dueAt: "2026-03-28",
+    submissionCount: 30,
+    totalStudents: 30,
+    averageScore: 82.4,
+    maxScore: 96,
+    minScore: 64,
+    scoreBuckets: [
+      { range: "90-100", count: 6 },
+      { range: "80-89", count: 14 },
+      { range: "70-79", count: 8 },
+      { range: "60-69", count: 2 },
+      { range: "<60", count: 0 },
+    ],
+    aiRatings: { excellent: 6, good: 14, pass: 10, fail: 0 },
+    hotWrongPoints: [
+      { name: "基孔制/基轴制选用混淆", knowledgeNodeId: "kn-mech-050", wrongRate: 0.31, aiCause: "未先判断「工艺习惯」与「标准件外购件」约束。" },
+      { name: "公差等级过紧导致成本惩罚", knowledgeNodeId: "kn-mech-050", wrongRate: 0.22, aiCause: "忽略 IT 等级与加工方法的对应关系。" },
+    ],
+    keyStudents: [
+      { studentId: "s-mech2101-01", studentName: "白若雪", reason: "公差链分析满分档", score: 96 },
+      { studentId: "s-mech2101-08", studentName: "钟雅琪", reason: "配合代号多次涂改", score: 66 },
+    ],
+    aiInsights: [
+      { id: "ai-tol-001-1", title: "配合制度选用是集中失分点", summary: "约 1/3 学生在基孔/基轴判断上犹豫过久。", actionSuggestion: "课堂增加 2 个「外购轴承 + 光轴」对照案例。" },
+    ],
+    questionAccuracy: [
+      { questionNo: 1, title: "极限偏差查表", knowledgeNodeId: "kn-mech-050", accuracy: 0.87 },
+      { questionNo: 2, title: "配合性质判断", knowledgeNodeId: "kn-mech-050", accuracy: 0.69 },
+      { questionNo: 3, title: "公差链推算", knowledgeNodeId: "kn-mech-051", accuracy: 0.72 },
+    ],
+  },
+  {
+    id: "hw-tol-002",
+    homeworkTitle: "形位公差标注纠错（支架类零件）",
+    courseId: "course-mech-tolerance",
+    planId: "plan-mech-tolerance",
+    classId: "cls-mech-2101",
+    teacherId: "t-wanglh",
+    assignedAt: "2026-04-07",
+    dueAt: "2026-04-10",
+    submissionCount: 30,
+    totalStudents: 30,
+    averageScore: 78.9,
+    maxScore: 94,
+    minScore: 58,
+    scoreBuckets: [
+      { range: "90-100", count: 4 },
+      { range: "80-89", count: 11 },
+      { range: "70-79", count: 10 },
+      { range: "60-69", count: 4 },
+      { range: "<60", count: 1 },
+    ],
+    aiRatings: { excellent: 4, good: 11, pass: 14, fail: 1 },
+    hotWrongPoints: [
+      { name: "基准要素选择不当", knowledgeNodeId: "kn-mech-051", wrongRate: 0.36, aiCause: "未优先选装配定位面作第一基准。" },
+    ],
+    keyStudents: [],
+    aiInsights: [
+      { id: "ai-tol-002-1", title: "基准体系仍薄弱", summary: "与装配图课程衔接不足，建议用同一零件跨课复盘。", actionSuggestion: "下一讲用齿轮泵支架做课堂同题再练。" },
+    ],
+    questionAccuracy: [
+      { questionNo: 1, title: "形位公差符号识别", knowledgeNodeId: "kn-mech-051", accuracy: 0.88 },
+      { questionNo: 2, title: "基准标注", knowledgeNodeId: "kn-mech-051", accuracy: 0.64 },
+      { questionNo: 3, title: "与尺寸公差关系", knowledgeNodeId: "kn-mech-050", accuracy: 0.71 },
+    ],
+  },
+
+  // ====================================================================
+  // 9-10. 工业机器人 · 2303 班 2 次
+  // ====================================================================
+  {
+    id: "hw-rob-001",
+    homeworkTitle: "示教编程 · 三点搬运轨迹",
+    courseId: "course-mech-robotics",
+    planId: "plan-mech-robotics",
+    sectionId: "sec-rob-1-2",
+    classId: "cls-mech-2303",
+    teacherId: "t-zhao",
+    assignedAt: "2026-03-20",
+    dueAt: "2026-03-22",
     submissionCount: 26,
     totalStudents: 26,
-    averageScore: 80.1,
-    maxScore: 94,
+    averageScore: 86.2,
+    maxScore: 100,
+    minScore: 70,
+    scoreBuckets: [
+      { range: "90-100", count: 9 },
+      { range: "80-89", count: 11 },
+      { range: "70-79", count: 6 },
+      { range: "60-69", count: 0 },
+      { range: "<60", count: 0 },
+    ],
+    aiRatings: { excellent: 9, good: 11, pass: 6, fail: 0 },
+    hotWrongPoints: [
+      { name: "工具坐标系未标定", knowledgeNodeId: "kn-mech-058", wrongRate: 0.19, aiCause: "直接沿用默认 TCP，导致落点偏移。" },
+    ],
+    keyStudents: [{ studentId: "s-mech2303-01", studentName: "宋佳雯", reason: "轨迹平滑、节拍最优", score: 100 }],
+    aiInsights: [
+      { id: "ai-rob-001-1", title: "数模优势转化为节拍优势", summary: "前 1/3 学生已能兼顾避障与安全裕度。", actionSuggestion: "开放 1 次班内「节拍挑战赛」。" },
+    ],
+    questionAccuracy: [
+      { questionNo: 1, title: "坐标系与点位", knowledgeNodeId: "kn-mech-059", accuracy: 0.91 },
+      { questionNo: 2, title: "示教路径规划", knowledgeNodeId: "kn-mech-060", accuracy: 0.84 },
+    ],
+  },
+  {
+    id: "hw-rob-002",
+    homeworkTitle: "离线仿真 · 简易码垛节拍估算",
+    courseId: "course-mech-robotics",
+    planId: "plan-mech-robotics",
+    classId: "cls-mech-2303",
+    teacherId: "t-zhao",
+    assignedAt: "2026-04-03",
+    dueAt: "2026-04-05",
+    submissionCount: 26,
+    totalStudents: 26,
+    averageScore: 81.5,
+    maxScore: 98,
     minScore: 62,
     scoreBuckets: [
-      { range: "90-100", count: 5 },
-      { range: "80-89", count: 12 },
+      { range: "90-100", count: 7 },
+      { range: "80-89", count: 10 },
       { range: "70-79", count: 7 },
       { range: "60-69", count: 2 },
       { range: "<60", count: 0 },
     ],
-    aiRatings: { excellent: 5, good: 12, pass: 9, fail: 0 },
+    aiRatings: { excellent: 7, good: 10, pass: 9, fail: 0 },
     hotWrongPoints: [
-      { name: "表见代理构成要件识别不全", knowledgeNodeId: "kn-law-015", wrongRate: 0.34, aiCause: "学生对「相对人善意且无过失」这一要件容易忽略。" },
-      { name: "法律文书格式错误", wrongRate: 0.45, aiCause: "起诉状 6 大要素有遗漏，尤其是「诉讼请求」表述模糊。" },
-    ],
-    keyStudents: [
-      { studentId: "s-law2301-01", studentName: "宋佳雯", reason: "案例分析满分 94", score: 94 },
-      { studentId: "s-law2301-05", studentName: "尹雨萱", reason: "法律文书格式多次错误", score: 64 },
-    ],
-    aiInsights: [
-      { id: "ai-l-001-1", title: "法律文书格式是本次集中问题", summary: "45% 学生出现格式错误。", actionSuggestion: "4 月 10 日安排 1 次法律文书写作专项实训。" },
-    ],
-    questionAccuracy: [
-      { questionNo: 1, title: "代理类型识别", knowledgeNodeId: "kn-law-015", accuracy: 0.88 },
-      { questionNo: 2, title: "表见代理构成分析", knowledgeNodeId: "kn-law-015", accuracy: 0.66 },
-      { questionNo: 3, title: "起诉状撰写", accuracy: 0.55 },
-    ],
-  },
-  {
-    id: "hw-l-002",
-    homeworkTitle: "诉讼时效辨析题库（20 题）",
-    courseId: "course-law-civil",
-    planId: "plan-law",
-    classId: "cls-law-2301",
-    teacherId: "t-zhao",
-    assignedAt: "2026-04-07",
-    dueAt: "2026-04-10",
-    submissionCount: 26,
-    totalStudents: 26,
-    averageScore: 76.4,
-    maxScore: 96,
-    minScore: 58,
-    scoreBuckets: [
-      { range: "90-100", count: 3 },
-      { range: "80-89", count: 10 },
-      { range: "70-79", count: 8 },
-      { range: "60-69", count: 4 },
-      { range: "<60", count: 1 },
-    ],
-    aiRatings: { excellent: 3, good: 10, pass: 12, fail: 1 },
-    hotWrongPoints: [
-      { name: "时效中止与中断混淆", knowledgeNodeId: "kn-law-021", wrongRate: 0.48, aiCause: "概念交叉，学生仅靠记忆容易混淆。" },
+      { name: "安全围栏干涉未检出", knowledgeNodeId: "kn-mech-052", wrongRate: 0.24, aiCause: "仿真模型简化过度，未导入完整工装。" },
     ],
     keyStudents: [],
     aiInsights: [
-      { id: "ai-l-002-1", title: "诉讼时效仍是班级最大难点", summary: "与班级画像分析一致，建议再做 1 次辨析训练。", actionSuggestion: "下周安排 30 分钟课堂对比讲解。" },
+      { id: "ai-rob-002-1", title: "仿真—现场一致性提醒", summary: "约 1/4 学生报告节拍与现场试跑差异>15%。", actionSuggestion: "增加「仿真标定检查表」必交项。" },
     ],
     questionAccuracy: [
-      { questionNo: 1, title: "普通诉讼时效", knowledgeNodeId: "kn-law-021", accuracy: 0.86 },
-      { questionNo: 2, title: "时效中止", knowledgeNodeId: "kn-law-021", accuracy: 0.62 },
-      { questionNo: 3, title: "时效中断", knowledgeNodeId: "kn-law-021", accuracy: 0.58 },
-    ],
-  },
-
-  // ====================================================================
-  // 9-10. 护理 2 次
-  // ====================================================================
-  {
-    id: "hw-n-001",
-    homeworkTitle: "无菌操作流程默写作业",
-    courseId: "course-nurse-basic",
-    planId: "plan-nurse",
-    classId: "cls-nurse-2301",
-    teacherId: "t-wanglh",
-    assignedAt: "2026-03-20",
-    dueAt: "2026-03-22",
-    submissionCount: 30,
-    totalStudents: 30,
-    averageScore: 88.6,
-    maxScore: 100,
-    minScore: 72,
-    scoreBuckets: [
-      { range: "90-100", count: 14 },
-      { range: "80-89", count: 12 },
-      { range: "70-79", count: 4 },
-      { range: "60-69", count: 0 },
-      { range: "<60", count: 0 },
-    ],
-    aiRatings: { excellent: 14, good: 12, pass: 4, fail: 0 },
-    hotWrongPoints: [
-      { name: "戴无菌手套顺序", knowledgeNodeId: "kn-nur-009", wrongRate: 0.17, aiCause: "个别学生先戴主手错误，应后戴主手。" },
-    ],
-    keyStudents: [{ studentId: "s-nurse2301-01", studentName: "白若雪", reason: "满分且步骤详尽", score: 100 }],
-    aiInsights: [
-      { id: "ai-n-001-1", title: "理论基础扎实", summary: "90% 学生掌握无菌操作步骤。", actionSuggestion: "推进到技能实训环节。" },
-    ],
-    questionAccuracy: [
-      { questionNo: 1, title: "无菌原则", knowledgeNodeId: "kn-nur-009", accuracy: 0.96 },
-      { questionNo: 2, title: "无菌手套穿戴", knowledgeNodeId: "kn-nur-009", accuracy: 0.83 },
-    ],
-  },
-  {
-    id: "hw-n-002",
-    homeworkTitle: "生命体征测量案例分析",
-    courseId: "course-nurse-basic",
-    planId: "plan-nurse",
-    classId: "cls-nurse-2301",
-    teacherId: "t-wanglh",
-    assignedAt: "2026-04-03",
-    dueAt: "2026-04-05",
-    submissionCount: 30,
-    totalStudents: 30,
-    averageScore: 84.9,
-    maxScore: 98,
-    minScore: 68,
-    scoreBuckets: [
-      { range: "90-100", count: 10 },
-      { range: "80-89", count: 14 },
-      { range: "70-79", count: 5 },
-      { range: "60-69", count: 1 },
-      { range: "<60", count: 0 },
-    ],
-    aiRatings: { excellent: 10, good: 14, pass: 6, fail: 0 },
-    hotWrongPoints: [
-      { name: "血压异常值判断", knowledgeNodeId: "kn-nur-013", wrongRate: 0.20, aiCause: "学生对「高血压 1 级/2 级/3 级」分级界限不熟悉。" },
-    ],
-    keyStudents: [],
-    aiInsights: [
-      { id: "ai-n-002-1", title: "临床思维需加强", summary: "案例动态判断题正确率偏低，与画像一致。", actionSuggestion: "下周开展 1 次情景模拟实训。" },
-    ],
-    questionAccuracy: [
-      { questionNo: 1, title: "体温异常识别", knowledgeNodeId: "kn-nur-011", accuracy: 0.93 },
-      { questionNo: 2, title: "脉搏呼吸监测", knowledgeNodeId: "kn-nur-012", accuracy: 0.89 },
-      { questionNo: 3, title: "血压异常值判断", knowledgeNodeId: "kn-nur-013", accuracy: 0.80 },
+      { questionNo: 1, title: "仿真建模完整性", knowledgeNodeId: "kn-mech-060", accuracy: 0.86 },
+      { questionNo: 2, title: "节拍与产能换算", knowledgeNodeId: "kn-mech-052", accuracy: 0.76 },
+      { questionNo: 3, title: "互锁逻辑描述", knowledgeNodeId: "core-mech-003", accuracy: 0.79 },
     ],
   },
 ];
 
-export const homeworkEvaluations: HomeworkEvalSummary[] =
-  homeworkEvaluationsRaw.map((h) => withHomeworkStudentResults(h));
+/** 演示：张伟在 hw-m-007 上保持「未提交」，便于展示作答与提交流程 */
+function patchHomeworkEvaluations(list: HomeworkEvalSummary[]): HomeworkEvalSummary[] {
+  return list.map((h) => {
+    if (h.id !== "hw-m-007") return h;
+    return {
+      ...h,
+      studentResults: h.studentResults.map((r) =>
+        r.studentId === "s-mech2301-01"
+          ? { studentId: r.studentId, submitted: false }
+          : r,
+      ),
+    };
+  });
+}
+
+export const homeworkEvaluations: HomeworkEvalSummary[] = patchHomeworkEvaluations(
+  homeworkEvaluationsRaw.map((h) => withHomeworkStudentResults(h)),
+);

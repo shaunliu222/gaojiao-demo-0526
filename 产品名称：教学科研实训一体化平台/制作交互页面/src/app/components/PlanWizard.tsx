@@ -71,7 +71,7 @@ interface StrategyOverride {
 }
 
 // Step4 → Step5 过渡动画的任务清单（纯展示）
-// 每步约 2s、带轻微时长抖动；5 步任务 + 极短尾部展示，总时长控制在 10s 内。
+// 5 步合计约 3s，每步约 0.5–0.65s，带轻微时长抖动。
 const GENERATION_TASKS: Array<{
   title: string;
   detail: string;
@@ -80,27 +80,27 @@ const GENERATION_TASKS: Array<{
   {
     title: "解析知识图谱引用节点",
     detail: "匹配专业图谱中的知识点 / 技能点 / 核心素养",
-    durationMs: 2000,
+    durationMs: 600,
   },
   {
     title: "融合班级学情向量",
     detail: "结合所选班级的薄弱维度调整节奏",
-    durationMs: 1990,
+    durationMs: 580,
   },
   {
     title: "套用教学策略曲线",
     detail: "按难度曲线与授课节奏划分单元",
-    durationMs: 2000,
+    durationMs: 600,
   },
   {
     title: "生成章节与小节骨架",
     detail: "产出 5 个章节、14 个小节的初稿",
-    durationMs: 2010,
+    durationMs: 610,
   },
   {
     title: "估算课时与授课日程",
     detail: "按学期日历自动铺排授课时间",
-    durationMs: 1980,
+    durationMs: 610,
   },
 ];
 
@@ -258,7 +258,6 @@ export function PlanWizard({
 
     const taskCount = GENERATION_TASKS.length;
     const totalMs = GENERATION_TASKS.reduce((sum, t) => sum + t.durationMs, 0);
-    // 全部任务走完后，短促停留再进入 Step 5；与任务时长合计 ≤ 10s
     const tailMs = 0;
 
     // 使用累计偏移切换到下一个任务；同时用一个细粒度的 interval 平滑推进进度条
@@ -950,14 +949,11 @@ function Step1Scope({
                   知识点 {mountedTypeStats.kn}
                 </span>
                 <span className="inline-flex items-center gap-1">
-                  <span className="size-2.5 rounded-sm bg-emerald-500" />
+                  <span className="size-2.5 rounded-full bg-emerald-500" />
                   技能点 {mountedTypeStats.sk}
                 </span>
                 <span className="inline-flex items-center gap-1">
-                  <span
-                    className="size-0 border-l-[5px] border-r-[5px] border-b-[9px] border-l-transparent border-r-transparent"
-                    style={{ borderBottomColor: "#f59e0b" }}
-                  />
+                  <span className="size-2.5 rounded-full bg-amber-500" />
                   核心素养 {mountedTypeStats.core}
                 </span>
               </div>
@@ -1779,6 +1775,7 @@ function Step4Graph({
                 edges={visibleEdges}
                 width={graphViewport.w}
                 height={graphViewport.h}
+                focusNodeId={hoveredNodeId}
                 renderEdge={(e, a, b) => {
                   const bothCited =
                     referencedIds.has(e.from) && referencedIds.has(e.to);
@@ -1870,14 +1867,11 @@ function Step4Graph({
               知识点 {typeStats.kn}
             </span>
             <span className="inline-flex items-center gap-1">
-              <span className="size-2.5 rounded-sm bg-emerald-500" />
+              <span className="size-2.5 rounded-full bg-emerald-500" />
               技能点 {typeStats.sk}
             </span>
             <span className="inline-flex items-center gap-1">
-              <span
-                className="size-0 border-l-[5px] border-r-[5px] border-b-[9px] border-l-transparent border-r-transparent"
-                style={{ borderBottomColor: "#f59e0b" }}
-              />
+              <span className="size-2.5 rounded-full bg-amber-500" />
               核心素养 {typeStats.core}
             </span>
           </div>
@@ -2442,7 +2436,7 @@ function pickAdjustment(
         : "增加 1 个组合体工程情境案例，强化形体分析法";
     }
     if (sectionId === "sec-3-4") {
-      return "单独成篇 135min，配 SolidWorks 三维切割演示";
+      return "单独成篇 135min，配 SolidWorks 三维切割示范";
     }
     if (sectionId === "sec-2-2" && hasRiskClass) {
       return `${riskClassName} 讲解前先做一次投影基础回顾小测`;
@@ -2452,18 +2446,18 @@ function pickAdjustment(
     }
   }
 
-  if (courseId === "course-law-civil") {
-    if (sectionId === "sec-law-3-2") {
-      return "四态辨析增设案例对比，配 3 次辨析训练";
+  if (courseId === "course-mech-tolerance") {
+    if (sectionId === "sec-tol-2-1") {
+      return "增配同一零件的装配基准复盘，减少基准体系误判";
     }
-    if (sectionId === "sec-law-1-3") {
-      return "增加 1 次案例研讨（法律事实判断）";
+    if (sectionId === "sec-tol-1-2") {
+      return "增加外购轴承与光轴对照案例，巩固基孔/基轴选用";
     }
   }
 
-  if (courseId === "course-nurse-basic") {
-    if (sectionId === "sec-nur-1-1") {
-      return "临床思维模块增加 4 次情景化实训";
+  if (courseId === "course-mech-robotics") {
+    if (sectionId === "sec-rob-1-2") {
+      return "仿真—现场标定对照表纳入必交，缩小节拍偏差";
     }
   }
   return undefined;

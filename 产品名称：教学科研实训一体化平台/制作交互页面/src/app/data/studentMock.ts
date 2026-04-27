@@ -1,18 +1,18 @@
 /**
- * 学生端专属演示数据
+ * 学生端补充数据
  *
- * 不修改官方 mock-data/，这里仅作为学生端界面展示层的占位数据源。
+ * 不修改官方 mock-data/，这里仅作为学生端界面展示层的数据源。
  * 所有数据围绕主线：李建国 · 《机械制图与CAD》 · 机制 2301/2302
  * 包含：
  *   - sectionProgressByStudent：学生在主线教学计划里每个小节的学习进度
  *   - personalPlans：学生自建的精简学习计划（"2 小时快速上手 xxx"这类场景）
- *   - hardwareDevices：实训中心的硬件接入占位数据（6 台）
+ *   - hardwareDevices：实训中心的硬件接入数据（6 台）
  *   - deviceUsageByStudent：每个学生在硬件上的最近使用记录
  *   - learnScenarios：学习中心的历史学习场景
  *   - aiPushesByStudent：学生端 AI 推送建议
  */
 
-import { teachingPlans } from "@mock";
+import { students, teachingPlans } from "@mock";
 import type { TeachingPlan } from "@mock";
 
 // ============ 类型 ============
@@ -103,6 +103,33 @@ export interface AiPush {
   actionHint: string;
   tone: "cheer" | "warn" | "info";
   reason: string;
+}
+
+/** 教师向班级派发的实训任务实例（学生端） */
+export type TrainingAssignmentStatus = "not_started" | "in_progress" | "submitted";
+
+export interface TrainingAssignment {
+  id: string;
+  trainingProjectId: string;
+  classId: string;
+  planId?: string;
+  sectionId?: string;
+  assignedAt: string;
+  dueAt?: string;
+  status: TrainingAssignmentStatus;
+  instruction: string;
+  /** 实训步骤标题（勾选进度由页面本地状态 + 派发 status 驱动 Demo） */
+  stepTitles: string[];
+}
+
+/** 总览「本周上课」展示用（与教学计划小节对齐） */
+export interface ClassSessionHighlight {
+  id: string;
+  planId: string;
+  sectionId: string;
+  weekLabel: string;
+  label: string;
+  designFocusTab: "课堂" | "讲义";
 }
 
 // ============ 工具 ============
@@ -246,6 +273,116 @@ export function getPlanProgressSummary(
     else summary.pending += 1;
   }
   return summary;
+}
+
+/**
+ * 按教学计划章节顺序，选择建议续学的小节：
+ * 薄弱 → 进行中 → 未开始（含无画像记录的小节）→ 计划第一节
+ */
+export function findResumeSectionId(studentId: string, plan: TeachingPlan): string | undefined {
+  const ordered = plan.chapters.flatMap((ch) => ch.sections.map((s) => s.id));
+  if (ordered.length === 0) return undefined;
+
+  const progressList = sectionProgressByStudent[studentId]?.[plan.id] ?? [];
+  const byId = new Map(progressList.map((p) => [p.sectionId, p]));
+
+  const pickFirstStatus = (status: SectionProgressStatus) => {
+    for (const sid of ordered) {
+      if (byId.get(sid)?.status === status) return sid;
+    }
+    return undefined;
+  };
+
+  const pickPendingOrUnknown = () => {
+    for (const sid of ordered) {
+      const p = byId.get(sid);
+      if (!p || p.status === "pending") return sid;
+    }
+    return undefined;
+  };
+
+  return (
+    pickFirstStatus("weak") ??
+    pickFirstStatus("in_progress") ??
+    pickPendingOrUnknown() ??
+    ordered[0]
+  );
+}
+
+// ============ 数据：上课周次提示 / 实训派发 ============
+
+export const classSessionHighlights: ClassSessionHighlight[] = [
+  {
+    id: "csh-main-3-2",
+    planId: "plan-main",
+    sectionId: "sec-3-2",
+    weekLabel: "第 6 周",
+    label: "组合体三视图绘制 · 课堂",
+    designFocusTab: "课堂",
+  },
+];
+
+/** 主线：组合体三视图实训与 3.2 小节绑定，双班各一条派发 */
+export const trainingAssignments: TrainingAssignment[] = [
+  {
+    id: "ta-m-003-2301",
+    trainingProjectId: "train-m-003",
+    classId: "cls-mech-2301",
+    planId: "plan-main",
+    sectionId: "sec-3-2",
+    assignedAt: "2026-03-18",
+    dueAt: "2026-03-25",
+    status: "in_progress",
+    instruction:
+      "李建国：本节课配套实训，完成轴承座 / 支架 / 连接座三件套课堂绘制，并按小组提交草稿照片。",
+    stepTitles: [
+      "安全须知与图板布置",
+      "轴承座形体分析",
+      "支架三视图草图",
+      "连接座尺寸标注",
+      "自查线型后提交草稿",
+    ],
+  },
+  {
+    id: "ta-m-003-2302",
+    trainingProjectId: "train-m-003",
+    classId: "cls-mech-2302",
+    planId: "plan-main",
+    sectionId: "sec-3-2",
+    assignedAt: "2026-03-18",
+    dueAt: "2026-03-25",
+    status: "in_progress",
+    instruction:
+      "李建国：2302 班同步实训；基础薄弱同学可先完成轴承座单项，再在 AI 教练辅助下补做另外两件。",
+    stepTitles: [
+      "安全须知与图板布置",
+      "轴承座形体分析",
+      "支架三视图草图",
+      "连接座尺寸标注",
+      "自查线型后提交草稿",
+    ],
+  },
+];
+
+export function trainingAssignmentsForStudent(studentId: string): TrainingAssignment[] {
+  const cls = students.find((s) => s.id === studentId)?.classId;
+  if (!cls) return [];
+  return trainingAssignments.filter((t) => t.classId === cls);
+}
+
+export function trainingAssignmentById(id: string): TrainingAssignment | undefined {
+  return trainingAssignments.find((t) => t.id === id);
+}
+
+/** 某学生在本班是否对指定计划小节有实训派发 */
+export function trainingAssignmentForPlanSection(
+  studentId: string,
+  planId: string,
+  sectionId: string,
+): TrainingAssignment | undefined {
+  return trainingAssignmentsForStudent(studentId).find(
+    (t) => t.planId === planId && t.sectionId === sectionId,
+  );
 }
 
 // ============ 数据：个人学习计划 ============

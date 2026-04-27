@@ -1,15 +1,11 @@
 import type { Course } from "./types";
 
 /**
- * 课程数据（6 门）
+ * 课程数据（机械工程专业，覆盖不同年级与课程类型）
  *
- * - 机械工程 3 门（主线《机械制图与CAD》+ 《机械设计基础》+ 《金工实习》）
- * - 法学 1 门
- * - 护理学 1 门
- * - 学前教育 1 门（挂在未建图谱专业下，knowledgeNodeIds 为空）
+ * 主线核心课：《机械制图与CAD》及关联设计/金工课保持不变。
  */
 export const courses: Course[] = [
-  // ========== 机械工程主线课 ==========
   {
     id: "course-mech-draw",
     name: "机械制图与CAD",
@@ -22,25 +18,15 @@ export const courses: Course[] = [
     totalHours: 64,
     semester: "2026春季",
     knowledgeNodeIds: [
-      // 制图基础全部
       "kn-mech-001", "kn-mech-002", "kn-mech-003", "kn-mech-004", "kn-mech-005", "kn-mech-006",
-      // 几何作图
       "kn-mech-007", "kn-mech-008", "kn-mech-009", "kn-mech-010", "kn-mech-011",
-      // 投影基础
       "kn-mech-012", "kn-mech-013", "kn-mech-014", "kn-mech-015", "kn-mech-016",
-      // 点线面
       "kn-mech-017", "kn-mech-018", "kn-mech-019", "kn-mech-020", "kn-mech-021", "kn-mech-022", "kn-mech-023",
-      // 立体投影
       "kn-mech-024", "kn-mech-025", "kn-mech-026", "kn-mech-027", "kn-mech-028", "kn-mech-029",
-      // 组合体
       "kn-mech-030", "kn-mech-031", "kn-mech-032", "kn-mech-033", "kn-mech-034",
-      // 机件表达
       "kn-mech-035", "kn-mech-036", "kn-mech-037", "kn-mech-038", "kn-mech-039", "kn-mech-040", "kn-mech-041",
-      // 标准件
       "kn-mech-042", "kn-mech-043", "kn-mech-044", "kn-mech-045", "kn-mech-046", "kn-mech-047",
-      // 零件图装配图
       "kn-mech-048", "kn-mech-049", "kn-mech-050", "kn-mech-051", "kn-mech-052", "kn-mech-053",
-      // CAD
       "kn-mech-054", "kn-mech-055", "kn-mech-056", "kn-mech-057", "kn-mech-058", "kn-mech-059", "kn-mech-060",
     ],
     ownerTeacherId: "t-li",
@@ -76,72 +62,123 @@ export const courses: Course[] = [
     totalHours: 40,
     semester: "2026春季",
     knowledgeNodeIds: [
-      "kn-mech-048", "kn-mech-049", "kn-mech-050", "kn-mech-052",
+      "kn-mech-048",
+      "kn-mech-049",
+      "kn-mech-050",
+      "kn-mech-052",
+      "kn-mech-061",
+      "kn-mech-062",
     ],
-    ownerTeacherId: "t-chen",
+    ownerTeacherId: "t-wang",
     tags: ["实训", "工程规范"],
   },
-
-  // ========== 法学 ==========
   {
-    id: "course-law-civil",
-    name: "民法典总则编",
-    coverUrl: "/covers/course-law-civil.jpg",
-    professionId: "prof-law",
-    subjectId: "subj-law-civil",
+    id: "course-mech-intro",
+    name: "机械工程专业导论",
+    coverUrl: "/covers/course-mech-intro.jpg",
+    professionId: "prof-mech",
+    subjectId: "subj-mech-intro",
     description:
-      "围绕《中华人民共和国民法典》总则编，系统讲授民事主体、民事法律行为、代理、民事权利与诉讼时效等民法基础制度。",
+      "面向大一新生：产业链概览、专业培养方案、制图与智能制造入门，建立后续课程的认知地图。",
+    credit: 1,
+    totalHours: 16,
+    semester: "2026春季",
+    knowledgeNodeIds: ["kn-mech-001", "kn-mech-002", "kn-mech-003", "kn-mech-004", "kn-mech-012", "core-mech-001"],
+    ownerTeacherId: "t-sun",
+    tags: ["大一", "导论"],
+  },
+  {
+    id: "course-mech-tolerance",
+    name: "互换性与技术测量",
+    coverUrl: "/covers/course-mech-tolerance.jpg",
+    professionId: "prof-mech",
+    subjectId: "subj-mech-tolerance",
+    description:
+      "系统学习尺寸公差、形位公差、表面粗糙度及几何量检测方法，支撑零件图与工艺设计。",
     credit: 3,
     totalHours: 48,
     semester: "2026春季",
+    knowledgeNodeIds: ["kn-mech-048", "kn-mech-049", "kn-mech-050", "kn-mech-051", "sk-mech-006"],
+    ownerTeacherId: "t-wanglh",
+    tags: ["大四", "公差", "检测"],
+  },
+  {
+    id: "course-mech-robotics",
+    name: "工业机器人技术应用基础",
+    coverUrl: "/covers/course-mech-robotics.jpg",
+    professionId: "prof-mech",
+    subjectId: "subj-mech-robot",
+    description:
+      "坐标系与示教编程、典型搬运/码垛工作站、安全互锁与离线仿真入门，与制图课中的三维建模衔接。",
+    credit: 2,
+    totalHours: 32,
+    semester: "2026春季",
     knowledgeNodeIds: [
-      "kn-law-001", "kn-law-002", "kn-law-003", "kn-law-004", "kn-law-005", "kn-law-006",
-      "kn-law-007", "kn-law-008", "kn-law-009", "kn-law-010", "kn-law-011",
-      "kn-law-012", "kn-law-013", "kn-law-014", "kn-law-015",
-      "kn-law-016", "kn-law-017", "kn-law-018", "kn-law-019", "kn-law-023",
-      "kn-law-020", "kn-law-021", "kn-law-022",
+      "kn-mech-052",
+      "kn-mech-054",
+      "kn-mech-058",
+      "kn-mech-059",
+      "kn-mech-060",
+      "kn-mech-063",
+      "kn-mech-064",
+      "sk-mech-003",
     ],
     ownerTeacherId: "t-zhao",
-    tags: ["核心课", "民法", "案例教学"],
+    tags: ["大二", "机器人", "仿真"],
   },
-
-  // ========== 护理学 ==========
   {
-    id: "course-nurse-basic",
-    name: "基础护理学",
-    coverUrl: "/covers/course-nurse-basic.jpg",
-    professionId: "prof-nurse",
-    subjectId: "subj-nurse-basic",
+    id: "course-mech-hydraulic",
+    name: "液压与气压传动",
+    coverUrl: "/covers/course-mech-hydraulic.jpg",
+    professionId: "prof-mech",
+    subjectId: "subj-mech-hydraulic",
     description:
-      "护理专业核心课程，系统讲授环境与安全、无菌技术、生命体征采集、给药与注射、静脉输液等基础护理理论与操作技术。",
-    credit: 5,
-    totalHours: 80,
-    semester: "2026春季",
-    knowledgeNodeIds: [
-      "kn-nur-001", "kn-nur-002", "kn-nur-003", "kn-nur-004",
-      "kn-nur-005", "kn-nur-006", "kn-nur-007",
-      "kn-nur-008", "kn-nur-009", "kn-nur-010",
-      "kn-nur-011", "kn-nur-012", "kn-nur-013",
-      "kn-nur-014", "kn-nur-015", "kn-nur-016", "kn-nur-017",
-    ],
-    ownerTeacherId: "t-wanglh",
-    tags: ["核心课", "护理", "实训导向"],
-  },
-
-  // ========== 学前教育（未建图谱，保留课程空壳演示） ==========
-  {
-    id: "course-edu-activity",
-    name: "幼儿园教育活动设计",
-    coverUrl: "/covers/course-edu-activity.jpg",
-    professionId: "prof-edu",
-    subjectId: "subj-edu-activity",
-    description:
-      "聚焦幼儿园健康、语言、社会、科学、艺术五大领域教育活动的设计与组织。该课程所属专业尚未建立知识图谱，节点关联为空。",
+      "流体传动基础、典型压力/速度控制回路、气动元件选型与系统装调，服务机电液一体化设计。",
     credit: 3,
     totalHours: 48,
     semester: "2026春季",
-    knowledgeNodeIds: [],
+    knowledgeNodeIds: ["kn-mech-042", "kn-mech-043", "kn-mech-044", "kn-mech-052", "kn-mech-053"],
+    ownerTeacherId: "t-zhao",
+    tags: ["专业课", "液压气动"],
+  },
+  {
+    id: "course-mech-process",
+    name: "机械制造工艺学",
+    coverUrl: "/covers/course-mech-process.jpg",
+    professionId: "prof-mech",
+    subjectId: "subj-mech-process",
+    description:
+      "工艺规程制定、定位夹紧、加工误差与装配工艺，强调从图纸到批产的质量与成本意识。",
+    credit: 3,
+    totalHours: 48,
+    semester: "2026春季",
+    knowledgeNodeIds: ["kn-mech-048", "kn-mech-049", "kn-mech-050", "kn-mech-052", "kn-mech-053", "sk-mech-007"],
+    ownerTeacherId: "t-wanglh",
+    tags: ["制造工艺", "质量"],
+  },
+  {
+    id: "course-mech-ai-lab",
+    name: "学科内 AI 实训与应用",
+    coverUrl: "/covers/course-mech-intro.jpg",
+    professionId: "prof-mech",
+    subjectId: "subj-mech-ai",
+    description:
+      "在制图、设计、工艺与机电类课程场景中，学习选用对话式大模型、文生图等工具完成指定作业与小型任务，强调事实核验、国标意识与学术诚信。",
+    credit: 1,
+    totalHours: 16,
+    semester: "2026春季",
+    knowledgeNodeIds: [
+      "kn-mech-065",
+      "kn-mech-066",
+      "kn-mech-067",
+      "sk-mech-008",
+      "kn-mech-048",
+      "kn-mech-054",
+      "kn-mech-058",
+      "core-mech-003",
+      "core-mech-004",
+    ],
     ownerTeacherId: "t-sun",
-    tags: ["核心课", "学前"],
+    tags: ["AI实训", "生成式AI", "跨课程"],
   },
 ];

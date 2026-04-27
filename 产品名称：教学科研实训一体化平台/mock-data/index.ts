@@ -29,6 +29,10 @@ export {
   edgesByProfession,
   nodeById,
 } from "./knowledgeGraph";
+export {
+  knowledgeGraphTrainingPlanDocuments,
+  knowledgeGraphTrainingPlanDocumentById,
+} from "./knowledgeGraphTrainingPlanDocs";
 export { courses } from "./courses";
 export { resources } from "./resources";
 export { trainingProjects } from "./trainings";
@@ -36,16 +40,21 @@ export { trainingProjects } from "./trainings";
 // 教学闭环
 export { personas, skillAndMcpItems } from "./personas";
 export { teachingStrategies } from "./strategies";
-export { teachingPlans } from "./teachingPlans";
+export { teachingPlans, PLAN_WANG_HAIFENG_MOCK_ID } from "./teachingPlans";
 export {
   planKnowledgePathGraphs,
   getPlanKnowledgePathGraph,
 } from "./planKnowledgePathGraphs";
+export { PLAN_MAIN_NODE_IDS, buildPlanKnowledgePathGraph } from "./planPathFromMaster";
 export {
   teachingDesigns,
   designsBySection,
   DEMO_DESIGN_PLAN_ID,
   DEMO_DESIGN_SECTION_ID,
 } from "./teachingDesigns";
+export {
+  teachingDesignsLearningAdjust,
+  designsBySectionLearningAdjust,
+} from "./teachingDesignsLearningAdjust";
 export { homeworkEvaluations } from "./homeworks";
 export { examEvaluations } from "./exams";

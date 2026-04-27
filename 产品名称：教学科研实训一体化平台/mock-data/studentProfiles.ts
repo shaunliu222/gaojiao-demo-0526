@@ -11,8 +11,8 @@ import type { StudentProfile } from "./types";
  * - 周子航（2301，中等偏下，需关注）
  * - 陈浩宇（2302，薄弱生，低活跃度）
  * - 林诗涵（2302，尖子生）
- * - 宋佳雯（法学2301，案例分析突出）
- * - 白若雪（护理2301，操作规范之星）
+ * - 宋佳雯（机制2303，机器人与建模突出）
+ * - 白若雪（机制2101，公差与检测扎实）
  */
 export const studentProfiles: StudentProfile[] = [
   // ==== 机制 2301 ====
@@ -180,46 +180,46 @@ export const studentProfiles: StudentProfile[] = [
       "林诗涵是 2302 班成绩最高者，建议邀请她参与学院机器人竞赛队和本课程「学长朋辈答疑」志愿岗位。",
     generatedAt: "2026-04-15T10:18:00+08:00",
   },
-  // ==== 法学 2301 ====
+  // ==== 机制 2303 ====
   {
-    studentId: "s-law2301-01",
-    interests: ["法律类综艺", "辩论"],
-    goodAt: ["案例分析", "法条检索", "口头表达"],
+    studentId: "s-mech2303-01",
+    interests: ["工业机器人", "智能制造", "辩论赛"],
+    goodAt: ["SolidWorks 建模", "示教编程", "口头表达"],
+    learningStyle: "视觉型",
+    activity: "高",
+    masteryHeatmap: [
+      { knowledgePointId: "kn-mech-058", knowledgePointName: "SolidWorks 草图", masteryLevel: 92 },
+      { knowledgePointId: "kn-mech-059", knowledgePointName: "三维实体建模", masteryLevel: 90 },
+      { knowledgePointId: "kn-mech-060", knowledgePointName: "三维装配与工程图输出", masteryLevel: 86 },
+      { knowledgePointId: "kn-mech-031", knowledgePointName: "组合体三视图绘制", masteryLevel: 78 },
+    ],
+    recentScores: [
+      { taskName: "机器人示教编程作业 1", score: 94, date: "2026-03-20" },
+      { taskName: "离线仿真单元测验", score: 92, date: "2026-03-28" },
+    ],
+    aiSummary:
+      "宋佳雯在 2303 班是典型的「数模优先型」学生：三维建模与工作站仿真表现突出，口头报告条理清晰。相对短板是组合体手绘的线型规范，建议每周保留 1 次 A3 手绘限时训练与数模互证。",
+    generatedAt: "2026-04-15T10:25:00+08:00",
+  },
+  // ==== 机制 2101 ====
+  {
+    studentId: "s-mech2101-01",
+    interests: ["精密测量", "咖啡", "阅读制造类科普"],
+    goodAt: ["公差标注", "三坐标检测思路", "工艺卡填写"],
     learningStyle: "读写型",
     activity: "高",
     masteryHeatmap: [
-      { knowledgePointId: "kn-law-012", knowledgePointName: "民事法律行为", masteryLevel: 94 },
-      { knowledgePointId: "kn-law-014", knowledgePointName: "法律行为的效力", masteryLevel: 90 },
-      { knowledgePointId: "kn-law-015", knowledgePointName: "代理制度", masteryLevel: 88 },
-      { knowledgePointId: "kn-law-021", knowledgePointName: "诉讼时效", masteryLevel: 78 },
+      { knowledgePointId: "kn-mech-049", knowledgePointName: "表面粗糙度", masteryLevel: 94 },
+      { knowledgePointId: "kn-mech-050", knowledgePointName: "尺寸公差与配合", masteryLevel: 92 },
+      { knowledgePointId: "kn-mech-051", knowledgePointName: "形位公差", masteryLevel: 90 },
+      { knowledgePointId: "kn-mech-053", knowledgePointName: "装配图尺寸与技术要求", masteryLevel: 88 },
     ],
     recentScores: [
-      { taskName: "案例分析作业 1", score: 94, date: "2026-03-20" },
-      { taskName: "法条检索练习", score: 92, date: "2026-03-28" },
+      { taskName: "互换性 · 公差链分析作业", score: 96, date: "2026-03-22" },
+      { taskName: "工艺规程编制小测", score: 92, date: "2026-04-05" },
     ],
     aiSummary:
-      "宋佳雯案例分析能力突出，IRAC 四要素完整，论证严谨。短板是法律文书的格式规范。建议参与模拟法庭并担任代理律师角色。",
-    generatedAt: "2026-04-15T10:25:00+08:00",
-  },
-  // ==== 护理 2301 ====
-  {
-    studentId: "s-nurse2301-01",
-    interests: ["烘焙", "阅读医学科普"],
-    goodAt: ["无菌操作", "操作规范", "生命体征采集"],
-    learningStyle: "动觉型",
-    activity: "高",
-    masteryHeatmap: [
-      { knowledgePointId: "kn-nur-009", knowledgePointName: "无菌技术基础", masteryLevel: 96 },
-      { knowledgePointId: "kn-nur-011", knowledgePointName: "体温测量", masteryLevel: 94 },
-      { knowledgePointId: "kn-nur-016", knowledgePointName: "注射法", masteryLevel: 92 },
-      { knowledgePointId: "kn-nur-017", knowledgePointName: "静脉输液", masteryLevel: 88 },
-    ],
-    recentScores: [
-      { taskName: "无菌操作实训评分", score: 96, date: "2026-03-22" },
-      { taskName: "静脉穿刺实训", score: 92, date: "2026-04-05" },
-    ],
-    aiSummary:
-      "白若雪是班级操作规范之星，动作精准、无菌意识强。建议推荐参加全国护理技能竞赛，并担任班内朋辈示范。",
+      "白若雪在公差与检测维度表现突出，能独立完成中等难度公差链推算，工艺卡填写规范。建议在毕业设计中刻意增加「成本—精度」权衡章节，补齐经济性分析短板。",
     generatedAt: "2026-04-15T10:30:00+08:00",
   },
 ];

@@ -33,9 +33,17 @@ import {
   personalPlanById,
   getSectionProgress,
   getPlanProgressSummary,
+  trainingAssignmentForPlanSection,
   SectionProgress,
   SectionProgressStatus,
 } from "../../data/studentMock";
+
+/** 学习计划「去学习」入口：课程小节带 planId+sectionId；个人计划可仅传 goalNodeIds */
+export interface StudentLearnNavigateInput {
+  planId?: string;
+  sectionId?: string;
+  goalNodeIds?: string[];
+}
 
 // ============ 颜色映射 ============
 
@@ -88,7 +96,7 @@ export function MyPlansList({
 }: {
   studentId: string;
   onOpen: (id: string, kind: "course" | "personal") => void;
-  onGoLearn: (presetSectionId?: string, presetGoalNodeIds?: string[]) => void;
+  onGoLearn: (opts?: StudentLearnNavigateInput) => void;
 }) {
   const student = studentById(studentId);
   const myClassId = student?.classId;
@@ -412,12 +420,14 @@ export function MyPlanDetail({
   kind,
   onBack,
   onGoLearn,
+  onGoTraining,
 }: {
   studentId: string;
   id: string;
   kind: "course" | "personal";
   onBack: () => void;
-  onGoLearn: (presetSectionId?: string, presetGoalNodeIds?: string[]) => void;
+  onGoLearn: (opts?: StudentLearnNavigateInput) => void;
+  onGoTraining?: (assignmentId: string) => void;
 }) {
   if (kind === "course") {
     return (
@@ -426,6 +436,7 @@ export function MyPlanDetail({
         planId={id}
         onBack={onBack}
         onGoLearn={onGoLearn}
+        onGoTraining={onGoTraining}
       />
     );
   }
@@ -443,11 +454,13 @@ function CoursePlanDetail({
   planId,
   onBack,
   onGoLearn,
+  onGoTraining,
 }: {
   studentId: string;
   planId: string;
   onBack: () => void;
-  onGoLearn: (presetSectionId?: string, presetGoalNodeIds?: string[]) => void;
+  onGoLearn: (opts?: StudentLearnNavigateInput) => void;
+  onGoTraining?: (assignmentId: string) => void;
 }) {
   const plan = teachingPlans.find((p) => p.id === planId);
   const [showAdjustTip, setShowAdjustTip] = useState(false);
@@ -495,7 +508,7 @@ function CoursePlanDetail({
               已为你生成个性化学习路径（AI 建议）
             </div>
             <div className="text-indigo-700 mt-1 text-[0.8125rem]">
-              不改动老师的主计划，只在你的视图上调整节奏：把薄弱的投影阶段提前复盘，把已掌握的小节折叠。进入学习中心后每个小节都可以继续微调。
+              不改动老师的主计划，只在你的视图上调整节奏：把薄弱的投影阶段提前复盘，把已掌握的小节折叠。进入课堂学习后每个小节都可以继续微调。
             </div>
           </div>
           <button
@@ -559,7 +572,7 @@ function CoursePlanDetail({
 
         <div className="space-y-4">
           <div className="text-slate-500">
-            点击任一小节 → 进入"学习中心"围绕这个知识点开始学。
+            点击任一小节 → 进入「课堂壳」围绕本节资源学习；若本节有派发实训，可点「本节实训」进入工作台。
           </div>
           {plan.chapters.map((ch) => (
             <div
@@ -581,11 +594,17 @@ function CoursePlanDetail({
                   const status: SectionProgressStatus = prog?.status ?? "pending";
                   const palette = statusPalette[status];
                   const isFocus = s.id === "sec-3-2";
+                  const ta = trainingAssignmentForPlanSection(studentId, planId, s.id);
                   return (
-                    <div key={s.id} className="flex items-center">
+                    <div key={s.id} className="flex items-center flex-wrap gap-1">
                       <button
+                        type="button"
                         onClick={() =>
-                          onGoLearn(s.id, s.knowledgeNodeIds)
+                          onGoLearn({
+                            planId,
+                            sectionId: s.id,
+                            goalNodeIds: s.knowledgeNodeIds,
+                          })
                         }
                         className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition ${
                           palette.border
@@ -607,6 +626,15 @@ function CoursePlanDetail({
                           <span className="text-indigo-600">★</span>
                         )}
                       </button>
+                      {ta && onGoTraining ? (
+                        <button
+                          type="button"
+                          onClick={() => onGoTraining(ta.id)}
+                          className="px-2 py-1.5 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-800 text-[0.75rem] hover:bg-emerald-100"
+                        >
+                          本节实训
+                        </button>
+                      ) : null}
                       {i < ch.sections.length - 1 && (
                         <span className="text-slate-300 mx-1">—</span>
                       )}
@@ -682,7 +710,7 @@ function PersonalPlanDetail({
 }: {
   personalPlanId: string;
   onBack: () => void;
-  onGoLearn: (presetSectionId?: string, presetGoalNodeIds?: string[]) => void;
+  onGoLearn: (opts?: StudentLearnNavigateInput) => void;
 }) {
   const plan = personalPlanById(personalPlanId);
   if (!plan) {
@@ -702,10 +730,10 @@ function PersonalPlanDetail({
         title={plan.title}
         actions={
           <button
-            onClick={() => onGoLearn(undefined, plan.knowledgeNodeIds)}
+            onClick={() => onGoLearn({ goalNodeIds: plan.knowledgeNodeIds })}
             className="px-3 py-1.5 rounded-md bg-indigo-600 text-white hover:bg-indigo-700 inline-flex items-center gap-1"
           >
-            <Sparkles size={14} /> 进入学习中心
+            <Sparkles size={14} /> 进入课堂学习
           </button>
         }
       />
@@ -814,7 +842,7 @@ function PersonalPlanDetail({
                       </span>
                     ) : (
                       <button
-                        onClick={() => onGoLearn(undefined, s.knowledgeNodeIds)}
+                        onClick={() => onGoLearn({ goalNodeIds: s.knowledgeNodeIds })}
                         className="px-2 py-0.5 rounded-md border border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100"
                       >
                         开始
@@ -968,10 +996,7 @@ function PlanWizardModal({
               </div>
             </Field>
 
-            <div className="flex items-center justify-between pt-2 border-t border-slate-100">
-              <span className="text-slate-400 text-[0.75rem]">
-                此弹窗为演示态，不会真正写入 mock 数据。
-              </span>
+            <div className="flex items-center justify-end pt-2 border-t border-slate-100">
               <div className="flex gap-2">
                 <button
                   onClick={onClose}

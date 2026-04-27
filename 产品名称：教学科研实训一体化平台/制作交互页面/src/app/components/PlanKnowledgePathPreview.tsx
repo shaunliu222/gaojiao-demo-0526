@@ -107,7 +107,7 @@ export function PlanKnowledgePathPreview({
   const title =
     variant === "teacher" ? "教学计划 · 知识路径" : "学习计划 · 知识路径";
   const sub =
-    "以下为该教学计划内独立的「路径摘要」示意，与专业全库知识图谱的节点/边并非一一对应。";
+    "节点与学科知识引擎中本专业全库知识图谱一致；本图展示本学期涉及节点及其关联（全库边的子集）。";
 
   if (valid.length === 0) {
     return (
@@ -211,6 +211,7 @@ export function PlanKnowledgePathPreview({
           height={SVG_H}
           edgeStrokeMode="byRelation"
           layoutOverrides={layoutOverrides}
+          focusNodeId={selId}
           onNodeClick={(n) => setSelId((s) => (s === n.id ? null : n.id))}
           renderNode={({ node, x, y }) => {
             const isSel = node.id === selId;

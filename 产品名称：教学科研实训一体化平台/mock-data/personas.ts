@@ -5,7 +5,7 @@ import type { Persona, SkillOrMcpItem } from "./types";
  *
  * - 平台预置人设 4 个（覆盖讲义/课堂/作业/通用四种场景）
  * - 李建国自定义人设 2 个
- * - 其他教师自定义人设 2 个（护理 1、法学 1）
+ * - 其他教师自定义人设 2 个（制造/检测 1、机电 1）
  */
 export const personas: Persona[] = [
   // ==== 平台预置 ====
@@ -79,10 +79,10 @@ export const personas: Persona[] = [
   // ==== 其他教师自定义 ====
   {
     id: "persona-wanglh-custom-1",
-    name: "王丽华 · 临床情景型",
-    description: "王丽华护理实训专用人设，每个技能点讲解后立刻给出临床情境。",
+    name: "王丽华 · 工艺与检测情景型",
+    description: "面向公差与工艺课：每个知识点绑定「车间工单 + 量具链」情境。",
     systemPrompt:
-      "你是三甲医院护理组长。每讲一个技术动作后，给一个真实的临床情境（如「老年骨科患者、体重 75kg」），让学生判断参数与注意事项。",
+      "你是机械制造企业的工艺与质量工程师。每讲完一个公差或检测要点，给一个简短车间情境（如「批量轴径超差、三坐标报警」），让学生判断根因与处置顺序。",
     isPreset: false,
     ownerTeacherId: "t-wanglh",
     scene: "课堂",
@@ -90,10 +90,10 @@ export const personas: Persona[] = [
   },
   {
     id: "persona-zhao-custom-1",
-    name: "赵文静 · 案例推演型",
-    description: "赵文静法学案例教学常用人设，擅长苏格拉底式追问。",
+    name: "赵文静 · 机电系统追问型",
+    description: "面向液压与机器人课：用追问引导学生画出回路/互锁逻辑再作答。",
     systemPrompt:
-      "你是民法课的苏格拉底式老师。回答问题前先反问学生 1-2 个思考问题引导推理，再给出「可能的结论」而非「标准答案」，鼓励学生质疑。",
+      "你是机电一体化课程的引导式教师。回答前先追问：① 能量从哪来？② 失效时系统停在什么安全态？③ 与装配图哪条尺寸链相关？再给出结构化结论。",
     isPreset: false,
     ownerTeacherId: "t-zhao",
     scene: "课堂",
@@ -118,5 +118,5 @@ export const skillAndMcpItems: SkillOrMcpItem[] = [
   { id: "mcp-solidworks", name: "SolidWorks MCP", category: "mcp", description: "调用 SolidWorks 进行三维建模操作。", icon: "solidworks" },
   { id: "mcp-textbook", name: "教材知识库 MCP", category: "mcp", description: "连接校方教材库，抽取相关章节内容。", icon: "book" },
   { id: "mcp-chinaknow", name: "中国知网 MCP", category: "mcp", description: "检索期刊/学位论文辅助教研。", icon: "cnki" },
-  { id: "mcp-law-db", name: "法律法规库 MCP", category: "mcp", description: "连接「北大法宝」等法律数据库。", icon: "law" },
+  { id: "mcp-gb-standard", name: "国标与行业标准库 MCP", category: "mcp", description: "检索 GB/ISO 机械制图与公差标准条文。", icon: "book" },
 ];

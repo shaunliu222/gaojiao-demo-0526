@@ -1,6 +1,7 @@
 import {
   courses,
   designsBySection,
+  examEvaluations,
   homeworkEvaluations,
   nodeById,
   resources,
@@ -9,6 +10,7 @@ import {
 } from "@mock";
 import type {
   DesignOutput,
+  ExamEvalSummary,
   HomeworkEvalSummary,
   PlanSection,
   TeachingDesign,
@@ -76,6 +78,82 @@ export function homeworksForClass(classId?: string): HomeworkEvalSummary[] {
 export function getStudentHomeworks(studentId: string): HomeworkEvalSummary[] {
   const student = students.find((s) => s.id === studentId);
   return homeworksForClass(student?.classId);
+}
+
+/** 当前学生在某次作业上的提交与得分（用于学习中心总览） */
+export function getHomeworkStudentSummary(
+  studentId: string,
+  hw: HomeworkEvalSummary,
+): { submitted: boolean; totalScore?: number } {
+  const row = hw.studentResults.find((r) => r.studentId === studentId);
+  if (!row) return { submitted: false };
+  return {
+    submitted: row.submitted,
+    totalScore: row.totalScore,
+  };
+}
+
+/** 班级参与的考试列表（按考试日升序） */
+export function getStudentExams(studentId: string): ExamEvalSummary[] {
+  const student = students.find((s) => s.id === studentId);
+  if (!student) return [];
+  return examEvaluations
+    .filter((exam) => exam.classIds.includes(student.classId))
+    .sort((a, b) => a.examAt.localeCompare(b.examAt));
+}
+
+export function getExamStudentSummary(
+  studentId: string,
+  exam: ExamEvalSummary,
+): { submitted: boolean; totalScore?: number } {
+  const row = exam.studentResults.find((r) => r.studentId === studentId);
+  if (!row) return { submitted: false };
+  return {
+    submitted: row.submitted,
+    totalScore: row.totalScore,
+  };
+}
+
+/**
+ * 学情档案/章节树里的展示用 id（n-*）→ 知识图谱节点 id（kn-mech-*）。
+ * 与教学计划小节的 `knowledgeNodeIds`、资源库挂载一致，避免「点薄弱点进课堂」无法匹配小节或空白内容。
+ */
+export const studentChapterPointIdToGraphNodeId: Record<string, string> = {
+  "n-standard-line": "kn-mech-004",
+  "n-standard-scale": "kn-mech-002",
+  "n-standard-font": "kn-mech-003",
+  "n-projection-system": "kn-mech-014",
+  "n-three-views": "kn-mech-015",
+  "n-visible-line": "kn-mech-016",
+  "n-auxiliary-view": "kn-mech-037",
+  "n-cross-section": "kn-mech-028",
+  "n-cross-section-curve": "kn-mech-028",
+  "n-combination-solid": "kn-mech-031",
+  "n-intersect-curve": "kn-mech-029",
+  /** 轴测未单独建图谱节点时挂到组合体读图，保证能进计划内小节并有资料 */
+  "n-isometric": "kn-mech-033",
+  "n-oblique-axon": "kn-mech-033",
+  "n-section-view": "kn-mech-039",
+  "n-detail-view": "kn-mech-037",
+};
+
+export function normalizeStudentChapterPointIdsToGraphNodes(nodeIds: string[]): string[] {
+  return nodeIds.map((id) => studentChapterPointIdToGraphNodeId[id] ?? id);
+}
+
+/** 在教学计划中定位挂载了某知识点的小节（用于考试薄弱点一键续学） */
+export function findSectionIdByKnowledgeNode(
+  plan: TeachingPlan,
+  nodeId?: string,
+): string | undefined {
+  if (!nodeId) return undefined;
+  const resolved = studentChapterPointIdToGraphNodeId[nodeId] ?? nodeId;
+  for (const ch of plan.chapters) {
+    for (const sec of ch.sections) {
+      if (sec.knowledgeNodeIds.includes(resolved)) return sec.id;
+    }
+  }
+  return undefined;
 }
 
 export function findPlanSection(
@@ -310,13 +388,13 @@ export function buildMockScenes(
       ],
     },
     {
-      id: "interactive-demo",
+      id: "interactive-guided",
       title: "互动讲解",
       eyebrow: `${modeLabel} · 第 2 场景`,
       summary: "用分步示例、同学追问和助学提示，把抽象知识拆成可执行步骤。",
       stageBlocks: [
         {
-          label: "演示",
+          label: "分步",
           title: "从直观例子开始",
           detail: "分步展示结构分解、关键步骤与易错提示。",
         },
@@ -507,7 +585,7 @@ function isHomeworkLike(item: LearnCenterResourceItem): boolean {
 }
 
 /**
- * 按资料类型生成分页/分屏的伪数据正文（非教学目标、非概况，而是可浏览的“页”）。
+ * 按资料类型生成分页/分屏正文（可浏览的“页”）。
  */
 function buildMockResourceContent(item: LearnCenterResourceItem): {
   kind: ResourceContentKind;
@@ -541,8 +619,7 @@ function buildMockResourceContent(item: LearnCenterResourceItem): {
             "2.（应用，15 分）已知轴承座主、左视图，补画俯视图，标出相贯与过渡线。\n" +
             "3.（综合，15 分）在指定图线上找出并改正三处线型/漏线错误，附简短理由。\n\n" +
             "【三、提交要求】\n" +
-            "按截止时间与命名规范上传；教师批阅时对照本题号与题图页。\n" +
-            "（本页为伪数据，仅演示单页作业版式。）",
+            "按截止时间与命名规范上传；教师批阅时对照本题号与题图页。",
         },
       ],
       totalPagesHint: 1,
@@ -562,7 +639,7 @@ function buildMockResourceContent(item: LearnCenterResourceItem): {
         body: line("形体分析法：分块—找特征—对投影", "主视图、俯左视图间「长对正、高平齐、宽相等」", "过渡线与交线的判别要点"),
       },
       {
-        title: "方法演示（轴承座）",
+        title: "方法示例（轴承座）",
         body: line("将轴承座拆为底板、支承、圆筒、肋板", "先画主视图外轮廓，再补孔与相贯线", "标出起模方向与易混虚线"),
       },
       {
@@ -816,6 +893,76 @@ export function buildTeacherResourceItems(
   return items;
 }
 
+/** 上课场景：优先展示某教学设计 Tab（课堂 / 讲义），其余资料排在后面 */
+export function buildClassStudyResourceItems(
+  planId: string | undefined,
+  sectionId: string | undefined,
+  goalNodeIds: string[],
+  focus: "课堂" | "讲义",
+): LearnCenterResourceItem[] {
+  const ctx: LearnCenterSessionContext = {
+    mode: "plan",
+    planId,
+    sectionId,
+    goalNodeIds: goalNodeIds.length ? goalNodeIds : undefined,
+  };
+  const fallback =
+    goalNodeIds.length > 0 ? goalNodeIds : ["kn-mech-031"];
+  const all = buildTeacherResourceItems(ctx, fallback);
+  const primary = all.filter((i) => i.tabLabel === focus);
+  const secondary = all.filter((i) => i.tabLabel !== focus);
+  if (primary.length > 0) return [...primary, ...secondary];
+  return all;
+}
+
+/** 学生端作业工作台只读视图（由 HomeworkEvalSummary 派生） */
+export type StudentHomeworkTask = {
+  homeworkId: string;
+  planId?: string;
+  sectionId?: string;
+  title: string;
+  dueAt: string;
+  assignedAt: string;
+  classId: string;
+  submitted: boolean;
+  score?: number;
+  maxScore: number;
+  questionCount: number;
+  rubricSummary: string;
+};
+
+export function buildStudentHomeworkTask(
+  studentId: string,
+  homeworkId: string,
+): StudentHomeworkTask | null {
+  const hw = homeworkEvaluations.find((h) => h.id === homeworkId);
+  if (!hw) return null;
+  const mine = getHomeworkStudentSummary(studentId, hw);
+  const rubricSummary =
+    hw.aiInsights[0]?.summary ??
+    "评分关注：作图步骤完整性、投影对应关系、线型与尺寸标注规范；主观题需附简要理由。";
+  return {
+    homeworkId: hw.id,
+    planId: hw.planId,
+    sectionId: hw.sectionId,
+    title: hw.homeworkTitle,
+    dueAt: hw.dueAt,
+    assignedAt: hw.assignedAt,
+    classId: hw.classId,
+    submitted: mine.submitted,
+    score: mine.totalScore,
+    maxScore: hw.maxScore || 100,
+    questionCount: hw.questionAccuracy.length || 0,
+    rubricSummary,
+  };
+}
+
+export function buildStudentHomeworkTasks(studentId: string): StudentHomeworkTask[] {
+  return getStudentHomeworks(studentId)
+    .map((hw) => buildStudentHomeworkTask(studentId, hw.id))
+    .filter((x): x is StudentHomeworkTask => x != null);
+}
+
 export function buildResourceExplanation(
   item: LearnCenterResourceItem,
   _ctx: LearnCenterSessionContext,
@@ -839,17 +986,18 @@ export function mockResourceReply(
   userText: string,
   role: ChatRole,
   item: LearnCenterResourceItem,
-  options: { style: string; teacherName: string; peerName: string },
+  options: { style?: string; teacherName: string; peerName: string },
 ): string {
   const topic = item.title;
-  const styleHint =
-    {
-      视觉型: "我会多用图示/结构分层来讲。",
-      动觉型: "你尽量边想边在纸上划两步草图。",
-      读写型: "我按小标题和条目来写清楚。",
-      听觉型: "我用口语、短句，方便你边读边出声。",
-      混合型: "我换几种讲法，直到你能复述。",
-    }[options.style] ?? "";
+  const styleHint = options.style
+    ? ({
+        视觉型: "我会多用图示/结构分层来讲。",
+        动觉型: "你尽量边想边在纸上划两步草图。",
+        读写型: "我按小标题和条目来写清楚。",
+        听觉型: "我用口语、短句，方便你边读边出声。",
+        混合型: "我换几种讲法，直到你能复述。",
+      }[options.style] ?? "")
+    : "";
 
   if (role === "teacher") {
     return `【${options.teacherName}】就「${topic}」回答你的问题：\n1) 先抓概念：${userText.slice(0, 40)} 的核心是把它放回本节知识链条里看。\n2) 再对照资料：建议回到「${item.summary.slice(0, 32)}…」里对应段落做勾画。\n3) 最后给你一条自检：能不看资料用自己的话讲清定义与作用吗？\n${styleHint}`;
@@ -858,4 +1006,39 @@ export function mockResourceReply(
     return `【助教】和「${topic}」相关，你可以先确认三件事：\n· 你卡住的步骤是读题、画图，还是校核？\n· 资料里你标了哪些关键词？\n· 你希望我帮你列「下一步最小动作」还是「易错点清单」？\n你刚才问的是：${userText.slice(0, 60)}。`;
   }
   return `【${options.peerName}】我也在学这份「${topic}」～ 我是这样理解你问的：${userText.slice(0, 40)}。我当时容易混的是形体贴合和线型，你要不要先从你最懵的那一条线开始聊？`;
+}
+
+/** 课堂场景：在通用回复上叠加「同步讲解」提示 */
+export function mockClassStudyReply(
+  userText: string,
+  role: ChatRole,
+  item: LearnCenterResourceItem,
+  options: { style?: string; teacherName: string; peerName: string },
+): string {
+  const base = mockResourceReply(userText, role, item, options);
+  if (role === "teacher") {
+    return `【课堂同步】${base}\n\n（本节以教师课堂设计为主，AI 只做要点复述与追问。）`;
+  }
+  return base;
+}
+
+/** 作业教练：强调分步提示、不代做 */
+export function mockHomeworkCoachReply(
+  userText: string,
+  role: ChatRole,
+  options: { teacherName: string; peerName: string },
+): string {
+  const q = userText.slice(0, 80);
+  if (role === "teacher") {
+    return `【${options.teacherName}·作业教练】不直接给完整解答。请先说出你已尝试的步骤；针对「${q}」，建议：① 用一句话重述已知条件；② 选定特征视图；③ 只画下一步辅助线，再停下来自检。`;
+  }
+  if (role === "assistant") {
+    return `【作业助教】你可以先标出题干里的**硬性约束**（可见性、线型、必须交的几张图）。关于「${q}」，需要我帮你拆成「最小下一步」还是「易错点清单」？`;
+  }
+  return `【${options.peerName}】我做这题时也卡过～ 关于「${q}」，你更愿意先对答案思路还是先对画图顺序？`;
+}
+
+/** 实训教练：操作向短回复 */
+export function mockTrainingCoachReply(userText: string, options: { peerName: string }): string {
+  return `【实训教练】收到：${userText.slice(0, 60)}。建议先确认：① 图板与图纸固定可靠；② 当前步骤是否满足安全要求；③ 交付物命名是否按小组规范。需要我按步骤 checklist 带你走一遍吗？\n（同伴参考：${options.peerName}）`;
 }

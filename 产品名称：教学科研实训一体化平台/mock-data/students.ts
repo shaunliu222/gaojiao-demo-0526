@@ -1,16 +1,12 @@
 import type { Student } from "./types";
 
 /**
- * 学生数据
+ * 学生数据（均为机械工程专业）
  *
- * - 机制 2301：全员 28 人（主班，完整命名）
- * - 机制 2302：全员 25 人（含陈浩宇等，与班级人数一致）
- * - 机制 2201：抽样 6 人
- * - 法学 2301：全员 26 人（与班级人数一致）
- * - 护理 2301：全员 30 人（与班级人数一致）
- * - 学前 2301：抽样 6 人
- *
- * 合计 ~131 人。后续学生档案画像会覆盖其中一部分。
+ * - 机制 2401：大一 6 人（抽样）
+ * - 机制 2301 / 2302 / 2303：大二（2301 主班 28 人，2302 全员 25 人，2303 全员 26 人）
+ * - 机制 2201：大三抽样 6 人
+ * - 机制 2101：大四全员 30 人
  */
 export const students: Student[] = [
   // ==== 机制 2301（主班 28 人全员）====
@@ -94,71 +90,71 @@ export const students: Student[] = [
   { id: "s-mech2201-05", name: "彭嘉俊", gender: "男", classId: "cls-mech-2201", studentNo: "2022010105", enrollYear: 2022 },
   { id: "s-mech2201-06", name: "何晓彤", gender: "女", classId: "cls-mech-2201", studentNo: "2022010106", enrollYear: 2022 },
 
-  // ==== 法学 2301（抽样 8 人）====
-  { id: "s-law2301-01", name: "宋佳雯", gender: "女", classId: "cls-law-2301", studentNo: "2023030101", enrollYear: 2023 },
-  { id: "s-law2301-02", name: "范博文", gender: "男", classId: "cls-law-2301", studentNo: "2023030102", enrollYear: 2023 },
-  { id: "s-law2301-03", name: "苏婉清", gender: "女", classId: "cls-law-2301", studentNo: "2023030103", enrollYear: 2023 },
-  { id: "s-law2301-04", name: "潘思源", gender: "男", classId: "cls-law-2301", studentNo: "2023030104", enrollYear: 2023 },
-  { id: "s-law2301-05", name: "尹雨萱", gender: "女", classId: "cls-law-2301", studentNo: "2023030105", enrollYear: 2023 },
-  { id: "s-law2301-06", name: "顾一鸣", gender: "男", classId: "cls-law-2301", studentNo: "2023030106", enrollYear: 2023 },
-  { id: "s-law2301-07", name: "唐诗涵", gender: "女", classId: "cls-law-2301", studentNo: "2023030107", enrollYear: 2023 },
-  { id: "s-law2301-08", name: "任安然", gender: "女", classId: "cls-law-2301", studentNo: "2023030108", enrollYear: 2023 },
-  { id: "s-law2301-09", name: "方嘉宁", gender: "男", classId: "cls-law-2301", studentNo: "2023030109", enrollYear: 2023 },
-  { id: "s-law2301-10", name: "于梦琪", gender: "女", classId: "cls-law-2301", studentNo: "2023030110", enrollYear: 2023 },
-  { id: "s-law2301-11", name: "董子轩", gender: "男", classId: "cls-law-2301", studentNo: "2023030111", enrollYear: 2023 },
-  { id: "s-law2301-12", name: "邓诗涵", gender: "女", classId: "cls-law-2301", studentNo: "2023030112", enrollYear: 2023 },
-  { id: "s-law2301-13", name: "魏子墨", gender: "男", classId: "cls-law-2301", studentNo: "2023030113", enrollYear: 2023 },
-  { id: "s-law2301-14", name: "程雨桐", gender: "女", classId: "cls-law-2301", studentNo: "2023030114", enrollYear: 2023 },
-  { id: "s-law2301-15", name: "许俊宇", gender: "男", classId: "cls-law-2301", studentNo: "2023030115", enrollYear: 2023 },
-  { id: "s-law2301-16", name: "沈佳怡", gender: "女", classId: "cls-law-2301", studentNo: "2023030116", enrollYear: 2023 },
-  { id: "s-law2301-17", name: "贾博文", gender: "男", classId: "cls-law-2301", studentNo: "2023030117", enrollYear: 2023 },
-  { id: "s-law2301-18", name: "钱欣妍", gender: "女", classId: "cls-law-2301", studentNo: "2023030118", enrollYear: 2023 },
-  { id: "s-law2301-19", name: "陶俊杰", gender: "男", classId: "cls-law-2301", studentNo: "2023030119", enrollYear: 2023 },
-  { id: "s-law2301-20", name: "段雅雯", gender: "女", classId: "cls-law-2301", studentNo: "2023030120", enrollYear: 2023 },
-  { id: "s-law2301-21", name: "石昊翔", gender: "男", classId: "cls-law-2301", studentNo: "2023030121", enrollYear: 2023 },
-  { id: "s-law2301-22", name: "任若楠", gender: "女", classId: "cls-law-2301", studentNo: "2023030122", enrollYear: 2023 },
-  { id: "s-law2301-23", name: "黎哲瀚", gender: "男", classId: "cls-law-2301", studentNo: "2023030123", enrollYear: 2023 },
-  { id: "s-law2301-24", name: "侯梓涵", gender: "女", classId: "cls-law-2301", studentNo: "2023030124", enrollYear: 2023 },
-  { id: "s-law2301-25", name: "常锦程", gender: "男", classId: "cls-law-2301", studentNo: "2023030125", enrollYear: 2023 },
-  { id: "s-law2301-26", name: "卢语嫣", gender: "女", classId: "cls-law-2301", studentNo: "2023030126", enrollYear: 2023 },
+  // ==== 机制 2303（大二平行班 26 人）====
+  { id: "s-mech2303-01", name: "宋佳雯", gender: "女", classId: "cls-mech-2303", studentNo: "2023010301", enrollYear: 2023 },
+  { id: "s-mech2303-02", name: "范博文", gender: "男", classId: "cls-mech-2303", studentNo: "2023010302", enrollYear: 2023 },
+  { id: "s-mech2303-03", name: "苏婉清", gender: "女", classId: "cls-mech-2303", studentNo: "2023010303", enrollYear: 2023 },
+  { id: "s-mech2303-04", name: "潘思源", gender: "男", classId: "cls-mech-2303", studentNo: "2023010304", enrollYear: 2023 },
+  { id: "s-mech2303-05", name: "尹雨萱", gender: "女", classId: "cls-mech-2303", studentNo: "2023010305", enrollYear: 2023 },
+  { id: "s-mech2303-06", name: "顾一鸣", gender: "男", classId: "cls-mech-2303", studentNo: "2023010306", enrollYear: 2023 },
+  { id: "s-mech2303-07", name: "唐诗涵", gender: "女", classId: "cls-mech-2303", studentNo: "2023010307", enrollYear: 2023 },
+  { id: "s-mech2303-08", name: "任安然", gender: "女", classId: "cls-mech-2303", studentNo: "2023010308", enrollYear: 2023 },
+  { id: "s-mech2303-09", name: "方嘉宁", gender: "男", classId: "cls-mech-2303", studentNo: "2023010309", enrollYear: 2023 },
+  { id: "s-mech2303-10", name: "于梦琪", gender: "女", classId: "cls-mech-2303", studentNo: "2023010310", enrollYear: 2023 },
+  { id: "s-mech2303-11", name: "董子轩", gender: "男", classId: "cls-mech-2303", studentNo: "2023010311", enrollYear: 2023 },
+  { id: "s-mech2303-12", name: "邓诗涵", gender: "女", classId: "cls-mech-2303", studentNo: "2023010312", enrollYear: 2023 },
+  { id: "s-mech2303-13", name: "魏子墨", gender: "男", classId: "cls-mech-2303", studentNo: "2023010313", enrollYear: 2023 },
+  { id: "s-mech2303-14", name: "程雨桐", gender: "女", classId: "cls-mech-2303", studentNo: "2023010314", enrollYear: 2023 },
+  { id: "s-mech2303-15", name: "许俊宇", gender: "男", classId: "cls-mech-2303", studentNo: "2023010315", enrollYear: 2023 },
+  { id: "s-mech2303-16", name: "沈佳怡", gender: "女", classId: "cls-mech-2303", studentNo: "2023010316", enrollYear: 2023 },
+  { id: "s-mech2303-17", name: "贾博文", gender: "男", classId: "cls-mech-2303", studentNo: "2023010317", enrollYear: 2023 },
+  { id: "s-mech2303-18", name: "钱欣妍", gender: "女", classId: "cls-mech-2303", studentNo: "2023010318", enrollYear: 2023 },
+  { id: "s-mech2303-19", name: "陶俊杰", gender: "男", classId: "cls-mech-2303", studentNo: "2023010319", enrollYear: 2023 },
+  { id: "s-mech2303-20", name: "段雅雯", gender: "女", classId: "cls-mech-2303", studentNo: "2023010320", enrollYear: 2023 },
+  { id: "s-mech2303-21", name: "石昊翔", gender: "男", classId: "cls-mech-2303", studentNo: "2023010321", enrollYear: 2023 },
+  { id: "s-mech2303-22", name: "任若楠", gender: "女", classId: "cls-mech-2303", studentNo: "2023010322", enrollYear: 2023 },
+  { id: "s-mech2303-23", name: "黎哲瀚", gender: "男", classId: "cls-mech-2303", studentNo: "2023010323", enrollYear: 2023 },
+  { id: "s-mech2303-24", name: "侯梓涵", gender: "女", classId: "cls-mech-2303", studentNo: "2023010324", enrollYear: 2023 },
+  { id: "s-mech2303-25", name: "常锦程", gender: "男", classId: "cls-mech-2303", studentNo: "2023010325", enrollYear: 2023 },
+  { id: "s-mech2303-26", name: "卢语嫣", gender: "女", classId: "cls-mech-2303", studentNo: "2023010326", enrollYear: 2023 },
 
-  // ==== 护理 2301（抽样 10 人）====
-  { id: "s-nurse2301-01", name: "白若雪", gender: "女", classId: "cls-nurse-2301", studentNo: "2023100101", enrollYear: 2023 },
-  { id: "s-nurse2301-02", name: "谢心怡", gender: "女", classId: "cls-nurse-2301", studentNo: "2023100102", enrollYear: 2023 },
-  { id: "s-nurse2301-03", name: "崔婉婷", gender: "女", classId: "cls-nurse-2301", studentNo: "2023100103", enrollYear: 2023 },
-  { id: "s-nurse2301-04", name: "夏清欢", gender: "女", classId: "cls-nurse-2301", studentNo: "2023100104", enrollYear: 2023 },
-  { id: "s-nurse2301-05", name: "乔志成", gender: "男", classId: "cls-nurse-2301", studentNo: "2023100105", enrollYear: 2023 },
-  { id: "s-nurse2301-06", name: "康悦萌", gender: "女", classId: "cls-nurse-2301", studentNo: "2023100106", enrollYear: 2023 },
-  { id: "s-nurse2301-07", name: "贺星月", gender: "女", classId: "cls-nurse-2301", studentNo: "2023100107", enrollYear: 2023 },
-  { id: "s-nurse2301-08", name: "钟雅琪", gender: "女", classId: "cls-nurse-2301", studentNo: "2023100108", enrollYear: 2023 },
-  { id: "s-nurse2301-09", name: "齐明辉", gender: "男", classId: "cls-nurse-2301", studentNo: "2023100109", enrollYear: 2023 },
-  { id: "s-nurse2301-10", name: "安娜", gender: "女", classId: "cls-nurse-2301", studentNo: "2023100110", enrollYear: 2023 },
-  { id: "s-nurse2301-11", name: "方晓婷", gender: "女", classId: "cls-nurse-2301", studentNo: "2023100111", enrollYear: 2023 },
-  { id: "s-nurse2301-12", name: "史宇航", gender: "男", classId: "cls-nurse-2301", studentNo: "2023100112", enrollYear: 2023 },
-  { id: "s-nurse2301-13", name: "金雅楠", gender: "女", classId: "cls-nurse-2301", studentNo: "2023100113", enrollYear: 2023 },
-  { id: "s-nurse2301-14", name: "程子豪", gender: "男", classId: "cls-nurse-2301", studentNo: "2023100114", enrollYear: 2023 },
-  { id: "s-nurse2301-15", name: "万语彤", gender: "女", classId: "cls-nurse-2301", studentNo: "2023100115", enrollYear: 2023 },
-  { id: "s-nurse2301-16", name: "常俊凯", gender: "男", classId: "cls-nurse-2301", studentNo: "2023100116", enrollYear: 2023 },
-  { id: "s-nurse2301-17", name: "龙思雨", gender: "女", classId: "cls-nurse-2301", studentNo: "2023100117", enrollYear: 2023 },
-  { id: "s-nurse2301-18", name: "汪梓晨", gender: "男", classId: "cls-nurse-2301", studentNo: "2023100118", enrollYear: 2023 },
-  { id: "s-nurse2301-19", name: "江婉如", gender: "女", classId: "cls-nurse-2301", studentNo: "2023100119", enrollYear: 2023 },
-  { id: "s-nurse2301-20", name: "孟翔宇", gender: "男", classId: "cls-nurse-2301", studentNo: "2023100120", enrollYear: 2023 },
-  { id: "s-nurse2301-21", name: "邵可欣", gender: "女", classId: "cls-nurse-2301", studentNo: "2023100121", enrollYear: 2023 },
-  { id: "s-nurse2301-22", name: "贺锦程", gender: "男", classId: "cls-nurse-2301", studentNo: "2023100122", enrollYear: 2023 },
-  { id: "s-nurse2301-23", name: "龚晓蕾", gender: "女", classId: "cls-nurse-2301", studentNo: "2023100123", enrollYear: 2023 },
-  { id: "s-nurse2301-24", name: "傅家豪", gender: "男", classId: "cls-nurse-2301", studentNo: "2023100124", enrollYear: 2023 },
-  { id: "s-nurse2301-25", name: "段安琪", gender: "女", classId: "cls-nurse-2301", studentNo: "2023100125", enrollYear: 2023 },
-  { id: "s-nurse2301-26", name: "许泽楷", gender: "男", classId: "cls-nurse-2301", studentNo: "2023100126", enrollYear: 2023 },
-  { id: "s-nurse2301-27", name: "沈乐瑶", gender: "女", classId: "cls-nurse-2301", studentNo: "2023100127", enrollYear: 2023 },
-  { id: "s-nurse2301-28", name: "贾子涵", gender: "男", classId: "cls-nurse-2301", studentNo: "2023100128", enrollYear: 2023 },
-  { id: "s-nurse2301-29", name: "钱思琪", gender: "女", classId: "cls-nurse-2301", studentNo: "2023100129", enrollYear: 2023 },
-  { id: "s-nurse2301-30", name: "陶子昂", gender: "男", classId: "cls-nurse-2301", studentNo: "2023100130", enrollYear: 2023 },
+  // ==== 机制 2101（大四 30 人）====
+  { id: "s-mech2101-01", name: "白若雪", gender: "女", classId: "cls-mech-2101", studentNo: "2021010101", enrollYear: 2021 },
+  { id: "s-mech2101-02", name: "谢心怡", gender: "女", classId: "cls-mech-2101", studentNo: "2021010102", enrollYear: 2021 },
+  { id: "s-mech2101-03", name: "崔婉婷", gender: "女", classId: "cls-mech-2101", studentNo: "2021010103", enrollYear: 2021 },
+  { id: "s-mech2101-04", name: "夏清欢", gender: "女", classId: "cls-mech-2101", studentNo: "2021010104", enrollYear: 2021 },
+  { id: "s-mech2101-05", name: "乔志成", gender: "男", classId: "cls-mech-2101", studentNo: "2021010105", enrollYear: 2021 },
+  { id: "s-mech2101-06", name: "康悦萌", gender: "女", classId: "cls-mech-2101", studentNo: "2021010106", enrollYear: 2021 },
+  { id: "s-mech2101-07", name: "贺星月", gender: "女", classId: "cls-mech-2101", studentNo: "2021010107", enrollYear: 2021 },
+  { id: "s-mech2101-08", name: "钟雅琪", gender: "女", classId: "cls-mech-2101", studentNo: "2021010108", enrollYear: 2021 },
+  { id: "s-mech2101-09", name: "齐明辉", gender: "男", classId: "cls-mech-2101", studentNo: "2021010109", enrollYear: 2021 },
+  { id: "s-mech2101-10", name: "安娜", gender: "女", classId: "cls-mech-2101", studentNo: "2021010110", enrollYear: 2021 },
+  { id: "s-mech2101-11", name: "方晓婷", gender: "女", classId: "cls-mech-2101", studentNo: "2021010111", enrollYear: 2021 },
+  { id: "s-mech2101-12", name: "史宇航", gender: "男", classId: "cls-mech-2101", studentNo: "2021010112", enrollYear: 2021 },
+  { id: "s-mech2101-13", name: "金雅楠", gender: "女", classId: "cls-mech-2101", studentNo: "2021010113", enrollYear: 2021 },
+  { id: "s-mech2101-14", name: "程子豪", gender: "男", classId: "cls-mech-2101", studentNo: "2021010114", enrollYear: 2021 },
+  { id: "s-mech2101-15", name: "万语彤", gender: "女", classId: "cls-mech-2101", studentNo: "2021010115", enrollYear: 2021 },
+  { id: "s-mech2101-16", name: "常俊凯", gender: "男", classId: "cls-mech-2101", studentNo: "2021010116", enrollYear: 2021 },
+  { id: "s-mech2101-17", name: "龙思雨", gender: "女", classId: "cls-mech-2101", studentNo: "2021010117", enrollYear: 2021 },
+  { id: "s-mech2101-18", name: "汪梓晨", gender: "男", classId: "cls-mech-2101", studentNo: "2021010118", enrollYear: 2021 },
+  { id: "s-mech2101-19", name: "江婉如", gender: "女", classId: "cls-mech-2101", studentNo: "2021010119", enrollYear: 2021 },
+  { id: "s-mech2101-20", name: "孟翔宇", gender: "男", classId: "cls-mech-2101", studentNo: "2021010120", enrollYear: 2021 },
+  { id: "s-mech2101-21", name: "邵可欣", gender: "女", classId: "cls-mech-2101", studentNo: "2021010121", enrollYear: 2021 },
+  { id: "s-mech2101-22", name: "贺锦程", gender: "男", classId: "cls-mech-2101", studentNo: "2021010122", enrollYear: 2021 },
+  { id: "s-mech2101-23", name: "龚晓蕾", gender: "女", classId: "cls-mech-2101", studentNo: "2021010123", enrollYear: 2021 },
+  { id: "s-mech2101-24", name: "傅家豪", gender: "男", classId: "cls-mech-2101", studentNo: "2021010124", enrollYear: 2021 },
+  { id: "s-mech2101-25", name: "段安琪", gender: "女", classId: "cls-mech-2101", studentNo: "2021010125", enrollYear: 2021 },
+  { id: "s-mech2101-26", name: "许泽楷", gender: "男", classId: "cls-mech-2101", studentNo: "2021010126", enrollYear: 2021 },
+  { id: "s-mech2101-27", name: "沈乐瑶", gender: "女", classId: "cls-mech-2101", studentNo: "2021010127", enrollYear: 2021 },
+  { id: "s-mech2101-28", name: "贾子涵", gender: "男", classId: "cls-mech-2101", studentNo: "2021010128", enrollYear: 2021 },
+  { id: "s-mech2101-29", name: "钱思琪", gender: "女", classId: "cls-mech-2101", studentNo: "2021010129", enrollYear: 2021 },
+  { id: "s-mech2101-30", name: "陶子昂", gender: "男", classId: "cls-mech-2101", studentNo: "2021010130", enrollYear: 2021 },
 
-  // ==== 学前 2301（抽样 6 人）====
-  { id: "s-edu2301-01", name: "伊可欣", gender: "女", classId: "cls-edu-2301", studentNo: "2023040101", enrollYear: 2023 },
-  { id: "s-edu2301-02", name: "毛宛蓉", gender: "女", classId: "cls-edu-2301", studentNo: "2023040102", enrollYear: 2023 },
-  { id: "s-edu2301-03", name: "史佳乐", gender: "女", classId: "cls-edu-2301", studentNo: "2023040103", enrollYear: 2023 },
-  { id: "s-edu2301-04", name: "罗静怡", gender: "女", classId: "cls-edu-2301", studentNo: "2023040104", enrollYear: 2023 },
-  { id: "s-edu2301-05", name: "于萌萌", gender: "女", classId: "cls-edu-2301", studentNo: "2023040105", enrollYear: 2023 },
-  { id: "s-edu2301-06", name: "乐语桐", gender: "女", classId: "cls-edu-2301", studentNo: "2023040106", enrollYear: 2023 },
+  // ==== 机制 2401（大一抽样 6 人）====
+  { id: "s-mech2401-01", name: "伊可欣", gender: "女", classId: "cls-mech-2401", studentNo: "2024010101", enrollYear: 2024 },
+  { id: "s-mech2401-02", name: "毛宛蓉", gender: "女", classId: "cls-mech-2401", studentNo: "2024010102", enrollYear: 2024 },
+  { id: "s-mech2401-03", name: "史佳乐", gender: "女", classId: "cls-mech-2401", studentNo: "2024010103", enrollYear: 2024 },
+  { id: "s-mech2401-04", name: "罗静怡", gender: "女", classId: "cls-mech-2401", studentNo: "2024010104", enrollYear: 2024 },
+  { id: "s-mech2401-05", name: "于萌萌", gender: "女", classId: "cls-mech-2401", studentNo: "2024010105", enrollYear: 2024 },
+  { id: "s-mech2401-06", name: "乐语桐", gender: "女", classId: "cls-mech-2401", studentNo: "2024010106", enrollYear: 2024 },
 ];

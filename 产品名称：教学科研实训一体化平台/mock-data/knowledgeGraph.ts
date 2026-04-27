@@ -3,15 +3,12 @@ import type { GraphNode, GraphEdge } from "./types";
 /**
  * 知识图谱数据
  *
- * - 机械工程（主线）：72 个节点（60 知识点 + 7 技能点 + 5 核心素养），~120 条边，10 个主题簇
- * - 法学：25 个节点（22 知识点 + 2 技能点 + 1 核心素养），~30 条边
- * - 护理学：22 个节点（17 知识点 + 3 技能点 + 2 核心素养），~25 条边
- * - 学前教育：0 节点（演示"未建图谱"空状态）
+ * - 机械工程：80 个节点（67 知识点 + 8 技能点 + 5 核心素养），边含制造工艺/金工与工业机器人扩展，11+2 个主题簇
  *
  * 节点 ID 命名：
- *   kn-<prof>-NNN   知识点
- *   sk-<prof>-NNN   技能点
- *   core-<prof>-NNN 核心素养
+ *   kn-mech-NNN   知识点
+ *   sk-mech-NNN   技能点
+ *   core-mech-NNN 核心素养
  */
 
 // ========================================================================
@@ -98,7 +95,20 @@ const mechNodes: GraphNode[] = [
   { id: "kn-mech-059", professionId: "prof-mech", name: "三维实体建模", nodeType: "知识点", cluster: "CAD建模", description: "拉伸、旋转、扫描、放样等三维特征命令。" },
   { id: "kn-mech-060", professionId: "prof-mech", name: "三维装配与工程图输出", nodeType: "知识点", cluster: "CAD建模", description: "装配体配合约束与由三维模型自动生成二维工程图。" },
 
-  // ============ 技能点（7）============
+  // ============ 簇 11：制造工艺 / 金工实习（2）============
+  { id: "kn-mech-061", professionId: "prof-mech", name: "普通车削加工基础", nodeType: "知识点", cluster: "制造工艺", description: "车床基本操作、外圆与端面试切，与零件图尺寸、工艺意识衔接。" },
+  { id: "kn-mech-062", professionId: "prof-mech", name: "铣削加工入门", nodeType: "知识点", cluster: "制造工艺", description: "铣床工作台、对刀与平面铣削入门，建立加工基准概念。" },
+
+  // ============ 簇 12：工业机器人（2）============
+  { id: "kn-mech-063", professionId: "prof-mech", name: "工业机器人工作站与安全", nodeType: "知识点", cluster: "工业机器人", description: "工作站组成、安全互锁、急停与防护围栏等入门要求。" },
+  { id: "kn-mech-064", professionId: "prof-mech", name: "示教编程与搬运应用入门", nodeType: "知识点", cluster: "工业机器人", description: "坐标系与点位、示教轨迹与典型搬运节拍入门。" },
+
+  // ============ 簇 13：工程智能与 AI（3）============
+  { id: "kn-mech-065", professionId: "prof-mech", name: "生成式AI与机械学科应用边界", nodeType: "知识点", cluster: "工程智能与AI", description: "大语言模型、文生图等工具在制图、设计、工艺文档中的适用场景、局限与学术诚信要求。" },
+  { id: "kn-mech-066", professionId: "prof-mech", name: "AI辅助技术文档与课程报告", nodeType: "知识点", cluster: "工程智能与AI", description: "用对话式AI整理读图笔记、实验步骤、术语校对及引用标注，输出符合课程模板的书面材料。" },
+  { id: "kn-mech-067", professionId: "prof-mech", name: "AI概念草图与方案发散", nodeType: "知识点", cluster: "工程智能与AI", description: "结合文生图或草图辅助工具进行方案发散，并与 CAD 线框或徒手草图对照迭代。" },
+
+  // ============ 技能点（8）============
   { id: "sk-mech-001", professionId: "prof-mech", name: "手工绘图技能", nodeType: "技能点", cluster: "技能", description: "使用绘图工具或徒手绘制机械图的操作技能。" },
   { id: "sk-mech-002", professionId: "prof-mech", name: "AutoCAD 二维绘图技能", nodeType: "技能点", cluster: "技能", description: "熟练使用 AutoCAD 绘制二维机械工程图。" },
   { id: "sk-mech-003", professionId: "prof-mech", name: "SolidWorks 三维建模技能", nodeType: "技能点", cluster: "技能", description: "使用 SolidWorks 完成零件、装配体建模和工程图输出。" },
@@ -106,6 +116,7 @@ const mechNodes: GraphNode[] = [
   { id: "sk-mech-005", professionId: "prof-mech", name: "工程图阅读技能", nodeType: "技能点", cluster: "技能", description: "正确识读零件图和装配图的能力。" },
   { id: "sk-mech-006", professionId: "prof-mech", name: "公差标注与选用技能", nodeType: "技能点", cluster: "技能", description: "根据使用要求合理选择并标注尺寸公差、形位公差与表面粗糙度。" },
   { id: "sk-mech-007", professionId: "prof-mech", name: "机械工程规范检查技能", nodeType: "技能点", cluster: "技能", description: "对照国家标准检查图纸合规性的能力。" },
+  { id: "sk-mech-008", professionId: "prof-mech", name: "生成式AI辅助学习任务技能", nodeType: "技能点", cluster: "技能", description: "在教师要求下选用合适 AI 工具、撰写提示词、核验工程事实并完成课程作业交付的能力。" },
 
   // ============ 核心素养（5）============
   { id: "core-mech-001", professionId: "prof-mech", name: "工程素养", nodeType: "核心素养", cluster: "核心素养", description: "以工程师思维看待问题、遵循工程逻辑解决实际问题的综合素养。" },
@@ -242,175 +253,58 @@ const mechEdges: GraphEdge[] = [
   { id: "e-m-139", professionId: "prof-mech", from: "core-mech-004", to: "kn-mech-058", relation: "支撑" },
   { id: "e-m-140", professionId: "prof-mech", from: "core-mech-005", to: "sk-mech-004", relation: "支撑" },
   { id: "e-m-141", professionId: "prof-mech", from: "core-mech-005", to: "sk-mech-005", relation: "支撑" },
-];
 
-// ========================================================================
-// 法学图谱（25 节点）
-// ========================================================================
-const lawNodes: GraphNode[] = [
-  // 簇 1 民法基础
-  { id: "kn-law-001", professionId: "prof-law", name: "民法的概念与调整对象", nodeType: "知识点", cluster: "民法基础", description: "民法调整平等主体之间的财产关系和人身关系。" },
-  { id: "kn-law-002", professionId: "prof-law", name: "民法基本原则", nodeType: "知识点", cluster: "民法基础", description: "平等、自愿、公平、诚实信用、守法与公序良俗、绿色原则。" },
-  { id: "kn-law-003", professionId: "prof-law", name: "民事法律关系", nodeType: "知识点", cluster: "民法基础", description: "主体、客体、内容三要素及其变动。" },
-  { id: "kn-law-004", professionId: "prof-law", name: "民事法律事实", nodeType: "知识点", cluster: "民法基础", description: "行为事实与事件事实的分类。" },
-  { id: "kn-law-005", professionId: "prof-law", name: "民法典体系", nodeType: "知识点", cluster: "民法基础", description: "民法典总则、物权、合同、人格权、婚姻家庭、继承、侵权责任七编概览。" },
-  { id: "kn-law-006", professionId: "prof-law", name: "民事权利基本分类", nodeType: "知识点", cluster: "民法基础", description: "支配权、请求权、形成权、抗辩权等分类。" },
+  // ---- 制造工艺 / 金工：与读图、测绘、规范衔接 ----
+  { id: "e-m-150", professionId: "prof-mech", from: "kn-mech-048", to: "kn-mech-061", relation: "相关" },
+  { id: "e-m-151", professionId: "prof-mech", from: "sk-mech-004", to: "kn-mech-061", relation: "支撑" },
+  { id: "e-m-152", professionId: "prof-mech", from: "sk-mech-005", to: "kn-mech-061", relation: "支撑" },
+  { id: "e-m-153", professionId: "prof-mech", from: "core-mech-003", to: "kn-mech-061", relation: "支撑" },
+  { id: "e-m-154", professionId: "prof-mech", from: "kn-mech-061", to: "kn-mech-062", relation: "先修" },
+  { id: "e-m-155", professionId: "prof-mech", from: "kn-mech-050", to: "kn-mech-062", relation: "相关" },
+  { id: "e-m-156", professionId: "prof-mech", from: "sk-mech-006", to: "kn-mech-062", relation: "支撑" },
 
-  // 簇 2 民事主体
-  { id: "kn-law-007", professionId: "prof-law", name: "自然人民事主体", nodeType: "知识点", cluster: "民事主体", description: "自然人作为民事主体的基本规定。" },
-  { id: "kn-law-008", professionId: "prof-law", name: "民事权利能力", nodeType: "知识点", cluster: "民事主体", description: "自然人民事权利能力的起止。" },
-  { id: "kn-law-009", professionId: "prof-law", name: "民事行为能力", nodeType: "知识点", cluster: "民事主体", description: "完全、限制、无民事行为能力人的划分。" },
-  { id: "kn-law-010", professionId: "prof-law", name: "法人与非法人组织", nodeType: "知识点", cluster: "民事主体", description: "营利/非营利/特别法人和合伙企业等非法人组织。" },
-  { id: "kn-law-011", professionId: "prof-law", name: "监护制度", nodeType: "知识点", cluster: "民事主体", description: "未成年人与成年人监护的设立与撤销。" },
+  // ---- 工业机器人：与三维建模、装配图、规范意识衔接 ----
+  { id: "e-m-160", professionId: "prof-mech", from: "kn-mech-058", to: "kn-mech-063", relation: "先修" },
+  { id: "e-m-161", professionId: "prof-mech", from: "kn-mech-052", to: "kn-mech-063", relation: "相关" },
+  { id: "e-m-162", professionId: "prof-mech", from: "core-mech-003", to: "kn-mech-063", relation: "支撑" },
+  { id: "e-m-163", professionId: "prof-mech", from: "kn-mech-063", to: "kn-mech-064", relation: "先修" },
+  { id: "e-m-164", professionId: "prof-mech", from: "kn-mech-059", to: "kn-mech-064", relation: "支撑" },
+  { id: "e-m-165", professionId: "prof-mech", from: "kn-mech-060", to: "kn-mech-064", relation: "相关" },
+  { id: "e-m-166", professionId: "prof-mech", from: "core-mech-004", to: "kn-mech-064", relation: "支撑" },
 
-  // 簇 3 法律行为与代理
-  { id: "kn-law-012", professionId: "prof-law", name: "民事法律行为", nodeType: "知识点", cluster: "法律行为", description: "以意思表示为要素、旨在设立变更终止法律关系的合法行为。" },
-  { id: "kn-law-013", professionId: "prof-law", name: "意思表示", nodeType: "知识点", cluster: "法律行为", description: "意思表示的构成与瑕疵类型。" },
-  { id: "kn-law-014", professionId: "prof-law", name: "法律行为的效力", nodeType: "知识点", cluster: "法律行为", description: "有效、无效、可撤销、效力待定四种效力状态。" },
-  { id: "kn-law-015", professionId: "prof-law", name: "代理制度", nodeType: "知识点", cluster: "法律行为", description: "委托代理、法定代理、无权代理与表见代理。" },
+  // ---- 工程智能与 AI：与 CAD、读图、创新素养衔接 ----
+  { id: "e-m-180", professionId: "prof-mech", from: "kn-mech-048", to: "kn-mech-065", relation: "相关" },
+  { id: "e-m-181", professionId: "prof-mech", from: "kn-mech-058", to: "kn-mech-065", relation: "相关" },
+  { id: "e-m-182", professionId: "prof-mech", from: "kn-mech-065", to: "kn-mech-066", relation: "先修" },
+  { id: "e-m-183", professionId: "prof-mech", from: "kn-mech-065", to: "kn-mech-067", relation: "先修" },
+  { id: "e-m-184", professionId: "prof-mech", from: "kn-mech-066", to: "kn-mech-067", relation: "相关" },
+  { id: "e-m-185", professionId: "prof-mech", from: "kn-mech-054", to: "kn-mech-067", relation: "相关" },
+  { id: "e-m-186", professionId: "prof-mech", from: "sk-mech-008", to: "kn-mech-065", relation: "支撑" },
+  { id: "e-m-187", professionId: "prof-mech", from: "sk-mech-008", to: "kn-mech-066", relation: "支撑" },
+  { id: "e-m-188", professionId: "prof-mech", from: "sk-mech-008", to: "kn-mech-067", relation: "支撑" },
+  { id: "e-m-189", professionId: "prof-mech", from: "core-mech-004", to: "kn-mech-065", relation: "支撑" },
+  { id: "e-m-190", professionId: "prof-mech", from: "core-mech-003", to: "kn-mech-066", relation: "支撑" },
+  { id: "e-m-191", professionId: "prof-mech", from: "core-mech-005", to: "kn-mech-067", relation: "支撑" },
 
-  // 簇 4 民事权利（实体权）
-  { id: "kn-law-016", professionId: "prof-law", name: "人身权", nodeType: "知识点", cluster: "民事权利", description: "生命权、健康权、姓名权、肖像权、隐私权等人身权。" },
-  { id: "kn-law-017", professionId: "prof-law", name: "物权", nodeType: "知识点", cluster: "民事权利", description: "所有权、用益物权、担保物权的基本框架。" },
-  { id: "kn-law-018", professionId: "prof-law", name: "债权", nodeType: "知识点", cluster: "民事权利", description: "合同之债、无因管理、不当得利、侵权之债。" },
-  { id: "kn-law-019", professionId: "prof-law", name: "知识产权", nodeType: "知识点", cluster: "民事权利", description: "著作权、专利权、商标权的基本属性。" },
-  { id: "kn-law-023", professionId: "prof-law", name: "公序良俗原则", nodeType: "知识点", cluster: "民事权利", description: "公序良俗作为民法基本原则在民事活动中的具体适用。" },
-
-  // 簇 5 民事责任与时效
-  { id: "kn-law-020", professionId: "prof-law", name: "民事责任", nodeType: "知识点", cluster: "责任时效", description: "过错责任原则与无过错责任原则。" },
-  { id: "kn-law-021", professionId: "prof-law", name: "诉讼时效", nodeType: "知识点", cluster: "责任时效", description: "普通、特别诉讼时效与时效中止、中断、延长。" },
-  { id: "kn-law-022", professionId: "prof-law", name: "期间与期日", nodeType: "知识点", cluster: "责任时效", description: "期间的计算、期日与期间的关系。" },
-
-  // 技能点
-  { id: "sk-law-001", professionId: "prof-law", name: "法律条文检索与适用", nodeType: "技能点", cluster: "技能", description: "利用各类法律数据库精准检索法条并适用到案件中。" },
-  { id: "sk-law-002", professionId: "prof-law", name: "案例分析技能", nodeType: "技能点", cluster: "技能", description: "IRAC 方法分析真实案例的能力。" },
-  { id: "sk-law-003", professionId: "prof-law", name: "法律文书写作", nodeType: "技能点", cluster: "技能", description: "撰写起诉状、答辩状、合同等法律文书的能力。" },
-
-  // 核心素养
-  { id: "core-law-001", professionId: "prof-law", name: "法治思维", nodeType: "核心素养", cluster: "核心素养", description: "在法治框架下思考、分析和解决问题的核心能力。" },
-];
-
-const lawEdges: GraphEdge[] = [
-  { id: "e-l-001", professionId: "prof-law", from: "kn-law-001", to: "kn-law-002", relation: "先修" },
-  { id: "e-l-002", professionId: "prof-law", from: "kn-law-001", to: "kn-law-003", relation: "先修" },
-  { id: "e-l-003", professionId: "prof-law", from: "kn-law-003", to: "kn-law-004", relation: "包含" },
-  { id: "e-l-004", professionId: "prof-law", from: "kn-law-003", to: "kn-law-006", relation: "包含" },
-  { id: "e-l-005", professionId: "prof-law", from: "kn-law-001", to: "kn-law-005", relation: "相关" },
-  { id: "e-l-006", professionId: "prof-law", from: "kn-law-002", to: "kn-law-023", relation: "包含" },
-  { id: "e-l-007", professionId: "prof-law", from: "kn-law-003", to: "kn-law-007", relation: "先修" },
-  { id: "e-l-008", professionId: "prof-law", from: "kn-law-007", to: "kn-law-008", relation: "包含" },
-  { id: "e-l-009", professionId: "prof-law", from: "kn-law-007", to: "kn-law-009", relation: "包含" },
-  { id: "e-l-010", professionId: "prof-law", from: "kn-law-009", to: "kn-law-011", relation: "相关" },
-  { id: "e-l-011", professionId: "prof-law", from: "kn-law-003", to: "kn-law-010", relation: "先修" },
-  { id: "e-l-012", professionId: "prof-law", from: "kn-law-004", to: "kn-law-012", relation: "先修" },
-  { id: "e-l-013", professionId: "prof-law", from: "kn-law-012", to: "kn-law-013", relation: "包含" },
-  { id: "e-l-014", professionId: "prof-law", from: "kn-law-012", to: "kn-law-014", relation: "包含" },
-  { id: "e-l-015", professionId: "prof-law", from: "kn-law-012", to: "kn-law-015", relation: "先修" },
-  { id: "e-l-016", professionId: "prof-law", from: "kn-law-006", to: "kn-law-016", relation: "先修" },
-  { id: "e-l-017", professionId: "prof-law", from: "kn-law-006", to: "kn-law-017", relation: "先修" },
-  { id: "e-l-018", professionId: "prof-law", from: "kn-law-006", to: "kn-law-018", relation: "先修" },
-  { id: "e-l-019", professionId: "prof-law", from: "kn-law-006", to: "kn-law-019", relation: "先修" },
-  { id: "e-l-020", professionId: "prof-law", from: "kn-law-003", to: "kn-law-020", relation: "相关" },
-  { id: "e-l-021", professionId: "prof-law", from: "kn-law-020", to: "kn-law-021", relation: "相关" },
-  { id: "e-l-022", professionId: "prof-law", from: "kn-law-021", to: "kn-law-022", relation: "包含" },
-  { id: "e-l-023", professionId: "prof-law", from: "sk-law-001", to: "kn-law-005", relation: "支撑" },
-  { id: "e-l-024", professionId: "prof-law", from: "sk-law-002", to: "kn-law-012", relation: "支撑" },
-  { id: "e-l-025", professionId: "prof-law", from: "sk-law-002", to: "kn-law-014", relation: "支撑" },
-  { id: "e-l-026", professionId: "prof-law", from: "sk-law-002", to: "kn-law-018", relation: "支撑" },
-  { id: "e-l-027", professionId: "prof-law", from: "sk-law-003", to: "kn-law-015", relation: "支撑" },
-  { id: "e-l-028", professionId: "prof-law", from: "core-law-001", to: "kn-law-002", relation: "支撑" },
-  { id: "e-l-029", professionId: "prof-law", from: "core-law-001", to: "sk-law-001", relation: "支撑" },
-  { id: "e-l-030", professionId: "prof-law", from: "core-law-001", to: "sk-law-002", relation: "支撑" },
-];
-
-// ========================================================================
-// 护理学图谱（22 节点）
-// ========================================================================
-const nurseNodes: GraphNode[] = [
-  // 簇 1 护理基础理论
-  { id: "kn-nur-001", professionId: "prof-nurse", name: "护理学发展史", nodeType: "知识点", cluster: "基础理论", description: "现代护理学的发展阶段及代表人物。" },
-  { id: "kn-nur-002", professionId: "prof-nurse", name: "护理程序", nodeType: "知识点", cluster: "基础理论", description: "评估、诊断、计划、实施、评价五步骤。" },
-  { id: "kn-nur-003", professionId: "prof-nurse", name: "护患沟通", nodeType: "知识点", cluster: "基础理论", description: "治疗性沟通的基本技巧。" },
-  { id: "kn-nur-004", professionId: "prof-nurse", name: "护理记录规范", nodeType: "知识点", cluster: "基础理论", description: "各类护理记录单的规范书写要求。" },
-
-  // 簇 2 生活与环境
-  { id: "kn-nur-005", professionId: "prof-nurse", name: "医院环境管理", nodeType: "知识点", cluster: "生活护理", description: "病区环境的温度、湿度、光线、安全。" },
-  { id: "kn-nur-006", professionId: "prof-nurse", name: "卧位与体位转换", nodeType: "知识点", cluster: "生活护理", description: "常见卧位类型及更换技术。" },
-  { id: "kn-nur-007", professionId: "prof-nurse", name: "病人生活护理", nodeType: "知识点", cluster: "生活护理", description: "口腔护理、压疮预防、皮肤护理等。" },
-
-  // 簇 3 感染控制
-  { id: "kn-nur-008", professionId: "prof-nurse", name: "医院感染与预防", nodeType: "知识点", cluster: "感染控制", description: "医院感染的分类、传播途径和预防策略。" },
-  { id: "kn-nur-009", professionId: "prof-nurse", name: "无菌技术基础", nodeType: "知识点", cluster: "感染控制", description: "无菌概念、无菌操作原则与常用技术。" },
-  { id: "kn-nur-010", professionId: "prof-nurse", name: "消毒与隔离", nodeType: "知识点", cluster: "感染控制", description: "常用消毒方法及隔离种类。" },
-
-  // 簇 4 生命体征
-  { id: "kn-nur-011", professionId: "prof-nurse", name: "体温测量", nodeType: "知识点", cluster: "生命体征", description: "口腔、腋下、直肠体温测量的操作方法。" },
-  { id: "kn-nur-012", professionId: "prof-nurse", name: "脉搏与呼吸监测", nodeType: "知识点", cluster: "生命体征", description: "脉搏与呼吸的正常值与异常识别。" },
-  { id: "kn-nur-013", professionId: "prof-nurse", name: "血压测量", nodeType: "知识点", cluster: "生命体征", description: "上臂式血压计测量方法与注意事项。" },
-
-  // 簇 5 给药与注射
-  { id: "kn-nur-014", professionId: "prof-nurse", name: "药物基础知识", nodeType: "知识点", cluster: "给药注射", description: "药物的分类、储存与「三查八对」。" },
-  { id: "kn-nur-015", professionId: "prof-nurse", name: "口服给药", nodeType: "知识点", cluster: "给药注射", description: "口服给药的流程和注意事项。" },
-  { id: "kn-nur-016", professionId: "prof-nurse", name: "注射法", nodeType: "知识点", cluster: "给药注射", description: "皮内、皮下、肌内注射的解剖定位与操作。" },
-  { id: "kn-nur-017", professionId: "prof-nurse", name: "静脉输液", nodeType: "知识点", cluster: "给药注射", description: "静脉输液的目的、方法、常见故障处理。" },
-
-  // 技能点
-  { id: "sk-nur-001", professionId: "prof-nurse", name: "无菌操作技能", nodeType: "技能点", cluster: "技能", description: "熟练执行各类无菌技术操作。" },
-  { id: "sk-nur-002", professionId: "prof-nurse", name: "生命体征采集技能", nodeType: "技能点", cluster: "技能", description: "准确采集和记录病人生命体征。" },
-  { id: "sk-nur-003", professionId: "prof-nurse", name: "静脉穿刺技能", nodeType: "技能点", cluster: "技能", description: "熟练进行静脉穿刺与输液管理。" },
-
-  // 核心素养
-  { id: "core-nur-001", professionId: "prof-nurse", name: "人文关怀意识", nodeType: "核心素养", cluster: "核心素养", description: "以病人为中心的关爱意识和沟通能力。" },
-  { id: "core-nur-002", professionId: "prof-nurse", name: "严谨安全意识", nodeType: "核心素养", cluster: "核心素养", description: "严格执行操作规程、确保护理安全的职业素养。" },
-];
-
-const nurseEdges: GraphEdge[] = [
-  { id: "e-n-001", professionId: "prof-nurse", from: "kn-nur-001", to: "kn-nur-002", relation: "先修" },
-  { id: "e-n-002", professionId: "prof-nurse", from: "kn-nur-002", to: "kn-nur-004", relation: "相关" },
-  { id: "e-n-003", professionId: "prof-nurse", from: "kn-nur-002", to: "kn-nur-003", relation: "相关" },
-  { id: "e-n-004", professionId: "prof-nurse", from: "kn-nur-005", to: "kn-nur-006", relation: "先修" },
-  { id: "e-n-005", professionId: "prof-nurse", from: "kn-nur-006", to: "kn-nur-007", relation: "相关" },
-  { id: "e-n-006", professionId: "prof-nurse", from: "kn-nur-008", to: "kn-nur-009", relation: "先修" },
-  { id: "e-n-007", professionId: "prof-nurse", from: "kn-nur-009", to: "kn-nur-010", relation: "相关" },
-  { id: "e-n-008", professionId: "prof-nurse", from: "kn-nur-009", to: "kn-nur-016", relation: "先修" },
-  { id: "e-n-009", professionId: "prof-nurse", from: "kn-nur-009", to: "kn-nur-017", relation: "先修" },
-  { id: "e-n-010", professionId: "prof-nurse", from: "kn-nur-011", to: "kn-nur-012", relation: "相关" },
-  { id: "e-n-011", professionId: "prof-nurse", from: "kn-nur-012", to: "kn-nur-013", relation: "相关" },
-  { id: "e-n-012", professionId: "prof-nurse", from: "kn-nur-014", to: "kn-nur-015", relation: "先修" },
-  { id: "e-n-013", professionId: "prof-nurse", from: "kn-nur-014", to: "kn-nur-016", relation: "先修" },
-  { id: "e-n-014", professionId: "prof-nurse", from: "kn-nur-014", to: "kn-nur-017", relation: "先修" },
-  { id: "e-n-015", professionId: "prof-nurse", from: "kn-nur-016", to: "kn-nur-017", relation: "相关" },
-  { id: "e-n-016", professionId: "prof-nurse", from: "sk-nur-001", to: "kn-nur-009", relation: "支撑" },
-  { id: "e-n-017", professionId: "prof-nurse", from: "sk-nur-001", to: "kn-nur-016", relation: "支撑" },
-  { id: "e-n-018", professionId: "prof-nurse", from: "sk-nur-001", to: "kn-nur-017", relation: "支撑" },
-  { id: "e-n-019", professionId: "prof-nurse", from: "sk-nur-002", to: "kn-nur-011", relation: "支撑" },
-  { id: "e-n-020", professionId: "prof-nurse", from: "sk-nur-002", to: "kn-nur-012", relation: "支撑" },
-  { id: "e-n-021", professionId: "prof-nurse", from: "sk-nur-002", to: "kn-nur-013", relation: "支撑" },
-  { id: "e-n-022", professionId: "prof-nurse", from: "sk-nur-003", to: "kn-nur-017", relation: "支撑" },
-  { id: "e-n-023", professionId: "prof-nurse", from: "core-nur-001", to: "kn-nur-003", relation: "支撑" },
-  { id: "e-n-024", professionId: "prof-nurse", from: "core-nur-002", to: "sk-nur-001", relation: "支撑" },
-  { id: "e-n-025", professionId: "prof-nurse", from: "core-nur-002", to: "sk-nur-003", relation: "支撑" },
+  // ---- 导论叙事：工程素养 → 制图入口（供教学计划路径子图连通） ----
+  { id: "e-m-170", professionId: "prof-mech", from: "core-mech-001", to: "kn-mech-001", relation: "支撑" },
+  { id: "e-m-171", professionId: "prof-mech", from: "core-mech-001", to: "kn-mech-012", relation: "相关" },
+  { id: "e-m-172", professionId: "prof-mech", from: "core-mech-003", to: "kn-mech-015", relation: "支撑" },
 ];
 
 // ========================================================================
 // 汇总导出
 // ========================================================================
-export const graphNodes: GraphNode[] = [...mechNodes, ...lawNodes, ...nurseNodes];
-export const graphEdges: GraphEdge[] = [...mechEdges, ...lawEdges, ...nurseEdges];
+export const graphNodes: GraphNode[] = [...mechNodes];
+export const graphEdges: GraphEdge[] = [...mechEdges];
 
 /** 按专业分组，方便前端直接拿 */
 export const nodesByProfession: Record<string, GraphNode[]> = {
   "prof-mech": mechNodes,
-  "prof-law": lawNodes,
-  "prof-nurse": nurseNodes,
-  "prof-edu": [], // 未建图谱
 };
 
 export const edgesByProfession: Record<string, GraphEdge[]> = {
   "prof-mech": mechEdges,
-  "prof-law": lawEdges,
-  "prof-nurse": nurseEdges,
-  "prof-edu": [],
 };
 
 /** 按 ID 查节点 */

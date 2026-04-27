@@ -21,8 +21,11 @@ import {
 } from "lucide-react";
 import { studentById, teacherById, classById } from "../data/lookups";
 
-// 当前登录教师（主线：李建国）
-const CURRENT_TEACHER_ID = "t-li";
+/** 教师端可切换账号（主任全量数据 / 普通教师仅本人数据） */
+export const TEACHER_LOGIN_ACCOUNTS: Array<{ id: string; subtitle: string }> = [
+  { id: "t-li", subtitle: "教研室主任 · 查看全部课程与资源" },
+  { id: "t-wang", subtitle: "任课教师 · 仅查看本人相关数据" },
+];
 
 export type Role = "teacher" | "student" | "college_admin";
 
@@ -101,7 +104,7 @@ const studentMenu: MenuNode[] = [
   { kind: "item", key: "my-profile", label: "学情分析", icon: GraduationCap },
 ];
 
-/** 可选学生身份（演示态，只放两个对照视角） */
+/** 可选学生身份（对照视角） */
 const STUDENT_OPTIONS: Array<{ id: string; label: string }> = [
   { id: "s-mech2301-01", label: "张伟（机制 2301）" },
   { id: "s-mech2302-01", label: "陈浩宇（机制 2302）" },
@@ -243,6 +246,8 @@ export function Layout({
   setNav,
   role,
   setRole,
+  teacherId,
+  setTeacherId,
   studentId,
   setStudentId,
   children,
@@ -255,11 +260,13 @@ export function Layout({
   setNav: (n: NavKey) => void;
   role: Role;
   setRole: (r: Role, studentId?: string) => void;
+  teacherId: string;
+  setTeacherId: (id: string) => void;
   studentId: string;
   setStudentId: (id: string) => void;
   children: ReactNode;
 }) {
-  const currentTeacher = teacherById(CURRENT_TEACHER_ID);
+  const currentTeacher = teacherById(teacherId);
   const currentStudent = studentById(studentId);
   const currentStudentClass = currentStudent
     ? classById(currentStudent.classId)
@@ -274,7 +281,7 @@ export function Layout({
   const initial = displayName.charAt(0);
   const subText =
     role === "college_admin"
-      ? "学院办公室 · 教学秘书（Demo）"
+      ? "学院办公室 · 教学秘书"
       : role === "teacher"
       ? currentTeacher?.title ?? ""
       : currentStudentClass
@@ -307,7 +314,7 @@ export function Layout({
     role === "college_admin"
       ? "学院管理"
       : role === "teacher"
-      ? "教师端"
+      ? `教师端 · ${currentTeacher?.name ?? "—"}`
       : `学生端 · ${currentStudent?.name ?? "—"}`;
 
   const isStudent = role === "student";
@@ -361,7 +368,7 @@ export function Layout({
             {identityOpen && (
               <div className="absolute right-0 top-[calc(100%+6px)] w-64 bg-white border border-slate-200 rounded-xl shadow-lg p-1.5 z-20">
                 <div className="px-3 py-1.5 text-slate-400 text-[0.6875rem] uppercase tracking-wider">
-                  切换身份（Demo）
+                  切换身份
                 </div>
                 <IdentityOption
                   active={role === "college_admin"}
@@ -374,16 +381,26 @@ export function Layout({
                   }}
                 />
                 <div className="my-1 border-t border-slate-100" />
-                <IdentityOption
-                  active={role === "teacher"}
-                  icon={<PenTool size={14} />}
-                  title="教师端 · 李建国"
-                  subtitle={currentTeacher?.title ?? ""}
-                  onClick={() => {
-                    setRole("teacher");
-                    setIdentityOpen(false);
-                  }}
-                />
+                <div className="px-3 py-1 text-slate-400 text-[0.6875rem] uppercase tracking-wider">
+                  教师端
+                </div>
+                {TEACHER_LOGIN_ACCOUNTS.map((acc) => {
+                  const t = teacherById(acc.id);
+                  return (
+                    <IdentityOption
+                      key={acc.id}
+                      active={role === "teacher" && teacherId === acc.id}
+                      icon={<PenTool size={14} />}
+                      title={t ? `${t.name} · ${t.title}` : acc.id}
+                      subtitle={acc.subtitle}
+                      onClick={() => {
+                        setTeacherId(acc.id);
+                        setRole("teacher");
+                        setIdentityOpen(false);
+                      }}
+                    />
+                  );
+                })}
                 <div className="my-1 border-t border-slate-100" />
                 {STUDENT_OPTIONS.map((opt) => (
                   <IdentityOption

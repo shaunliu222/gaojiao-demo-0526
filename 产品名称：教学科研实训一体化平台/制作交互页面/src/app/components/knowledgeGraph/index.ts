@@ -1,4 +1,8 @@
-export { KnowledgeGraphCanvas, type KnowledgeGraphCanvasProps } from "./KnowledgeGraphCanvas";
+export {
+  KnowledgeGraphCanvas,
+  neighborIdsForFocus,
+  type KnowledgeGraphCanvasProps,
+} from "./KnowledgeGraphCanvas";
 export {
   GraphNodeShapeBrowse,
   GraphNodeShapePath,

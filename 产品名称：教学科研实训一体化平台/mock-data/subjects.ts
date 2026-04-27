@@ -1,15 +1,9 @@
 import type { Subject } from "./types";
 
 /**
- * 学科/科目数据（挂在专业下）
- *
- * - 机械工程：4 个（工程图学 / 机械设计基础 / 机械制造基础 / 机械 CAD）
- * - 法学：3 个（民法学 / 刑法学 / 法理学）
- * - 护理学：3 个（基础护理学 / 内科护理学 / 急救护理学）
- * - 学前教育：2 个（学前教育学 / 幼儿园教育活动设计）
+ * 学科数据（均挂在机械工程下，覆盖不同年级与课程类型）
  */
 export const subjects: Subject[] = [
-  // ==== 机械工程 ====
   {
     id: "subj-mech-drawing",
     professionId: "prof-mech",
@@ -34,58 +28,40 @@ export const subjects: Subject[] = [
     name: "机械 CAD",
     description: "学习 AutoCAD 二维绘图、SolidWorks 三维建模与工程图输出。",
   },
-
-  // ==== 法学 ====
   {
-    id: "subj-law-civil",
-    professionId: "prof-law",
-    name: "民法学",
-    description: "研究平等主体之间财产关系与人身关系的法律规范，是法学基础核心学科。",
+    id: "subj-mech-intro",
+    professionId: "prof-mech",
+    name: "机械工程专业导论",
+    description: "面向大一新生的专业认知课程，建立工程思维与后续课程地图。",
   },
   {
-    id: "subj-law-criminal",
-    professionId: "prof-law",
-    name: "刑法学",
-    description: "研究犯罪、刑事责任与刑罚的部门法学科。",
+    id: "subj-mech-tolerance",
+    professionId: "prof-mech",
+    name: "互换性与技术测量",
+    description: "尺寸公差、形位公差、表面粗糙度与几何量检测的综合课程。",
   },
   {
-    id: "subj-law-theory",
-    professionId: "prof-law",
-    name: "法理学",
-    description: "研究法的基本概念、原理、价值与方法论，是法学专业的入门与理论深化课程。",
-  },
-
-  // ==== 护理学 ====
-  {
-    id: "subj-nurse-basic",
-    professionId: "prof-nurse",
-    name: "基础护理学",
-    description: "护理专业核心课程，研究病人入出院、生活与治疗护理的基本理论与操作技术。",
+    id: "subj-mech-robot",
+    professionId: "prof-mech",
+    name: "工业机器人技术",
+    description: "机器人坐标系、示教编程、工作站集成与安全规范入门。",
   },
   {
-    id: "subj-nurse-internal",
-    professionId: "prof-nurse",
-    name: "内科护理学",
-    description: "研究内科常见疾病的临床护理评估、计划、实施与评价。",
+    id: "subj-mech-hydraulic",
+    professionId: "prof-mech",
+    name: "液压与气压传动",
+    description: "流体传动基础、典型回路分析与元件选型。",
   },
   {
-    id: "subj-nurse-emergency",
-    professionId: "prof-nurse",
-    name: "急救护理学",
-    description: "研究急危重症病人的救护理论与操作技术。",
-  },
-
-  // ==== 学前教育 ====
-  {
-    id: "subj-edu-theory",
-    professionId: "prof-edu",
-    name: "学前教育学",
-    description: "研究 0-6 岁儿童教育活动的一般规律及幼儿园教育工作的基本理论。",
+    id: "subj-mech-process",
+    professionId: "prof-mech",
+    name: "机械制造工艺学",
+    description: "工艺规程、定位夹紧、加工质量与装配工艺组织。",
   },
   {
-    id: "subj-edu-activity",
-    professionId: "prof-edu",
-    name: "幼儿园教育活动设计",
-    description: "聚焦五大领域教育活动的设计与组织实施。",
+    id: "subj-mech-ai",
+    professionId: "prof-mech",
+    name: "工程智能与AI工具应用",
+    description: "面向机械类专业的生成式 AI 通识与实训：提示工程、技术文档辅助、概念草图与学术诚信规范。",
   },
 ];

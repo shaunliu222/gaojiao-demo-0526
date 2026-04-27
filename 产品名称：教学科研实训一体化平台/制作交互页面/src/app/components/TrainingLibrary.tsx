@@ -7,7 +7,6 @@ import {
   Package,
   Settings2,
   BookOpen,
-  Network,
 } from "lucide-react";
 import { trainingProjects, professions } from "@mock";
 import type { TrainingProject } from "@mock";
@@ -15,20 +14,28 @@ import {
   teacherById,
   professionById,
   courseById,
-  graphNodeById,
+  teacherSeesAllScopedContent,
 } from "../data/lookups";
-import { colorOfCluster } from "../data/graphLayout";
 import { PageHeader } from "./Layout";
+import { AssociatedKnowledgeNodes } from "./AssociatedKnowledgeNodes";
 
 type Difficulty = TrainingProject["difficulty"];
 
-export function TrainingList({ onOpen }: { onOpen: (id: string) => void }) {
+export function TrainingList({
+  currentTeacherId,
+  onOpen,
+}: {
+  currentTeacherId: string;
+  onOpen: (id: string) => void;
+}) {
   const [profFilter, setProfFilter] = useState<string>("all");
   const [difficultyFilter, setDifficultyFilter] = useState<Difficulty | "all">("all");
   const [q, setQ] = useState<string>("");
 
   const list = useMemo(() => {
+    const seesAll = teacherSeesAllScopedContent(currentTeacherId);
     return trainingProjects.filter((t) => {
+      if (!seesAll && t.ownerTeacherId !== currentTeacherId) return false;
       if (profFilter !== "all" && t.professionId !== profFilter) return false;
       if (difficultyFilter !== "all" && t.difficulty !== difficultyFilter) return false;
       if (q.trim()) {
@@ -43,7 +50,7 @@ export function TrainingList({ onOpen }: { onOpen: (id: string) => void }) {
       }
       return true;
     });
-  }, [profFilter, difficultyFilter, q]);
+  }, [profFilter, difficultyFilter, q, currentTeacherId]);
 
   return (
     <div>
@@ -159,12 +166,18 @@ export function TrainingList({ onOpen }: { onOpen: (id: string) => void }) {
 
 export function TrainingDetail({
   id,
+  currentTeacherId,
   onBack,
   onOpenCourse,
+  onOpenKnowledgeInGraph,
 }: {
   id: string;
+  /** 教师端传入；学生端不传则不做负责教师校验 */
+  currentTeacherId?: string;
   onBack: () => void;
   onOpenCourse: (id: string) => void;
+  /** 教师端：从知识点进入图谱；学生端可不传 */
+  onOpenKnowledgeInGraph?: (nodeId: string) => void;
 }) {
   const t = trainingProjects.find((x) => x.id === id);
   if (!t) {
@@ -175,6 +188,22 @@ export function TrainingDetail({
       </div>
     );
   }
+
+  if (
+    currentTeacherId !== undefined &&
+    !teacherSeesAllScopedContent(currentTeacherId) &&
+    t.ownerTeacherId !== currentTeacherId
+  ) {
+    return (
+      <div>
+        <PageHeader back={onBack} title="实训项目详情" />
+        <div className="p-16 text-center text-slate-500">
+          当前账号仅可查看本人负责的实训项目。
+        </div>
+      </div>
+    );
+  }
+
   const owner = teacherById(t.ownerTeacherId);
   const prof = professionById(t.professionId);
   const relatedCourses = t.courseIds.map(courseById).filter(Boolean);
@@ -226,7 +255,7 @@ export function TrainingDetail({
             <Info k="所属专业" v={prof?.name ?? "—"} />
             <Info k="难度" v={t.difficulty} />
             <Info k="预估学时" v={`${t.estimatedHours} 学时`} />
-            <Info k="挂载知识点" v={`${t.knowledgeNodeIds.length} 个`} />
+            <Info k="关联知识点" v={`${t.knowledgeNodeIds.length} 个`} />
           </dl>
           {t.environment && (
             <>
@@ -271,33 +300,11 @@ export function TrainingDetail({
         </section>
 
         <section className="col-span-12 bg-white rounded-xl border border-slate-200 p-5">
-          <div className="flex items-center gap-2 mb-3">
-            <Network size={16} className="text-indigo-500" />
-            <span className="text-slate-900">关联知识点</span>
-            <span className="text-slate-400">（{t.knowledgeNodeIds.length}）</span>
-          </div>
-          <div className="flex flex-wrap gap-1.5">
-            {t.knowledgeNodeIds.map((nid) => {
-              const n = graphNodeById(nid);
-              return (
-                <span
-                  key={nid}
-                  className="px-2 py-1 rounded-md border border-slate-200 bg-slate-50 text-slate-700 inline-flex items-center gap-1.5"
-                >
-                  {n && (
-                    <span
-                      className="size-2 rounded-full"
-                      style={{ background: colorOfCluster(n.cluster) }}
-                    />
-                  )}
-                  {n?.name ?? nid}
-                </span>
-              );
-            })}
-            {t.knowledgeNodeIds.length === 0 && (
-              <span className="text-slate-400">未挂载知识点</span>
-            )}
-          </div>
+          <AssociatedKnowledgeNodes
+            knowledgeNodeIds={t.knowledgeNodeIds}
+            onNodeClick={onOpenKnowledgeInGraph}
+            emptyMessage="该实训所属专业尚未建立知识图谱，暂无关联节点。"
+          />
         </section>
 
         <section className="col-span-12 bg-white rounded-xl border border-slate-200 p-5">

@@ -1,8 +1,18 @@
 import { Plus, Search, Users } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { teachingPlans, teachingStrategies, classes } from "@mock";
+import {
+  teachingPlans,
+  teachingStrategies,
+  classes,
+  PLAN_WANG_HAIFENG_MOCK_ID,
+} from "@mock";
 import type { TeachingPlan } from "@mock";
-import { classById, teacherById, courseById } from "../data/lookups";
+import {
+  classById,
+  teacherById,
+  courseById,
+  teacherSeesAllScopedContent,
+} from "../data/lookups";
 import { PageHeader, StatusTag, AiBadge } from "./Layout";
 import { PlanKnowledgePathPreview } from "./PlanKnowledgePathPreview";
 
@@ -38,9 +48,11 @@ function planTotalHours(p: TeachingPlan): number {
 }
 
 export function PlansList({
+  currentTeacherId,
   onOpen,
   onCreate,
 }: {
+  currentTeacherId: string;
   onOpen: (id: string) => void;
   onCreate: () => void;
 }) {
@@ -56,7 +68,9 @@ export function PlansList({
 
   const filteredPlans = useMemo(() => {
     const q = searchQ.trim().toLowerCase();
+    const seesAll = teacherSeesAllScopedContent(currentTeacherId);
     return teachingPlans.filter((p) => {
+      if (!seesAll && p.creatorTeacherId !== currentTeacherId) return false;
       if (filterClassId && !p.classIds.includes(filterClassId)) return false;
       if (filterSemester && p.semester !== filterSemester) return false;
       if (filterStatus && p.status !== filterStatus) return false;
@@ -72,7 +86,7 @@ export function PlansList({
       }
       return true;
     });
-  }, [searchQ, filterClassId, filterSemester, filterStatus]);
+  }, [searchQ, filterClassId, filterSemester, filterStatus, currentTeacherId]);
 
   return (
     <div>
@@ -148,7 +162,9 @@ export function PlansList({
             const teacher = teacherById(p.creatorTeacherId);
             const progress = computeProgress(p);
             const status = statusLabel[p.status];
-            const isFocus = p.id === "plan-main";
+            const isFocus =
+              p.id === "plan-main" ||
+              (currentTeacherId === "t-wang" && p.id === PLAN_WANG_HAIFENG_MOCK_ID);
             return (
               <button
                 key={p.id}
@@ -200,7 +216,11 @@ export function PlansList({
                   <span>
                     {teacher?.name ?? "—"} · {planTotalHours(p)} 学时
                   </span>
-                  {isFocus && <span className="text-indigo-600">主线 ★</span>}
+                  {isFocus && (
+                    <span className="text-indigo-600">
+                      {p.id === "plan-main" ? "主线 ★" : "本账号 ★"}
+                    </span>
+                  )}
                 </div>
               </button>
             );
@@ -214,11 +234,13 @@ export function PlansList({
 
 export function PlanDetail({
   id,
+  currentTeacherId,
   focusSectionId,
   onBack,
   onOpenSection,
 }: {
   id: string;
+  currentTeacherId: string;
   /** 从作业评价等入口进入时，自动切到「教学路径」并滚动高亮该小节 */
   focusSectionId?: string;
   onBack: () => void;
@@ -246,6 +268,20 @@ export function PlanDetail({
       <div>
         <PageHeader back={onBack} title="教学计划" />
         <div className="p-16 text-center text-slate-500">未找到教学计划 {id}</div>
+      </div>
+    );
+  }
+
+  if (
+    !teacherSeesAllScopedContent(currentTeacherId) &&
+    p.creatorTeacherId !== currentTeacherId
+  ) {
+    return (
+      <div>
+        <PageHeader back={onBack} title="教学计划" />
+        <div className="p-16 text-center text-slate-500">
+          当前账号仅可查看本人创建的教学计划。
+        </div>
       </div>
     );
   }

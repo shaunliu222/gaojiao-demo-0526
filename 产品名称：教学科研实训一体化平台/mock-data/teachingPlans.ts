@@ -1,13 +1,18 @@
 import type { TeachingPlan } from "./types";
 
 /**
- * 教学计划数据（4 个）
+ * 教学计划数据（6 个）
  *
- * - plan-main    李建国 · 《机械制图与CAD》for 机制2301+2302（进行中，主故事线）
- * - plan-history 李建国 · 上届《机械制图与CAD》for 机制2201（已完成，用于历史对照）
- * - plan-law     赵文静 · 《民法典总则编》for 法学2301（进行中）
- * - plan-nurse   王丽华 · 《基础护理学》for 护理2301（草稿）
+ * - plan-main          李建国 · 《机械制图与CAD》机制2301+2302（主故事线）
+ * - plan-history       李建国 · 上届制图 · 机制2201
+ * - plan-mech-intro    孙小艳 · 《机械工程专业导论》机制2401
+ * - plan-mech-tolerance 王丽华 · 《互换性与技术测量》机制2101
+ * - plan-mech-robotics  赵文静 · 《工业机器人技术应用基础》机制2303（草稿）
+ * - plan-wang-metalwork 王海峰 · 《金工实习》机制2302（班主任带实习）
  */
+/** 王海峰账号演示用教学计划（新建向导提交后跳转目标） */
+export const PLAN_WANG_HAIFENG_MOCK_ID = "plan-wang-metalwork";
+
 export const teachingPlans: TeachingPlan[] = [
   // ========================================================================
   // 1. 主线教学计划
@@ -49,7 +54,7 @@ export const teachingPlans: TeachingPlan[] = [
           { id: "sec-2-1", title: "2.1 几何作图", plannedDate: "2026-03-02", knowledgeNodeIds: ["kn-mech-007", "kn-mech-008", "kn-mech-009", "kn-mech-010"], objectives: ["掌握六类圆弧连接", "理解平面图形的尺寸与线段分析"], durationMinutes: 90, hasDesign: false },
           { id: "sec-2-2", title: "2.2 投影法与三视图形成", plannedDate: "2026-03-04", knowledgeNodeIds: ["kn-mech-012", "kn-mech-013", "kn-mech-014", "kn-mech-015", "kn-mech-016"], objectives: ["掌握正投影三性质", "理解三视图对应规律"], durationMinutes: 90, hasDesign: false },
           { id: "sec-2-3", title: "2.3 点、线的投影", plannedDate: "2026-03-09", knowledgeNodeIds: ["kn-mech-017", "kn-mech-018", "kn-mech-019", "kn-mech-020"], objectives: ["会画点的三面投影", "能判断两点相对位置"], durationMinutes: 90, hasDesign: false },
-          { id: "sec-2-4", title: "2.4 面及相对位置", plannedDate: "2026-03-11", knowledgeNodeIds: ["kn-mech-021", "kn-mech-022", "kn-mech-023"], objectives: ["掌握三类平面的投影特点", "判断直线/平面相对位置"], durationMinutes: 90, hasDesign: false },
+          { id: "sec-2-4", title: "2.4 面及相对位置", plannedDate: "2026-03-11", knowledgeNodeIds: ["kn-mech-021", "kn-mech-022", "kn-mech-023"], objectives: ["掌握三类平面的投影特点", "判断直线/平面相对位置"], durationMinutes: 90, hasDesign: true },
         ],
       },
       {
@@ -147,19 +152,60 @@ export const teachingPlans: TeachingPlan[] = [
   },
 
   // ========================================================================
-  // 3. 法学教学计划（进行中）
+  // 3. 大一 · 专业导论（进行中）
   // ========================================================================
   {
-    id: "plan-law",
-    title: "《民法典总则编》· 2026春 · 法学2301",
-    courseId: "course-law-civil",
-    professionId: "prof-law",
-    subjectId: "subj-law-civil",
-    creatorTeacherId: "t-zhao",
-    classIds: ["cls-law-2301"],
+    id: "plan-mech-intro",
+    title: "《机械工程专业导论》· 2026春 · 机制2401",
+    courseId: "course-mech-intro",
+    professionId: "prof-mech",
+    subjectId: "subj-mech-intro",
+    creatorTeacherId: "t-sun",
+    classIds: ["cls-mech-2401"],
     strategyId: "strat-preset-balanced",
     strategyBrief:
-      "面向法学 2301（讨论活跃型），以案例教学为主线，每章配 1-2 个指导性案例，并穿插模拟法庭与法律文书写作实训。",
+      "以「产业地图 + 能力树」双主线组织：先建立机械工程在产业链中的位置，再映射到制图、设计、制造、测控等后续课程。",
+    semester: "2026春季",
+    startDate: "2026-02-24",
+    endDate: "2026-06-12",
+    status: "in_progress",
+    createdAt: "2026-02-14T14:00:00+08:00",
+    updatedAt: "2026-04-14T16:00:00+08:00",
+    aiAdvice:
+      "2401 班探究兴趣维度得分高，建议在导论课每次结尾布置 5 分钟「车间观察笔记」打卡，与暑期工程图学预习衔接。",
+    chapters: [
+      {
+        id: "ch-intro-1",
+        title: "第1章 专业与产业链认知",
+        sections: [
+          { id: "sec-intro-1-1", title: "1.1 机械工程在制造强国中的角色", plannedDate: "2026-02-24", knowledgeNodeIds: ["core-mech-001"], objectives: ["能描述本专业典型就业面向"], durationMinutes: 90, hasDesign: false },
+          { id: "sec-intro-1-2", title: "1.2 培养方案与课程地图", plannedDate: "2026-02-26", knowledgeNodeIds: ["kn-mech-001", "kn-mech-012"], objectives: ["理解先修关系与能力递进"], durationMinutes: 90, hasDesign: false },
+        ],
+      },
+      {
+        id: "ch-intro-2",
+        title: "第2章 工程表达入门",
+        sections: [
+          { id: "sec-intro-2-1", title: "2.1 图纸如何描述真实零件", plannedDate: "2026-03-03", knowledgeNodeIds: ["kn-mech-002", "kn-mech-003", "kn-mech-004"], objectives: ["认识图线、字体与比例"], durationMinutes: 90, hasDesign: false },
+        ],
+      },
+    ],
+  },
+
+  // ========================================================================
+  // 4. 大四 · 互换性与技术测量（进行中）
+  // ========================================================================
+  {
+    id: "plan-mech-tolerance",
+    title: "《互换性与技术测量》· 2026春 · 机制2101",
+    courseId: "course-mech-tolerance",
+    professionId: "prof-mech",
+    subjectId: "subj-mech-tolerance",
+    creatorTeacherId: "t-wanglh",
+    classIds: ["cls-mech-2101"],
+    strategyId: "strat-preset-balanced",
+    strategyBrief:
+      "对接毕业设计：以「零件图 → 公差链 → 检测方案 → 工艺反馈」闭环组织教学，每周 1 次测量实验课。",
     semester: "2026春季",
     startDate: "2026-02-24",
     endDate: "2026-06-16",
@@ -167,50 +213,114 @@ export const teachingPlans: TeachingPlan[] = [
     createdAt: "2026-02-14T14:00:00+08:00",
     updatedAt: "2026-04-14T16:00:00+08:00",
     aiAdvice:
-      "法学 2301 班课堂表达 82 分，建议增加案例辩论环节；诉讼时效部分易混淆，单独设置 3 次辨析训练。",
+      "2101 班图纸判读强、工艺经济性弱，建议增加 2 次企业工艺工程师线上访谈，强化节拍与成本意识。",
     chapters: [
       {
-        id: "ch-law-1",
-        title: "第1章 民法基础",
+        id: "ch-tol-1",
+        title: "第1章 极限与配合基础",
         sections: [
-          { id: "sec-law-1-1", title: "1.1 民法的概念与调整对象", plannedDate: "2026-02-24", knowledgeNodeIds: ["kn-law-001"], objectives: ["理解民法的调整对象与地位"], durationMinutes: 90, hasDesign: false },
-          { id: "sec-law-1-2", title: "1.2 民法基本原则", plannedDate: "2026-02-26", knowledgeNodeIds: ["kn-law-002", "kn-law-023"], objectives: ["掌握七项基本原则及适用"], durationMinutes: 90, hasDesign: false },
-          { id: "sec-law-1-3", title: "1.3 民事法律关系与事实", plannedDate: "2026-03-03", knowledgeNodeIds: ["kn-law-003", "kn-law-004"], objectives: ["识别民事法律关系三要素", "区分行为事实与事件事实"], durationMinutes: 90, hasDesign: false },
+          { id: "sec-tol-1-1", title: "1.1 互换性概念与标准体系", plannedDate: "2026-02-24", knowledgeNodeIds: ["kn-mech-048", "kn-mech-050"], objectives: ["理解互换性与标准化的关系"], durationMinutes: 90, hasDesign: false },
+          { id: "sec-tol-1-2", title: "1.2 尺寸公差与配合选用", plannedDate: "2026-02-26", knowledgeNodeIds: ["kn-mech-050", "sk-mech-006"], objectives: ["能按工况选用配合代号"], durationMinutes: 90, hasDesign: false },
         ],
       },
       {
-        id: "ch-law-2",
-        title: "第2章 民事主体",
+        id: "ch-tol-2",
+        title: "第2章 形位公差与检测",
         sections: [
-          { id: "sec-law-2-1", title: "2.1 自然人民事主体", plannedDate: "2026-03-10", knowledgeNodeIds: ["kn-law-007", "kn-law-008"], objectives: ["掌握权利能力起止"], durationMinutes: 90, hasDesign: false },
-          { id: "sec-law-2-2", title: "2.2 民事行为能力与监护", plannedDate: "2026-03-12", knowledgeNodeIds: ["kn-law-009", "kn-law-011"], objectives: ["区分三类行为能力", "理解监护制度"], durationMinutes: 90, hasDesign: false },
-        ],
-      },
-      {
-        id: "ch-law-3",
-        title: "第3章 法律行为与代理",
-        sections: [
-          { id: "sec-law-3-1", title: "3.1 民事法律行为与意思表示", plannedDate: "2026-03-17", knowledgeNodeIds: ["kn-law-012", "kn-law-013"], objectives: ["构成要件与效力认定"], durationMinutes: 90, hasDesign: false },
-          { id: "sec-law-3-2", title: "3.2 法律行为效力四态", plannedDate: "2026-03-19", knowledgeNodeIds: ["kn-law-014"], objectives: ["区分有效/无效/可撤销/效力待定"], durationMinutes: 90, hasDesign: false },
-          { id: "sec-law-3-3", title: "3.3 代理制度", plannedDate: "2026-03-24", knowledgeNodeIds: ["kn-law-015"], objectives: ["区分 4 类代理并配合案例分析"], durationMinutes: 90, hasDesign: false },
+          { id: "sec-tol-2-1", title: "2.1 形位公差标注", plannedDate: "2026-03-10", knowledgeNodeIds: ["kn-mech-051"], objectives: ["正确标注基准体系"], durationMinutes: 90, hasDesign: false },
+          { id: "sec-tol-2-2", title: "2.2 粗糙度与检测方案", plannedDate: "2026-03-12", knowledgeNodeIds: ["kn-mech-049", "kn-mech-048"], objectives: ["编制简易检测路线"], durationMinutes: 90, hasDesign: false },
         ],
       },
     ],
   },
 
   // ========================================================================
-  // 4. 护理教学计划（草稿）
+  // 5. 大二 · 金工实习（王海峰 · 机制2302）
   // ========================================================================
   {
-    id: "plan-nurse",
-    title: "《基础护理学》· 2026春 · 护理2301（草稿）",
-    courseId: "course-nurse-basic",
-    professionId: "prof-nurse",
-    subjectId: "subj-nurse-basic",
-    creatorTeacherId: "t-wanglh",
-    classIds: ["cls-nurse-2301"],
+    id: "plan-wang-metalwork",
+    title: "《金工实习》· 2026春 · 机制2302",
+    courseId: "course-mech-practice",
+    professionId: "prof-mech",
+    subjectId: "subj-mech-manu",
+    creatorTeacherId: "t-wang",
+    classIds: ["cls-mech-2302"],
     strategyId: "strat-preset-balanced",
-    strategyBrief: "草稿版本。后续计划强化情景模拟实训并增加夜班值班场景。",
+    strategyBrief:
+      "以「安全入厂 → 量具识读与图纸对表 → 车铣钳基础操作 → 工艺卡与实习报告」串线；强调 2302 班两极分化，量具与读图环节放慢半周，现场演示次数加倍。",
+    semester: "2026春季",
+    startDate: "2026-03-02",
+    endDate: "2026-06-10",
+    status: "in_progress",
+    createdAt: "2026-02-18T10:30:00+08:00",
+    updatedAt: "2026-04-12T11:00:00+08:00",
+    aiAdvice:
+      "2302 班空间想象弱于 2301，但动手意愿强。建议金工阶段多安排「图纸—实物—量具」三联对照；对后 1/4 学生单独发放带标注的简化工艺卡，并在车削日前增加一次游标卡尺过关小测。",
+    chapters: [
+      {
+        id: "ch-wgw-1",
+        title: "第1章 入厂安全与量具识读",
+        sections: [
+          {
+            id: "sec-wgw-1-1",
+            title: "1.1 车间安全规程与劳保穿戴",
+            plannedDate: "2026-03-03",
+            knowledgeNodeIds: ["kn-mech-048"],
+            objectives: ["口述四类主要安全风险与应急处置", "正确穿戴劳保用品"],
+            durationMinutes: 60,
+            hasDesign: false,
+          },
+          {
+            id: "sec-wgw-1-2",
+            title: "1.2 游标卡尺与图纸尺寸对读",
+            plannedDate: "2026-03-05",
+            knowledgeNodeIds: ["kn-mech-049", "kn-mech-050"],
+            objectives: ["独立完成 5 处关键尺寸量测并与图纸标注核对", "记录测量不确定度意识（粗估）"],
+            durationMinutes: 90,
+            hasDesign: true,
+          },
+        ],
+      },
+      {
+        id: "ch-wgw-2",
+        title: "第2章 车削与铣削基础",
+        sections: [
+          {
+            id: "sec-wgw-2-1",
+            title: "2.1 普通车床基本操作（外圆与端面）",
+            plannedDate: "2026-03-12",
+            knowledgeNodeIds: ["kn-mech-052", "kn-mech-048"],
+            objectives: ["完成简易轴类件试切", "填写工序记录"],
+            durationMinutes: 120,
+            hasDesign: false,
+          },
+          {
+            id: "sec-wgw-2-2",
+            title: "2.2 铣床工作台与对刀入门",
+            plannedDate: "2026-03-14",
+            knowledgeNodeIds: ["kn-mech-052"],
+            objectives: ["理解对刀基准与加工坐标", "完成平面铣削练习件"],
+            durationMinutes: 120,
+            hasDesign: false,
+          },
+        ],
+      },
+    ],
+  },
+
+  // ========================================================================
+  // 6. 大二 · 工业机器人（草稿）
+  // ========================================================================
+  {
+    id: "plan-mech-robotics",
+    title: "《工业机器人技术应用基础》· 2026春 · 机制2303（草稿）",
+    courseId: "course-mech-robotics",
+    professionId: "prof-mech",
+    subjectId: "subj-mech-robot",
+    creatorTeacherId: "t-zhao",
+    classIds: ["cls-mech-2303"],
+    strategyId: "strat-preset-balanced",
+    strategyBrief: "草稿：示教 + 离线仿真双线并进，与制图课 SolidWorks 模块对齐。",
     semester: "2026春季",
     startDate: "2026-03-02",
     endDate: "2026-06-19",
@@ -218,13 +328,14 @@ export const teachingPlans: TeachingPlan[] = [
     createdAt: "2026-02-18T11:00:00+08:00",
     updatedAt: "2026-02-20T10:00:00+08:00",
     aiAdvice:
-      "护理 2301 班临床思维 70 分为全维度最低，建议在草稿完成前增加 4 次情景化实训、3 次病例讨论课。",
+      "2303 班仿真维度好、手绘规范弱，草稿定稿前建议写明「每周 1 次手绘—数模对照」的必交作业。",
     chapters: [
       {
-        id: "ch-nur-1",
-        title: "第1章 护理基础理论",
+        id: "ch-rob-1",
+        title: "第1章 机器人与坐标系",
         sections: [
-          { id: "sec-nur-1-1", title: "1.1 护理学发展史与护理程序", plannedDate: "2026-03-02", knowledgeNodeIds: ["kn-nur-001", "kn-nur-002"], objectives: ["了解护理学发展", "理解护理程序五步骤"], durationMinutes: 90, hasDesign: false },
+          { id: "sec-rob-1-1", title: "1.1 工作站组成与安全互锁", plannedDate: "2026-03-02", knowledgeNodeIds: ["kn-mech-063", "kn-mech-052", "core-mech-003"], objectives: ["能口述安全互锁逻辑"], durationMinutes: 90, hasDesign: false },
+          { id: "sec-rob-1-2", title: "1.2 示教编程入门", plannedDate: "2026-03-05", knowledgeNodeIds: ["kn-mech-064", "kn-mech-058", "kn-mech-059", "kn-mech-060"], objectives: ["完成三点搬运轨迹"], durationMinutes: 90, hasDesign: false },
         ],
       },
     ],

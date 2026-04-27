@@ -4,6 +4,7 @@ import {
   professions,
   nodesByProfession,
   edgesByProfession,
+  knowledgeGraphTrainingPlanDocumentById,
 } from "@mock";
 import type { GraphNode, ResourceType } from "@mock";
 import {
@@ -13,9 +14,12 @@ import {
   trainingsByNode,
   teacherById,
   courseById,
+  graphNodeById,
+  teacherSeesAllScopedContent,
 } from "../data/lookups";
 import { colorOfCluster, clusterColor } from "../data/graphLayout";
 import { PageHeader, AiBadge, type Role } from "./Layout";
+import { AssociatedKnowledgeNodes } from "./AssociatedKnowledgeNodes";
 import {
   GraphNodeShapeBrowse,
   KnowledgeGraphCanvas,
@@ -26,12 +30,23 @@ const SVG_H = 520;
 
 export function GraphBrowse({
   onOpenResource,
+  onOpenCourse,
+  onOpenTraining,
+  focusNodeId,
   role = "teacher",
+  currentTeacherId,
 }: {
   onOpenResource: (id: string) => void;
+  onOpenCourse?: (id: string) => void;
+  onOpenTraining?: (id: string) => void;
+  /** 从外页 deep link 时：切换专业并选中该节点 */
+  focusNodeId?: string | null;
   role?: Role;
+  /** 教师端数据范围；学院管理 / 学生端可不传 */
+  currentTeacherId?: string;
 }) {
   const canManageGraph = role === "college_admin";
+  const scopeTeacherId = role === "teacher" ? currentTeacherId : undefined;
   const [profId, setProfId] = useState<string>("prof-mech");
   const [selected, setSelected] = useState<string | null>("kn-mech-031");
   const [hiddenClusters, setHiddenClusters] = useState<Set<string>>(() => new Set());
@@ -40,11 +55,17 @@ export function GraphBrowse({
   >({});
   const [genOpen, setGenOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const [planDocOpen, setPlanDocOpen] = useState(false);
   const [actionHint, setActionHint] = useState<string | null>(null);
   const graphAreaRef = useRef<HTMLDivElement>(null);
   const [viewBox, setViewBox] = useState({ w: 900, h: 400 });
 
   const prof = professions.find((p) => p.id === profId);
+  const trainingPlanDoc = useMemo(() => {
+    const id = prof?.knowledgeGraphTrainingPlanDocumentId;
+    if (!id) return undefined;
+    return knowledgeGraphTrainingPlanDocumentById(id);
+  }, [prof]);
   const baseNodes = nodesByProfession[profId] ?? [];
   const edges = edgesByProfession[profId] ?? [];
   const nodes = useMemo(
@@ -62,6 +83,15 @@ export function GraphBrowse({
     for (const n of nodes) set.add(n.cluster);
     return Array.from(set);
   }, [nodes]);
+
+  useEffect(() => {
+    if (focusNodeId == null || focusNodeId === "") return;
+    const n = graphNodeById(focusNodeId);
+    if (!n) return;
+    setProfId(n.professionId);
+    setHiddenClusters(new Set());
+    setSelected(n.id);
+  }, [focusNodeId]);
 
   useEffect(() => {
     const el = graphAreaRef.current;
@@ -196,6 +226,23 @@ export function GraphBrowse({
             />
           ) : (
             <>
+              {trainingPlanDoc && (
+                <div className="shrink-0 flex items-center gap-2 border-b border-slate-100 bg-slate-50/50 px-3 py-2">
+                  <FileText
+                    className="size-4 shrink-0 text-slate-400"
+                    strokeWidth={1.75}
+                    aria-hidden
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setPlanDocOpen(true)}
+                    className="min-w-0 text-left text-[0.8125rem] text-slate-600 hover:text-indigo-700 hover:underline truncate"
+                    title={trainingPlanDoc.fileName}
+                  >
+                    {trainingPlanDoc.fileName}
+                  </button>
+                </div>
+              )}
               <div className="shrink-0 border-b border-slate-100 px-3 py-2">
                 <div className="text-[0.625rem] text-slate-400 mb-1.5">
                   点击图例可显示/隐藏该知识簇
@@ -253,7 +300,10 @@ export function GraphBrowse({
                     width={viewBox.w}
                     height={viewBox.h}
                     edgeStrokeMode="neutral"
-                    onNodeClick={(n) => setSelected(n.id)}
+                    focusNodeId={selected}
+                    onNodeClick={(n) =>
+                      setSelected((s) => (s === n.id ? null : n.id))
+                    }
                     renderNode={({ node, x, y }) => {
                       const color = colorOfCluster(node.cluster);
                       const isSel = node.id === selected;
@@ -304,7 +354,10 @@ export function GraphBrowse({
             <NodeDetailPanel
               node={node}
               isFocus={focusIds.has(node.id)}
+              scopeTeacherId={scopeTeacherId}
               onOpenResource={onOpenResource}
+              onOpenCourse={onOpenCourse}
+              onOpenTraining={onOpenTraining}
               onClose={() => setSelected(null)}
             />
           ) : (
@@ -314,6 +367,13 @@ export function GraphBrowse({
           )}
         </aside>
       </div>
+      {planDocOpen && trainingPlanDoc && (
+        <TrainingPlanDocumentDialog
+          fileName={trainingPlanDoc.fileName}
+          content={trainingPlanDoc.content}
+          onClose={() => setPlanDocOpen(false)}
+        />
+      )}
       {genOpen && prof && canManageGraph && (
         <GenerateGraphDialog
           onClose={() => setGenOpen(false)}
@@ -339,6 +399,54 @@ export function GraphBrowse({
           }}
         />
       )}
+    </div>
+  );
+}
+
+function TrainingPlanDocumentDialog({
+  fileName,
+  content,
+  onClose,
+}: {
+  fileName: string;
+  content: string;
+  onClose: () => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-40 flex items-center justify-center bg-slate-900/40 p-4"
+      onClick={onClose}
+      role="presentation"
+    >
+      <div
+        className="bg-white rounded-xl max-w-2xl w-full max-h-[min(85vh,720px)] shadow-xl border border-slate-200 flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-labelledby="training-plan-doc-title"
+      >
+        <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-5 py-4 shrink-0">
+          <div
+            id="training-plan-doc-title"
+            className="min-w-0 text-slate-900 font-medium truncate pr-2"
+            title={fileName}
+          >
+            {fileName}
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="shrink-0 rounded-md p-1.5 text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+            aria-label="关闭"
+          >
+            <X size={18} />
+          </button>
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+          <pre className="whitespace-pre-wrap font-sans text-[0.8125rem] leading-relaxed text-slate-700">
+            {content}
+          </pre>
+        </div>
+      </div>
     </div>
   );
 }
@@ -514,17 +622,31 @@ function EmptyGraph({
 function NodeDetailPanel({
   node,
   isFocus,
+  scopeTeacherId,
   onOpenResource,
+  onOpenCourse,
+  onOpenTraining,
   onClose,
 }: {
   node: GraphNode;
   isFocus: boolean;
+  scopeTeacherId?: string;
   onOpenResource: (id: string) => void;
+  onOpenCourse?: (id: string) => void;
+  onOpenTraining?: (id: string) => void;
   onClose: () => void;
 }) {
-  const rs = resourcesByNode(node.id);
-  const cs = coursesByNode(node.id);
-  const ts = trainingsByNode(node.id);
+  const seesAll =
+    !scopeTeacherId || teacherSeesAllScopedContent(scopeTeacherId);
+  const rs = resourcesByNode(node.id).filter(
+    (r) => seesAll || r.uploaderTeacherId === scopeTeacherId,
+  );
+  const cs = coursesByNode(node.id).filter(
+    (c) => seesAll || c.ownerTeacherId === scopeTeacherId,
+  );
+  const ts = trainingsByNode(node.id).filter(
+    (t) => seesAll || t.ownerTeacherId === scopeTeacherId,
+  );
   return (
     <div>
       <div className="flex items-start justify-between">
@@ -554,11 +676,22 @@ function NodeDetailPanel({
           <BookOpen size={14} /> 挂载课程（{cs.length}）
         </div>
         <div className="space-y-1.5">
-          {cs.map((c) => (
-            <div key={c.id} className="px-3 py-2 rounded-lg border border-slate-200">
-              《{c.name}》 · {c.credit} 学分
-            </div>
-          ))}
+          {cs.map((c) =>
+            onOpenCourse ? (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => onOpenCourse(c.id)}
+                className="w-full text-left px-3 py-2 rounded-lg border border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/40"
+              >
+                《{c.name}》 · {c.credit} 学分
+              </button>
+            ) : (
+              <div key={c.id} className="px-3 py-2 rounded-lg border border-slate-200">
+                《{c.name}》 · {c.credit} 学分
+              </div>
+            ),
+          )}
           {cs.length === 0 && <div className="text-slate-400">暂无课程挂载</div>}
         </div>
       </div>
@@ -592,11 +725,22 @@ function NodeDetailPanel({
           <FlaskConical size={14} /> 挂载实训（{ts.length}）
         </div>
         <div className="space-y-1.5">
-          {ts.map((t) => (
-            <div key={t.id} className="px-3 py-2 rounded-lg border border-slate-200">
-              {t.name} · {t.difficulty} · {t.estimatedHours}h
-            </div>
-          ))}
+          {ts.map((t) =>
+            onOpenTraining ? (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => onOpenTraining(t.id)}
+                className="w-full text-left px-3 py-2 rounded-lg border border-slate-200 hover:border-emerald-300 hover:bg-emerald-50/40"
+              >
+                {t.name} · {t.difficulty} · {t.estimatedHours}h
+              </button>
+            ) : (
+              <div key={t.id} className="px-3 py-2 rounded-lg border border-slate-200">
+                {t.name} · {t.difficulty} · {t.estimatedHours}h
+              </div>
+            ),
+          )}
           {ts.length === 0 && <div className="text-slate-400">暂无实训挂载</div>}
         </div>
       </div>
@@ -630,7 +774,17 @@ function ResourceTypeIcon({ type }: { type: ResourceType }) {
 // ResourceDetail（按 id 渲染，复用于图谱/资源库/课程详情）
 // =============================================================================
 
-export function ResourceDetail({ id, onBack }: { id: string; onBack: () => void }) {
+export function ResourceDetail({
+  id,
+  currentTeacherId,
+  onBack,
+  onOpenKnowledgeInGraph,
+}: {
+  id: string;
+  currentTeacherId: string;
+  onBack: () => void;
+  onOpenKnowledgeInGraph: (nodeId: string) => void;
+}) {
   const r = resourceById(id);
   if (!r) {
     return (
@@ -640,9 +794,23 @@ export function ResourceDetail({ id, onBack }: { id: string; onBack: () => void 
       </div>
     );
   }
+
+  if (
+    !teacherSeesAllScopedContent(currentTeacherId) &&
+    r.uploaderTeacherId !== currentTeacherId
+  ) {
+    return (
+      <div>
+        <PageHeader back={onBack} title="资源详情" />
+        <div className="p-16 text-center text-slate-500">
+          当前账号仅可查看本人上传的资源。
+        </div>
+      </div>
+    );
+  }
+
   const uploader = teacherById(r.uploaderTeacherId);
   const courses = r.courseIds.map(courseById).filter(Boolean);
-  const nodes = r.knowledgeNodeIds;
 
   return (
     <div>
@@ -691,22 +859,12 @@ export function ResourceDetail({ id, onBack }: { id: string; onBack: () => void 
               v={courses.length > 0 ? courses.map((c) => `《${c!.name}》`).join("、") : "—"}
             />
           </dl>
-          <div className="mt-4 border-t border-slate-100 pt-4">
-            <div className="text-slate-500 mb-2">挂载知识点（{nodes.length}）</div>
-            <ul className="space-y-1.5">
-              {nodes.slice(0, 6).map((nid) => (
-                <li
-                  key={nid}
-                  className="px-3 py-2 rounded-lg bg-indigo-50 text-indigo-800 text-sm"
-                >
-                  {nid}
-                </li>
-              ))}
-              {nodes.length > 6 && (
-                <li className="text-slate-400 text-sm">还有 {nodes.length - 6} 个…</li>
-              )}
-              {nodes.length === 0 && <li className="text-slate-400">—</li>}
-            </ul>
+          <div className="mt-4 border-t border-slate-100 pt-4 max-h-[min(40vh,22rem)] overflow-y-auto pr-0.5">
+            <AssociatedKnowledgeNodes
+              knowledgeNodeIds={r.knowledgeNodeIds}
+              onNodeClick={onOpenKnowledgeInGraph}
+              emptyMessage="资源关联节点在专业图谱中未找到，或该专业尚未建图谱。"
+            />
           </div>
           {r.tags.length > 0 && (
             <div className="mt-4 border-t border-slate-100 pt-4">
@@ -723,9 +881,6 @@ export function ResourceDetail({ id, onBack }: { id: string; onBack: () => void 
               </div>
             </div>
           )}
-          <button className="mt-4 w-full py-2 rounded-lg border border-indigo-200 text-indigo-700 hover:bg-indigo-50">
-            查看图谱中位置 →
-          </button>
         </aside>
       </div>
     </div>

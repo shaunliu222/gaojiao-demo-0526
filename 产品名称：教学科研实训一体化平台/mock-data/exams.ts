@@ -6,8 +6,8 @@ import { withExamStudentResults } from "./evalResultBuilders";
  *
  * - 主线期中 1 次（2301 + 2302 双班对照）
  * - 主线期末 1 次（目标期末，展示"未到考试日期"的预告态）
- * - 法学期中 1 次
- * - 护理期中 1 次
+ * - 互换性与技术测量期中 1 次（2101）
+ * - 工业机器人期中 1 次（2303）
  */
 const examEvaluationsRaw: ExamEvalInput[] = [
   // ====================================================================
@@ -111,95 +111,95 @@ const examEvaluationsRaw: ExamEvalInput[] = [
   },
 
   // ====================================================================
-  // 3. 法学期中考试
+  // 3. 互换性与技术测量 · 期中
   // ====================================================================
   {
-    id: "exam-l-midterm",
-    examTitle: "《民法典总则编》2026 春 · 期中考试",
-    courseId: "course-law-civil",
-    classIds: ["cls-law-2301"],
-    teacherId: "t-zhao",
+    id: "exam-tol-midterm",
+    examTitle: "《互换性与技术测量》2026 春 · 期中考试",
+    courseId: "course-mech-tolerance",
+    classIds: ["cls-mech-2101"],
+    teacherId: "t-wanglh",
     examAt: "2026-04-18",
-    totalStudents: 26,
-    submittedCount: 26,
-    averageScore: 78.4,
+    totalStudents: 30,
+    submittedCount: 30,
+    averageScore: 79.8,
     maxScore: 96,
     minScore: 58,
-    passRate: 0.96,
+    passRate: 0.97,
     scoreBuckets: [
-      { range: "90-100", count: 4 },
-      { range: "80-89", count: 10 },
-      { range: "70-79", count: 8 },
+      { range: "90-100", count: 5 },
+      { range: "80-89", count: 12 },
+      { range: "70-79", count: 9 },
       { range: "60-69", count: 3 },
       { range: "<60", count: 1 },
     ],
     hotWrongPoints: [
-      { name: "表见代理构成要件", knowledgeNodeId: "kn-law-015", wrongRate: 0.38, aiCause: "与作业数据一致，要件识别仍不全。" },
-      { name: "诉讼时效中止中断", knowledgeNodeId: "kn-law-021", wrongRate: 0.42, aiCause: "概念混淆。" },
-      { name: "法律行为效力认定", knowledgeNodeId: "kn-law-014", wrongRate: 0.22, aiCause: "可撤销与效力待定边界模糊。" },
+      { name: "形位公差基准体系", knowledgeNodeId: "kn-mech-051", wrongRate: 0.35, aiCause: "多基准组合时遗漏最大实体要求。" },
+      { name: "配合代号与工艺可行性", knowledgeNodeId: "kn-mech-050", wrongRate: 0.28, aiCause: "选用过紧公差未对照典型加工方法。" },
+      { name: "粗糙度与功能表面", knowledgeNodeId: "kn-mech-049", wrongRate: 0.20, aiCause: "密封面与非功能面 Ra 取值依据表述不清。" },
     ],
     keyStudents: [
-      { studentId: "s-law2301-01", studentName: "宋佳雯", reason: "第一名 96 分", score: 96 },
+      { studentId: "s-mech2101-01", studentName: "白若雪", reason: "第一名 96 分", score: 96 },
     ],
     aiInsights: [
       {
-        id: "ai-exam-l-1",
-        title: "与班级画像吻合：法律文书是最大弱项",
-        summary: "案例论证部分平均分 21/30，文书格式部分 11/20。建议下半学期启动 2 轮文书写作训练。",
-        actionSuggestion: "按计划，在 4 月 25 日安排法律文书专项实训。",
+        id: "ai-exam-tol-1",
+        title: "与毕业设计衔接：检测方案仍偏薄",
+        summary: "检测题块平均分低于公差选用块，说明「会标不会验」仍存在。",
+        actionSuggestion: "期中后每次实验课强制提交 1 页检测记录照片。",
       },
     ],
-    classComparison: [{ classId: "cls-law-2301", avgScore: 78.4, passRate: 0.96 }],
+    classComparison: [{ classId: "cls-mech-2101", avgScore: 79.8, passRate: 0.97 }],
     questionAccuracy: [
-      { questionNo: 1, title: "单选与概念辨析", knowledgeNodeId: "kn-law-014", accuracy: 0.90 },
-      { questionNo: 2, title: "表见代理与构成要件", knowledgeNodeId: "kn-law-015", accuracy: 0.68 },
-      { questionNo: 3, title: "诉讼时效中止与中断", knowledgeNodeId: "kn-law-021", accuracy: 0.62 },
-      { questionNo: 4, title: "案例分析", knowledgeNodeId: "kn-law-015", accuracy: 0.74 },
+      { questionNo: 1, title: "极限与配合概念", knowledgeNodeId: "kn-mech-050", accuracy: 0.90 },
+      { questionNo: 2, title: "形位公差标注", knowledgeNodeId: "kn-mech-051", accuracy: 0.68 },
+      { questionNo: 3, title: "粗糙度选用", knowledgeNodeId: "kn-mech-049", accuracy: 0.78 },
+      { questionNo: 4, title: "简易检测方案", knowledgeNodeId: "kn-mech-048", accuracy: 0.72 },
     ],
   },
 
   // ====================================================================
-  // 4. 护理期中考试
+  // 4. 工业机器人 · 期中
   // ====================================================================
   {
-    id: "exam-n-midterm",
-    examTitle: "《基础护理学》2026 春 · 期中考试",
-    courseId: "course-nurse-basic",
-    classIds: ["cls-nurse-2301"],
-    teacherId: "t-wanglh",
+    id: "exam-rob-midterm",
+    examTitle: "《工业机器人技术应用基础》2026 春 · 期中考试",
+    courseId: "course-mech-robotics",
+    classIds: ["cls-mech-2303"],
+    teacherId: "t-zhao",
     examAt: "2026-04-20",
-    totalStudents: 30,
-    submittedCount: 30,
-    averageScore: 82.7,
+    totalStudents: 26,
+    submittedCount: 26,
+    averageScore: 83.1,
     maxScore: 99,
     minScore: 64,
     passRate: 1.0,
     scoreBuckets: [
-      { range: "90-100", count: 8 },
-      { range: "80-89", count: 15 },
+      { range: "90-100", count: 7 },
+      { range: "80-89", count: 12 },
       { range: "70-79", count: 5 },
       { range: "60-69", count: 2 },
       { range: "<60", count: 0 },
     ],
     hotWrongPoints: [
-      { name: "情景判断题", knowledgeNodeId: "kn-nur-002", wrongRate: 0.27, aiCause: "临床思维薄弱的画像再次验证。" },
-      { name: "药物剂量换算", knowledgeNodeId: "kn-nur-014", wrongRate: 0.19, aiCause: "学生计算细节易马虎。" },
+      { name: "工作站 I/O 互锁逻辑", knowledgeNodeId: "kn-mech-052", wrongRate: 0.26, aiCause: "仿真能通过但逻辑图表达不完整。" },
+      { name: "工具坐标与工件坐标混用", knowledgeNodeId: "kn-mech-059", wrongRate: 0.21, aiCause: "程序注释缺失导致复查困难。" },
     ],
-    keyStudents: [{ studentId: "s-nurse2301-01", studentName: "白若雪", reason: "第一名 99 分", score: 99 }],
+    keyStudents: [{ studentId: "s-mech2303-01", studentName: "宋佳雯", reason: "第一名 99 分", score: 99 }],
     aiInsights: [
       {
-        id: "ai-exam-n-1",
-        title: "全班通过率 100%",
-        summary: "理论+操作均无不及格，班级整体稳定。",
-        actionSuggestion: "期末前再设计 2 次情景模拟以巩固临床思维。",
+        id: "ai-exam-rob-1",
+        title: "仿真强、文档弱",
+        summary: "班级仿真题正确率显著高于「互锁说明」开放题。",
+        actionSuggestion: "期末前增加 1 次「程序+安全说明」双页模板训练。",
       },
     ],
-    classComparison: [{ classId: "cls-nurse-2301", avgScore: 82.7, passRate: 1.0 }],
+    classComparison: [{ classId: "cls-mech-2303", avgScore: 83.1, passRate: 1.0 }],
     questionAccuracy: [
-      { questionNo: 1, title: "基础护理单选", knowledgeNodeId: "kn-nur-002", accuracy: 0.92 },
-      { questionNo: 2, title: "情景综合判断", knowledgeNodeId: "kn-nur-002", accuracy: 0.73 },
-      { questionNo: 3, title: "药物剂量换算", knowledgeNodeId: "kn-nur-014", accuracy: 0.81 },
-      { questionNo: 4, title: "生命体征与记录", knowledgeNodeId: "kn-nur-012", accuracy: 0.87 },
+      { questionNo: 1, title: "坐标系与示教基础", knowledgeNodeId: "kn-mech-058", accuracy: 0.91 },
+      { questionNo: 2, title: "轨迹与节拍", knowledgeNodeId: "kn-mech-060", accuracy: 0.84 },
+      { questionNo: 3, title: "互锁与安全", knowledgeNodeId: "kn-mech-052", accuracy: 0.74 },
+      { questionNo: 4, title: "与装配图衔接", knowledgeNodeId: "kn-mech-053", accuracy: 0.80 },
     ],
   },
 ];

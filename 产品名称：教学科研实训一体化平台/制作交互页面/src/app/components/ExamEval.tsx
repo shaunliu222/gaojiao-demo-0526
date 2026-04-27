@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ChevronRight, AlertTriangle, Calendar } from "lucide-react";
 import {
   BarChart,
@@ -13,18 +13,35 @@ import {
 import {
   EvalCoopRoster,
   EvalStudentSheet,
+  defaultTeacherEvalNarrative,
   type Focus,
 } from "./EvalCoopCommon";
 import { examEvaluations } from "@mock";
-import type { ExamEvalSummary } from "@mock";
-import { classById, courseById, teacherById } from "../data/lookups";
+import type { ExamEvalSummary, StudentEvalNarrative } from "@mock";
+import {
+  classById,
+  courseById,
+  teacherById,
+  teacherSeesAllScopedContent,
+} from "../data/lookups";
 import { PageHeader, AiBadge } from "./Layout";
 
 function classesLabel(ids: string[]): string {
   return ids.map((id) => classById(id)?.name ?? id).join(" + ");
 }
 
-export function ExamOverview({ onOpen }: { onOpen: (id: string) => void }) {
+export function ExamOverview({
+  currentTeacherId,
+  onOpen,
+}: {
+  currentTeacherId: string;
+  onOpen: (id: string) => void;
+}) {
+  const scoped = useMemo(() => {
+    if (teacherSeesAllScopedContent(currentTeacherId)) return examEvaluations;
+    return examEvaluations.filter((e) => e.teacherId === currentTeacherId);
+  }, [currentTeacherId]);
+
   return (
     <div>
       <PageHeader
@@ -44,7 +61,7 @@ export function ExamOverview({ onOpen }: { onOpen: (id: string) => void }) {
         <div className="col-span-12 bg-white rounded-xl border border-slate-200">
           <div className="px-5 py-3 border-b border-slate-200 text-slate-900">考试列表</div>
           <div className="divide-y divide-slate-100">
-            {examEvaluations.map((e) => {
+            {scoped.map((e) => {
               const course = courseById(e.courseId);
               const teacher = teacherById(e.teacherId);
               const notStarted = e.submittedCount === 0 && e.averageScore === 0;
@@ -82,6 +99,9 @@ export function ExamOverview({ onOpen }: { onOpen: (id: string) => void }) {
                 </button>
               );
             })}
+            {scoped.length === 0 && (
+              <div className="px-5 py-12 text-center text-slate-400">暂无考试评价记录</div>
+            )}
           </div>
         </div>
       </div>
@@ -89,15 +109,27 @@ export function ExamOverview({ onOpen }: { onOpen: (id: string) => void }) {
   );
 }
 
-export function ExamDetail({ id, onBack }: { id: string; onBack: () => void }) {
+export function ExamDetail({
+  id,
+  currentTeacherId,
+  onBack,
+}: {
+  id: string;
+  currentTeacherId: string;
+  onBack: () => void;
+}) {
   const [rangeFilter, setRangeFilter] = useState<string | null>(null);
   const [questionFocus, setQuestionFocus] = useState<Focus>({ k: "none" });
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
+  const [teacherEvalOverrides, setTeacherEvalOverrides] = useState<
+    Record<string, StudentEvalNarrative>
+  >({});
 
   useEffect(() => {
     setRangeFilter(null);
     setQuestionFocus({ k: "none" });
     setSelectedStudentId(null);
+    setTeacherEvalOverrides({});
   }, [id]);
 
   const e = examEvaluations.find((x) => x.id === id);
@@ -109,6 +141,21 @@ export function ExamDetail({ id, onBack }: { id: string; onBack: () => void }) {
       </div>
     );
   }
+
+  if (
+    !teacherSeesAllScopedContent(currentTeacherId) &&
+    e.teacherId !== currentTeacherId
+  ) {
+    return (
+      <div>
+        <PageHeader back={onBack} title="考试评价" />
+        <div className="p-16 text-center text-slate-500">
+          当前账号仅可查看本人命题的考试评价。
+        </div>
+      </div>
+    );
+  }
+
   const course = courseById(e.courseId);
   const teacher = teacherById(e.teacherId);
   const notStarted = e.submittedCount === 0 && e.averageScore === 0;
@@ -124,6 +171,14 @@ export function ExamDetail({ id, onBack }: { id: string; onBack: () => void }) {
   }));
   const qAcc = e.questionAccuracy ?? [];
   const rosterInteractive = !notStarted && qAcc.length > 0;
+
+  const selectedRow = selectedStudentId
+    ? e.studentResults.find((r) => r.studentId === selectedStudentId)
+    : undefined;
+  const teacherEvalForSheet: StudentEvalNarrative =
+    selectedStudentId && teacherEvalOverrides[selectedStudentId] !== undefined
+      ? teacherEvalOverrides[selectedStudentId]!
+      : selectedRow?.teacherEval ?? defaultTeacherEvalNarrative();
 
   return (
     <div className="flex h-[calc(100dvh-3.5rem)] max-h-full min-h-0 w-full max-w-full flex-col overflow-hidden">
@@ -158,6 +213,14 @@ export function ExamDetail({ id, onBack }: { id: string; onBack: () => void }) {
               title="本场考试"
               submittedAt={e.examAt}
               onBack={() => setSelectedStudentId(null)}
+              teacherEvalValue={teacherEvalForSheet}
+              onTeacherEvalChange={(next) => {
+                if (!selectedStudentId) return;
+                setTeacherEvalOverrides((prev) => ({
+                  ...prev,
+                  [selectedStudentId]: next,
+                }));
+              }}
             />
           ) : (
       <div className="grid grid-cols-12 gap-4 p-6">

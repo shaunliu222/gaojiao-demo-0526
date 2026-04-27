@@ -1,18 +1,20 @@
 /**
  * 图谱布局 & 颜色 辅助数据（纯 UI 辅助，不写回 @mock）。
  *
- * mock-data 的 GraphNode 没有 x / y，这里按"簇 → 环形"算出每个节点的画布坐标。
+ * mock-data 的 GraphNode 没有 x / y，这里按「簇 → 环形」算出每个节点的画布坐标。
+ * 若图中含「核心素养」节点：素养簇固定在画布中心小环，其余簇在外层椭圆上环绕；
+ * 否则仍按原逻辑各簇均分在外椭圆上。
  * 同时把所有簇名映射到一份协调的颜色盘。
  */
 
 import type { GraphNode, GraphEdge, TeachingPlan } from "@mock";
 
 // ==========================================================================
-// 1. 簇 → 颜色（覆盖机械 10 簇 / 法学 5 簇 / 护理 5 簇 + 技能 / 核心素养 通用）
+// 1. 簇 → 颜色（机械工程 10 簇 + 技能 / 核心素养；另保留旧簇名映射以免历史数据报错）
 // ==========================================================================
 
 export const clusterColor: Record<string, string> = {
-  // ---- 机械工程 10 簇 ----
+  // ---- 机械工程 11 簇 ----
   制图基础: "#94a3b8",
   几何作图: "#38bdf8",
   投影基础: "#60a5fa",
@@ -23,6 +25,9 @@ export const clusterColor: Record<string, string> = {
   标准件: "#ec4899",
   零件图装配图: "#f97316",
   CAD建模: "#14b8a6",
+  制造工艺: "#059669",
+  工业机器人: "#0891b2",
+  工程智能与AI: "#7c3aed",
   // ---- 法学 5 簇 ----
   民法基础: "#3b82f6",
   民事主体: "#22c55e",
@@ -47,7 +52,7 @@ export const colorOfCluster = (cluster: string): string =>
   clusterColor[cluster] ?? FALLBACK_COLOR;
 
 // ==========================================================================
-// 2. 坐标布局：按 cluster 分组 → 每个簇一个小圆环 → 簇之间再放在大圆环上
+// 2. 坐标布局：核心素养居中 + 外围簇大椭圆；或无素养时全簇大椭圆
 // ==========================================================================
 
 export interface NodeXY {
@@ -150,20 +155,73 @@ function applyNodeSeparation(
   }
 }
 
-/**
- * 计算图谱节点坐标。
- *
- * 布局规则：
- * 1. 按 cluster 分组
- * 2. 簇中心均匀分布在以画布中心为中心的椭圆上（随宽高比 x/y 半轴不同，让簇沿长边方向排开）
- * 3. 簇内节点按类型排序（知识点 → 技能点 → 核心素养）再均匀分布在簇小圆上
- * 4. 若只有 1 个节点，直接落在簇中心
- */
+const typeOrderCluster: Record<string, number> = {
+  知识点: 0,
+  技能点: 1,
+  核心素养: 2,
+};
+
+function microRingRadiusForGroup(
+  groupLength: number,
+  microRadius: number,
+  microRadiusGrow: number,
+  minChord: number,
+): number {
+  if (groupLength <= 1) return 0;
+  const chordMinR =
+    groupLength >= 2
+      ? (minChord / 2) / Math.sin(Math.PI / groupLength)
+      : 0;
+  let r = microRadius + Math.max(0, groupLength - 4) * microRadiusGrow;
+  return Math.max(r, chordMinR);
+}
+
+/** 簇内小环排布，写入 result */
+function placeGroupOnMicroRing(
+  group: GraphNode[],
+  clusterCx: number,
+  clusterCy: number,
+  result: Map<string, NodeXY>,
+  microRadius: number,
+  microRadiusGrow: number,
+  minChord: number,
+): void {
+  const sorted = [...group].sort(
+    (a, b) =>
+      (typeOrderCluster[a.nodeType] ?? 9) -
+      (typeOrderCluster[b.nodeType] ?? 9),
+  );
+  if (sorted.length === 1) {
+    result.set(sorted[0]!.id, { x: clusterCx, y: clusterCy });
+    return;
+  }
+  const r = microRingRadiusForGroup(
+    sorted.length,
+    microRadius,
+    microRadiusGrow,
+    minChord,
+  );
+  sorted.forEach((n, i) => {
+    const a = (2 * Math.PI * i) / sorted.length - Math.PI / 2;
+    result.set(n.id, {
+      x: clusterCx + r * Math.cos(a),
+      y: clusterCy + r * Math.sin(a),
+    });
+  });
+}
+
 function computeClusterEllipse(
   width: number,
   height: number,
   opts: LayoutOptions,
-): { cx: number; cy: number; macroRadiusX: number; macroRadiusY: number } {
+): {
+  cx: number;
+  cy: number;
+  macroRadiusX: number;
+  macroRadiusY: number;
+  maxRx: number;
+  maxRy: number;
+} {
   const cx = width / 2;
   const cy = height / 2;
   const maxMargin = Math.min(width, height) * 0.035;
@@ -183,7 +241,44 @@ function computeClusterEllipse(
   }
   macroRadiusX = Math.min(macroRadiusX, maxRx * 0.992);
   macroRadiusY = Math.min(macroRadiusY, maxRy * 0.992);
-  return { cx, cy, macroRadiusX, macroRadiusY };
+  return { cx, cy, macroRadiusX, macroRadiusY, maxRx, maxRy };
+}
+
+function placeAllClustersOnEllipse(
+  nodes: GraphNode[],
+  result: Map<string, NodeXY>,
+  cx: number,
+  cy: number,
+  macroRadiusX: number,
+  macroRadiusY: number,
+  microRadius: number,
+  microRadiusGrow: number,
+  minChord: number,
+): void {
+  const clusters = new Map<string, GraphNode[]>();
+  for (const n of nodes) {
+    if (!clusters.has(n.cluster)) clusters.set(n.cluster, []);
+    clusters.get(n.cluster)!.push(n);
+  }
+  const clusterNames = Array.from(clusters.keys());
+  const clusterCount = clusterNames.length;
+
+  clusterNames.forEach((clusterName, ci) => {
+    const group = clusters.get(clusterName)!;
+    const phase =
+      clusterCount === 1 ? 0 : (2 * Math.PI * ci) / clusterCount - Math.PI / 2;
+    const clusterCx = cx + macroRadiusX * Math.cos(phase);
+    const clusterCy = cy + macroRadiusY * Math.sin(phase);
+    placeGroupOnMicroRing(
+      group,
+      clusterCx,
+      clusterCy,
+      result,
+      microRadius,
+      microRadiusGrow,
+      minChord,
+    );
+  });
 }
 
 export function computeGraphLayout(
@@ -209,49 +304,90 @@ export function computeGraphLayout(
   const padT = padUniform;
   const collisionIters = opts.layoutCollisionIterations ?? 160;
 
-  const { cx, cy, macroRadiusX, macroRadiusY } = computeClusterEllipse(
-    width,
-    height,
-    opts,
-  );
+  const { cx, cy, macroRadiusX: baseRx, macroRadiusY: baseRy, maxRx, maxRy } =
+    computeClusterEllipse(width, height, opts);
 
-  const clusters = new Map<string, GraphNode[]>();
-  for (const n of nodes) {
-    if (!clusters.has(n.cluster)) clusters.set(n.cluster, []);
-    clusters.get(n.cluster)!.push(n);
-  }
+  const coreNodes = nodes.filter((n) => n.nodeType === "核心素养");
+  const peripheralNodes = nodes.filter((n) => n.nodeType !== "核心素养");
 
-  const clusterNames = Array.from(clusters.keys());
-  const clusterCount = clusterNames.length;
+  if (coreNodes.length === 0) {
+    placeAllClustersOnEllipse(
+      nodes,
+      result,
+      cx,
+      cy,
+      baseRx,
+      baseRy,
+      microRadius,
+      microRadiusGrow,
+      minChord,
+    );
+  } else {
+    placeGroupOnMicroRing(
+      coreNodes,
+      cx,
+      cy,
+      result,
+      microRadius,
+      microRadiusGrow,
+      minChord,
+    );
 
-  const typeOrder: Record<string, number> = { 知识点: 0, 技能点: 1, 核心素养: 2 };
+    const rHubRing = microRingRadiusForGroup(
+      coreNodes.length,
+      microRadius,
+      microRadiusGrow,
+      minChord,
+    );
+    const rHubExtent =
+      coreNodes.length <= 1
+        ? minChord * 0.38
+        : rHubRing + minChord * 0.22;
 
-  clusterNames.forEach((clusterName, ci) => {
-    const group = clusters.get(clusterName)!;
-    group.sort((a, b) => (typeOrder[a.nodeType] ?? 9) - (typeOrder[b.nodeType] ?? 9));
+    if (peripheralNodes.length > 0) {
+      const pClusters = new Map<string, GraphNode[]>();
+      for (const n of peripheralNodes) {
+        if (!pClusters.has(n.cluster)) pClusters.set(n.cluster, []);
+        pClusters.get(n.cluster)!.push(n);
+      }
+      let maxPeripheralRingR = 0;
+      for (const g of pClusters.values()) {
+        maxPeripheralRingR = Math.max(
+          maxPeripheralRingR,
+          microRingRadiusForGroup(
+            g.length,
+            microRadius,
+            microRadiusGrow,
+            minChord,
+          ),
+        );
+      }
 
-    const phase = clusterCount === 1 ? 0 : (2 * Math.PI * ci) / clusterCount - Math.PI / 2;
-    const clusterCx = cx + macroRadiusX * Math.cos(phase);
-    const clusterCy = cy + macroRadiusY * Math.sin(phase);
+      const hubGap = Math.max(28, 0.06 * wmin);
+      const floorMin = rHubExtent + hubGap + maxPeripheralRingR;
 
-    if (group.length === 1) {
-      result.set(group[0].id, { x: clusterCx, y: clusterCy });
-      return;
+      let macroRadiusX = baseRx;
+      let macroRadiusY = baseRy;
+      const m0 = Math.min(macroRadiusX, macroRadiusY);
+      if (m0 < floorMin) {
+        const scale = floorMin / m0;
+        macroRadiusX = Math.min(macroRadiusX * scale, maxRx * 0.992);
+        macroRadiusY = Math.min(macroRadiusY * scale, maxRy * 0.992);
+      }
+
+      placeAllClustersOnEllipse(
+        peripheralNodes,
+        result,
+        cx,
+        cy,
+        macroRadiusX,
+        macroRadiusY,
+        microRadius,
+        microRadiusGrow,
+        minChord,
+      );
     }
-
-    const nIn = group.length;
-    const chordMinR =
-      nIn >= 2 ? (minChord / 2) / Math.sin(Math.PI / nIn) : 0;
-    let r = microRadius + Math.max(0, group.length - 4) * microRadiusGrow;
-    r = Math.max(r, chordMinR);
-    group.forEach((n, i) => {
-      const a = (2 * Math.PI * i) / group.length - Math.PI / 2;
-      result.set(n.id, {
-        x: clusterCx + r * Math.cos(a),
-        y: clusterCy + r * Math.sin(a),
-      });
-    });
-  });
+  }
 
   applyNodeSeparation(
     nodes,

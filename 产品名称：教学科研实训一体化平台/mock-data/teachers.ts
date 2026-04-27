@@ -1,9 +1,9 @@
 import type { Teacher } from "./types";
 
 /**
- * 教师数据（共 6 位，覆盖 4 个专业）
+ * 教师数据（6 位，均在机械工程学院，覆盖制图/设计制造/机电与质检等方向）
  *
- * 主角：李建国（机械工程，制图教研室主任，整个主故事线由他串起）
+ * 主角：李建国（制图教研室主任，主故事线）
  */
 export const teachers: Teacher[] = [
   {
@@ -13,7 +13,8 @@ export const teachers: Teacher[] = [
     title: "副教授 · 制图教研室主任",
     college: "机械工程学院",
     department: "制图教研室",
-    subjectIds: ["subj-mech-drawing", "subj-mech-cad"],
+    subjectIds: ["subj-mech-drawing", "subj-mech-cad", "subj-mech-ai"],
+    isDepartmentLead: true,
     avatar: "/avatars/teacher-li.png",
     email: "lijianguo@univ.edu.cn",
   },
@@ -44,9 +45,9 @@ export const teachers: Teacher[] = [
     name: "赵文静",
     gender: "女",
     title: "副教授",
-    college: "法学院",
-    department: "民商法教研室",
-    subjectIds: ["subj-law-civil", "subj-law-theory"],
+    college: "机械工程学院",
+    department: "机电测控教研室",
+    subjectIds: ["subj-mech-hydraulic", "subj-mech-robot"],
     avatar: "/avatars/teacher-zhao.png",
     email: "zhaowenjing@univ.edu.cn",
   },
@@ -54,10 +55,10 @@ export const teachers: Teacher[] = [
     id: "t-wanglh",
     name: "王丽华",
     gender: "女",
-    title: "副教授 · 护理学硕士",
-    college: "护理学院",
-    department: "基础护理教研室",
-    subjectIds: ["subj-nurse-basic", "subj-nurse-internal"],
+    title: "副教授 · 机械制造方向",
+    college: "机械工程学院",
+    department: "机械制造教研室",
+    subjectIds: ["subj-mech-tolerance", "subj-mech-process"],
     avatar: "/avatars/teacher-wanglh.png",
     email: "wanglihua@univ.edu.cn",
   },
@@ -66,9 +67,9 @@ export const teachers: Teacher[] = [
     name: "孙小艳",
     gender: "女",
     title: "讲师",
-    college: "教育学院",
-    department: "学前教育教研室",
-    subjectIds: ["subj-edu-activity", "subj-edu-theory"],
+    college: "机械工程学院",
+    department: "机电测控教研室",
+    subjectIds: ["subj-mech-intro", "subj-mech-cad", "subj-mech-ai"],
     avatar: "/avatars/teacher-sun.png",
     email: "sunxiaoyan@univ.edu.cn",
   },

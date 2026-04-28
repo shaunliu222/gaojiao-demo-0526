@@ -7,6 +7,7 @@ import {
   resources,
   students,
   teachingPlans,
+  trainingProjects,
 } from "@mock";
 import type {
   DesignOutput,
@@ -22,7 +23,12 @@ import {
   nextSectionId,
   planById,
 } from "./lookups";
-import { findResumeSectionId, getSectionProgress, type SectionProgressStatus } from "./studentMock";
+import {
+  findResumeSectionId,
+  getSectionProgress,
+  wrongQuestionsByStudent,
+  type SectionProgressStatus,
+} from "./studentMock";
 
 export type LearnCenterMode = "free" | "plan" | "handout" | "homework";
 
@@ -103,6 +109,8 @@ export type LearnCenterReviewRow = {
   chapterTitle: string;
   suggestedConsolidation: boolean;
   progressHint?: string;
+  /** 复习页个性轴：与本节知识点关联的错题与重排素材说明 */
+  adaptiveRemediationHint?: string;
 };
 
 function sectionProgressHint(
@@ -245,6 +253,8 @@ function buildReviewRowsForPlan(
           ...reviewRows[i]!,
           suggestedConsolidation:
             !!reviewRows[i]!.suggestedConsolidation || !!args.suggestedConsolidation,
+          adaptiveRemediationHint:
+            reviewRows[i]!.adaptiveRemediationHint || args.adaptiveRemediationHint,
         };
       return;
     }
@@ -275,6 +285,7 @@ function buildReviewRowsForPlan(
         sectionTitle: sec.title,
         chapterTitle: meta.chapterTitle ?? "",
         progressHint: sectionProgressHint(studentId, plan.id, sid),
+        adaptiveRemediationHint: adaptiveRemediationHintForSection(studentId, plan, sid),
         suggestedConsolidation: profile?.designReviewSectionIds?.includes(sid),
       });
     }
@@ -293,6 +304,7 @@ function buildReviewRowsForPlan(
       sectionTitle: sec.title,
       chapterTitle: meta.chapterTitle ?? "",
       progressHint: sectionProgressHint(studentId, plan.id, sid),
+      adaptiveRemediationHint: adaptiveRemediationHintForSection(studentId, plan, sid),
       suggestedConsolidation: true,
     });
   }
@@ -577,23 +589,44 @@ export function getExamStudentSummary(
  * 与教学计划小节的 `knowledgeNodeIds`、资源库挂载一致，避免「点薄弱点进课堂」无法匹配小节或空白内容。
  */
 export const studentChapterPointIdToGraphNodeId: Record<string, string> = {
-  "n-standard-line": "kn-mech-004",
-  "n-standard-scale": "kn-mech-002",
-  "n-standard-font": "kn-mech-003",
-  "n-projection-system": "kn-mech-014",
-  "n-three-views": "kn-mech-015",
-  "n-visible-line": "kn-mech-016",
-  "n-auxiliary-view": "kn-mech-037",
-  "n-cross-section": "kn-mech-028",
-  "n-cross-section-curve": "kn-mech-028",
-  "n-combination-solid": "kn-mech-031",
-  "n-intersect-curve": "kn-mech-029",
-  /** 轴测未单独建图谱节点时挂到组合体读图，保证能进计划内小节并有资料 */
-  "n-isometric": "kn-mech-033",
-  "n-oblique-axon": "kn-mech-033",
-  "n-section-view": "kn-mech-039",
-  "n-detail-view": "kn-mech-037",
+  "n-standard-line": "kn-mech-001",
+  "n-standard-scale": "kn-mech-001",
+  "n-standard-font": "kn-mech-001",
+  "n-projection-system": "kn-mech-003",
+  "n-three-views": "kn-mech-003",
+  "n-visible-line": "kn-mech-004",
+  "n-auxiliary-view": "kn-mech-007",
+  "n-cross-section": "kn-mech-006",
+  "n-cross-section-curve": "kn-mech-006",
+  "n-combination-solid": "kn-mech-005",
+  "n-intersect-curve": "kn-mech-006",
+  /** 轴测未单独拆节点时并入组合体分析 */
+  "n-isometric": "kn-mech-005",
+  "n-oblique-axon": "kn-mech-005",
+  "n-section-view": "kn-mech-007",
+  "n-detail-view": "kn-mech-007",
 };
+
+function graphNodeIdForWrongKnowledgePoint(kpId: string): string {
+  return studentChapterPointIdToGraphNodeId[kpId] ?? kpId;
+}
+
+/** 复习「个性轴」：本节知识点若出现在该生错题本中，则生成挂接讲义/变式题的说明 */
+function adaptiveRemediationHintForSection(
+  studentId: string,
+  plan: TeachingPlan,
+  sectionId: string,
+): string | undefined {
+  const { section } = findPlanSection(plan.id, sectionId);
+  if (!section?.knowledgeNodeIds?.length) return undefined;
+  const nodeSet = new Set(section.knowledgeNodeIds);
+  const wrongs = wrongQuestionsByStudent(studentId).filter((w) =>
+    nodeSet.has(graphNodeIdForWrongKnowledgePoint(w.knowledgePointId)),
+  );
+  if (wrongs.length === 0) return undefined;
+  const kps = [...new Set(wrongs.map((w) => w.knowledgePointName))].slice(0, 2).join("、");
+  return `个性轴 · 错题 ${wrongs.length} 道同源（${kps}）：已可拉本节讲义切片、题库变式与再练清单`;
+}
 
 export function normalizeStudentChapterPointIdsToGraphNodes(nodeIds: string[]): string[] {
   return nodeIds.map((id) => studentChapterPointIdToGraphNodeId[id] ?? id);
@@ -948,8 +981,24 @@ export function courseNameForPlan(plan?: TeachingPlan): string {
 
 export function resourcesForGoalNodes(goalNodeIds: string[]) {
   const hits = new Map<string, (typeof resources)[number]>();
+  const courseIds = new Set<string>();
+  const trainingIds = new Set<string>();
   for (const nodeId of goalNodeIds) {
-    for (const resource of resources.filter((item) => item.knowledgeNodeIds.includes(nodeId))) {
+    const node = nodeById[nodeId];
+    if (node?.refCourseId) courseIds.add(node.refCourseId);
+    if (node?.refTrainingId) trainingIds.add(node.refTrainingId);
+    for (const course of courses) {
+      if (course.knowledgeNodeIds.includes(nodeId)) courseIds.add(course.id);
+    }
+    for (const training of trainingProjects) {
+      if (training.knowledgeNodeIds.includes(nodeId)) trainingIds.add(training.id);
+    }
+  }
+  for (const resource of resources) {
+    if (
+      resource.courseIds.some((id) => courseIds.has(id)) ||
+      (resource.trainingIds ?? []).some((id) => trainingIds.has(id))
+    ) {
       hits.set(resource.id, resource);
     }
   }
@@ -1017,7 +1066,7 @@ function parsePageCountHint(summary: string): number | null {
   return null;
 }
 
-function inferContentKindForItem(
+export function inferContentKindForItem(
   typeStr: string,
   titleStr: string,
 ): ResourceContentKind {
@@ -1344,14 +1393,30 @@ export function buildTeacherResourceItems(
       type: r.type,
       title: r.title,
       summary: r.description,
-      metaLabel: r.durationLabel,
-      knowledgeNodeIds: r.knowledgeNodeIds,
+      metaLabel: r.duration,
+      knowledgeNodeIds: [...(goalNodeIds.length ? goalNodeIds : sectionKp)],
     });
   }
   return items;
 }
 
-/** 上课场景：优先展示某教学设计 Tab（课堂 / 讲义），其余资料排在后面 */
+function classStudyResourceMatchesFocus(
+  item: LearnCenterResourceItem,
+  focus: "课堂" | "讲义",
+): boolean {
+  const tab = item.tabLabel;
+  if (focus === "讲义") {
+    if (tab === "课堂" || tab === "作业") return false;
+    if (isHomeworkLike(item)) return false;
+    if (tab === "讲义") return true;
+    if (tab == null) return !isHomeworkLike(item);
+    return false;
+  }
+  if (tab === "讲义") return false;
+  return true;
+}
+
+/** 上课场景：按入口（课堂 / 预习讲义）只展示对应教学设计 Tab 的资料，互不串版 */
 export function buildClassStudyResourceItems(
   planId: string | undefined,
   sectionId: string | undefined,
@@ -1365,12 +1430,9 @@ export function buildClassStudyResourceItems(
     goalNodeIds: goalNodeIds.length ? goalNodeIds : undefined,
   };
   const fallback =
-    goalNodeIds.length > 0 ? goalNodeIds : ["kn-mech-031"];
+    goalNodeIds.length > 0 ? goalNodeIds : ["kn-mech-005"];
   const all = buildTeacherResourceItems(ctx, fallback);
-  const primary = all.filter((i) => i.tabLabel === focus);
-  const secondary = all.filter((i) => i.tabLabel !== focus);
-  if (primary.length > 0) return [...primary, ...secondary];
-  return all;
+  return all.filter((i) => classStudyResourceMatchesFocus(i, focus));
 }
 
 /** 学生端作业工作台只读视图（由 HomeworkEvalSummary 派生） */

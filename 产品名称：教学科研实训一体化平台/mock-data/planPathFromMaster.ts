@@ -6,12 +6,25 @@ function padKn(n: number): string {
 }
 
 /**
- * 主线《机械制图与CAD》计划：全学期知识点 kn-mech-001～060 + 工程素养锚点。
- * 知识路径图中的节点 ID 与 `knowledgeGraph` 完全一致；边为全库边在该集合上的诱导子图。
+ * 主线《机械制图与CAD》计划：素养 / 部分能力节点 / 制图核心课及实训 / 压缩后的全系知识点清单。
  */
 export const PLAN_MAIN_NODE_IDS: readonly string[] = [
-  ...Array.from({ length: 60 }, (_, i) => padKn(i + 1)),
   "core-mech-001",
+  "core-mech-002",
+  "core-mech-003",
+  "core-mech-004",
+  "sk-mech-001",
+  "sk-mech-002",
+  "sk-mech-003",
+  "sk-mech-005",
+  "sk-mech-006",
+  "sk-mech-009",
+  "sk-mech-010",
+  "course-mech-draw",
+  "train-m-002",
+  "train-m-003",
+  "train-m-004",
+  ...Array.from({ length: 18 }, (_, i) => padKn(i + 1)),
 ];
 
 /**
@@ -35,6 +48,9 @@ export function buildPlanKnowledgePathGraph(
       id: n.id,
       name: n.name,
       nodeType: n.nodeType,
+      layer: n.layer,
+      kind: n.kind,
+      status: n.status,
       cluster: n.cluster,
       description: n.description,
       focus: focusNodeId != null && focusNodeId === id,

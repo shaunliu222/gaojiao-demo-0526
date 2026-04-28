@@ -84,11 +84,11 @@ export function AssociatedKnowledgeNodes({
         {showHeader && (
           <div className="flex items-center gap-2 mb-3">
             <Network size={16} className="text-indigo-500" />
-            <span className="text-slate-900">关联知识点</span>
+            <span className="text-slate-900">关联图谱节点</span>
             <span className="text-slate-400">（0）</span>
           </div>
         )}
-        <div className="text-slate-400">暂无关联知识点</div>
+        <div className="text-slate-400">暂无关联图谱节点</div>
       </div>
     );
   }
@@ -99,7 +99,7 @@ export function AssociatedKnowledgeNodes({
         {showHeader && (
           <div className="flex items-center gap-2 mb-3">
             <Network size={16} className="text-indigo-500" />
-            <span className="text-slate-900">关联知识点</span>
+            <span className="text-slate-900">关联图谱节点</span>
             <span className="text-slate-400">（{knowledgeNodeIds.length}）</span>
           </div>
         )}
@@ -117,7 +117,7 @@ export function AssociatedKnowledgeNodes({
       {showHeader && (
         <div className="flex items-center gap-2 mb-3">
           <Network size={16} className="text-indigo-500" />
-          <span className="text-slate-900">关联知识点</span>
+          <span className="text-slate-900">关联图谱节点</span>
           <span className="text-slate-400">（{knowledgeNodeIds.length}）</span>
         </div>
       )}

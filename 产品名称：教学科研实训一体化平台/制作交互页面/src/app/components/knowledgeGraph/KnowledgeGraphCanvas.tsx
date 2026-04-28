@@ -21,6 +21,30 @@ export function neighborIdsForFocus(
   return s;
 }
 
+function overviewEdgeOpacityMultiplier(
+  e: GraphEdge,
+  from: NodeXY,
+  to: NodeXY,
+  width: number,
+  height: number,
+): number {
+  const distance = Math.hypot(to.x - from.x, to.y - from.y);
+  const normalized = distance / Math.max(1, Math.hypot(width, height));
+  const distanceMul =
+    normalized > 0.62 ? 0.28 : normalized > 0.48 ? 0.42 : normalized > 0.34 ? 0.68 : 1;
+
+  const relationMul =
+    e.relation === "contain" || e.relation === "guide"
+      ? 1
+      : e.relation === "Map to"
+        ? 0.42
+        : e.relation === "Belong to"
+          ? 0.36
+          : 0.24;
+
+  return relationMul * distanceMul;
+}
+
 type LayoutOverrides = Partial<
   Pick<
     LayoutOptions,
@@ -176,7 +200,10 @@ export function KnowledgeGraphCanvas({
           const inFocus =
             !neighborSet ||
             (neighborSet.has(e.from) && neighborSet.has(e.to));
-          const eOp = inFocus ? 1 : edgeDim;
+          const overviewOp = neighborSet
+            ? 1
+            : overviewEdgeOpacityMultiplier(e, a, b, width, height);
+          const eOp = (inFocus ? 1 : edgeDim) * overviewOp;
           if (renderEdge) {
             return (
               <g key={e.id} opacity={eOp}>

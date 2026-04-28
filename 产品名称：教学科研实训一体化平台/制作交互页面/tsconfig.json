@@ -12,8 +12,10 @@
     "strict": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@mock": ["../mock-data"],
+      "@mock/*": ["../mock-data/*"]
     }
   },
-  "include": ["src"]
+  "include": ["src", "../mock-data"]
 }

@@ -229,7 +229,7 @@ export const teachingDesigns: TeachingDesign[] = [
         id: "msg-w-002",
         role: "assistant",
         content:
-          "作业已生成，总用时约 88 分钟。题型分布：\n① 基础题 4 道（20 分，每题 5 分，共 20 min）——考察 kn-mech-030 组合体构成方式\n② 应用题 3 道（45 分，每题 15 分，共 45 min）——考察 kn-mech-031 三视图绘制 + kn-mech-034 形体分析\n③ 综合题 1 道（35 分，共 25 min）——考察 kn-mech-031 + kn-mech-033 看图能力\n\n已同时生成：\n✓ 学生 PDF 版\n✓ 教师答案版（含逐题 AI 评分 rubric）\n✓ AutoCAD 模板答题卡（可直接数字化提交）",
+          "作业已生成，总用时约 88 分钟。题型分布：\n① 基础题 4 道（20 分，每题 5 分，共 20 min）——考察 kn-mech-005 组合体构成方式\n② 应用题 3 道（45 分，每题 15 分，共 45 min）——考察 kn-mech-005 三视图绘制 + kn-mech-005 形体分析\n③ 综合题 1 道（35 分，共 25 min）——考察 kn-mech-005 + kn-mech-005 看图能力\n\n已同时生成：\n✓ 学生 PDF 版\n✓ 教师答案版（含逐题 AI 评分 rubric）\n✓ AutoCAD 模板答题卡（可直接数字化提交）",
         createdAt: "2026-03-17T14:11:20+08:00",
       },
     ],

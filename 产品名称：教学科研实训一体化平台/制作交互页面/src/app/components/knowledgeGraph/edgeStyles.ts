@@ -8,10 +8,15 @@ export type EdgeStroke = {
 };
 
 const RELATION: Record<GraphEdgeRelation, EdgeStroke> = {
-  先修: { stroke: "#a5b4fc", strokeWidth: 1.6, opacity: 0.92 },
-  包含: { stroke: "#94a3b8", strokeWidth: 1.2, strokeDasharray: "4 3", opacity: 0.92 },
-  支撑: { stroke: "#34d399", strokeWidth: 1.4, strokeDasharray: "2 4", opacity: 0.92 },
-  相关: { stroke: "#fbbf24", strokeWidth: 1.2, strokeDasharray: "6 4", opacity: 0.92 },
+  contain: { stroke: "#64748b", strokeWidth: 1.3, strokeDasharray: "4 3", opacity: 0.82 },
+  guide: { stroke: "#818cf8", strokeWidth: 1.35, opacity: 0.78 },
+  Influence: { stroke: "#f59e0b", strokeWidth: 1.15, strokeDasharray: "6 4", opacity: 0.74 },
+  Cultivate: { stroke: "#22c55e", strokeWidth: 1.25, opacity: 0.72 },
+  Support: { stroke: "#34d399", strokeWidth: 1.2, strokeDasharray: "2 4", opacity: 0.72 },
+  "Map to": { stroke: "#38bdf8", strokeWidth: 1.2, opacity: 0.76 },
+  Depend: { stroke: "#a5b4fc", strokeWidth: 1.25, opacity: 0.68 },
+  Decide: { stroke: "#ef4444", strokeWidth: 1.25, strokeDasharray: "3 3", opacity: 0.7 },
+  "Belong to": { stroke: "#94a3b8", strokeWidth: 1.1, strokeDasharray: "4 3", opacity: 0.7 },
 };
 
 export function edgeStrokeByRelation(

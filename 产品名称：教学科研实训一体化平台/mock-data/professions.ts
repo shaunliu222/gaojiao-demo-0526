@@ -12,6 +12,12 @@ export const professions: Profession[] = [
     description:
       "面向智能制造、装备制造行业培养具备机械设计、制造、控制能力的高级应用型人才。",
     hasKnowledgeGraph: true,
-    knowledgeGraphTrainingPlanDocumentId: "kg-tpdoc-mech-2023",
+    knowledgeGraphTrainingPlanDocumentIds: [
+      "kg-tpdoc-mech-2023",
+      "kg-tpdoc-mech-job-path",
+      "kg-tpdoc-mech-job-field",
+      "kg-tpdoc-mech-intro",
+      "kg-tpdoc-mech-outlook",
+    ],
   },
 ];

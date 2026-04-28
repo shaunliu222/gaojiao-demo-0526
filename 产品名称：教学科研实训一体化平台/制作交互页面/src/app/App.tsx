@@ -24,6 +24,7 @@ import { PlanWizard } from "./components/PlanWizard";
 import { DesignWorkbench } from "./components/DesignWorkbench";
 import { DesignLearningAdjustWorkbench } from "./components/DesignLearningAdjustWorkbench";
 import { DesignDashboard } from "./components/DesignDashboard";
+import { PlanSectionResourcesPage } from "./components/PlanSectionResourcesPage";
 import { HwOverview, HwDetail } from "./components/HomeworkEval";
 import { ExamOverview, ExamDetail } from "./components/ExamEval";
 import { CourseList, CourseDetail } from "./components/Courses";
@@ -59,6 +60,15 @@ type TeacherView =
   | { k: "plans-list" }
   | { k: "plan-wizard" }
   | { k: "plan-detail"; id: string; focusSectionId?: string }
+  | {
+      k: "section-resources";
+      planId: string;
+      sectionId: string;
+      /** 从教学计划详情返回计划 id */
+      fromPlanId?: string;
+      /** 从教学设计看板进入 */
+      fromDashboard?: boolean;
+    }
   | { k: "design-dashboard" }
   | {
       k: "design";
@@ -66,6 +76,8 @@ type TeacherView =
       sectionId: string;
       fromPlanId?: string;
       fromDashboard?: boolean;
+      /** 从「本节资源」页进入教学设计，返回时回到该页 */
+      fromSectionResources?: boolean;
       /** 从学情分析进入：返回时恢复班级 tab */
       fromLearningAnalytics?: boolean;
       returnClassId?: string;
@@ -149,6 +161,16 @@ function titleForView(view: View): string {
       return "新建教学计划";
     case "plan-detail":
       return planById(view.id)?.title ?? "教学计划详情";
+    case "section-resources": {
+      const plan = planById(view.planId);
+      if (plan) {
+        for (const ch of plan.chapters) {
+          const sec = ch.sections.find((s: { id: string }) => s.id === view.sectionId);
+          if (sec?.title) return `${sec.title} · 本节资源`;
+        }
+      }
+      return "本节课程资源";
+    }
     case "design-dashboard":
       return "教学设计";
     case "design": {
@@ -419,9 +441,41 @@ export default function App() {
               setView({ k: "plans-list" });
             }}
             onOpenSection={(planId, sectionId) => {
-              setNav("designs");
-              setView({ k: "design", planId, sectionId, fromPlanId: planId });
+              setNav("plans");
+              setView({ k: "section-resources", planId, sectionId, fromPlanId: planId });
             }}
+          />
+        );
+      case "section-resources":
+        return (
+          <PlanSectionResourcesPage
+            key={`${view.planId}-${view.sectionId}`}
+            planId={view.planId}
+            sectionId={view.sectionId}
+            currentTeacherId={teacherId}
+            onBack={() => {
+              if (view.fromDashboard) {
+                setNav("designs");
+                setView({ k: "design-dashboard" });
+              } else {
+                setNav("plans");
+                setView({ k: "plan-detail", id: view.fromPlanId ?? view.planId });
+              }
+            }}
+            onOpenTeachingDesign={() => {
+              setNav("designs");
+              setView({
+                k: "design",
+                planId: view.planId,
+                sectionId: view.sectionId,
+                fromPlanId: view.fromPlanId ?? view.planId,
+                fromDashboard: view.fromDashboard,
+                fromSectionResources: true,
+              });
+            }}
+            onOpenResourceLibrary={(rid) =>
+              goEnginePage("resources", { k: "resource-detail", id: rid, from: "library" })
+            }
           />
         );
       case "design-dashboard":
@@ -431,9 +485,10 @@ export default function App() {
             onOpenSection={(planId, sectionId) => {
               setNav("designs");
               setView({
-                k: "design",
+                k: "section-resources",
                 planId,
                 sectionId,
+                fromPlanId: planId,
                 fromDashboard: true,
               });
             }}
@@ -446,6 +501,17 @@ export default function App() {
             setView({
               k: "learning-analytics",
               classId: view.returnClassId,
+            });
+            return;
+          }
+          if (view.fromSectionResources) {
+            setNav(view.fromDashboard ? "designs" : "plans");
+            setView({
+              k: "section-resources",
+              planId: view.planId,
+              sectionId: view.sectionId,
+              fromPlanId: view.fromPlanId ?? view.planId,
+              fromDashboard: view.fromDashboard,
             });
             return;
           }
@@ -468,6 +534,7 @@ export default function App() {
             sectionId: DEMO_DESIGN_SECTION_ID,
             fromPlanId: view.fromPlanId ?? view.planId,
             fromDashboard: view.fromDashboard,
+            fromSectionResources: view.fromSectionResources,
           });
         };
 
@@ -714,9 +781,21 @@ export default function App() {
             onEnterHomeworkWorkbench={(homeworkId) =>
               setView({ k: "homework-workbench", homeworkId })
             }
-            onEnterTrainingWorkbench={(assignmentId) =>
-              setView({ k: "training-workbench", assignmentId })
-            }
+            onOpenStudentLearningPlans={() => {
+              setNav("my-plans");
+              setView({ k: "my-plans-list" });
+            }}
+            onContinuePersonalLearn={(opts: StudentLearnNavigateInput) => {
+              const entry = resolveClassStudyEntry(studentId, opts);
+              if (!entry) return;
+              setView({
+                k: "class-study",
+                planId: entry.planId,
+                sectionId: entry.sectionId,
+                focus: "课堂",
+                goalNodeIds: entry.goalNodeIds,
+              });
+            }}
           />
         );
       case "class-study":

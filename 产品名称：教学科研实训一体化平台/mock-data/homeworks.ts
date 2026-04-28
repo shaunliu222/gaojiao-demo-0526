@@ -39,8 +39,8 @@ const homeworkEvaluationsRaw: HomeworkEvalInput[] = [
     ],
     aiRatings: { excellent: 6, good: 14, pass: 8, fail: 0 },
     hotWrongPoints: [
-      { name: "重影点判别", knowledgeNodeId: "kn-mech-018", wrongRate: 0.32, aiCause: "学生容易混淆「可见点」与「被遮挡点」判别依据。" },
-      { name: "铅垂面三投影", knowledgeNodeId: "kn-mech-021", wrongRate: 0.25, aiCause: "三投影面特征识记不牢，部分学生把类似面错判成积聚面。" },
+      { name: "重影点判别", knowledgeNodeId: "kn-mech-004", wrongRate: 0.32, aiCause: "学生容易混淆「可见点」与「被遮挡点」判别依据。" },
+      { name: "铅垂面三投影", knowledgeNodeId: "kn-mech-004", wrongRate: 0.25, aiCause: "三投影面特征识记不牢，部分学生把类似面错判成积聚面。" },
     ],
     keyStudents: [
       { studentId: "s-mech2301-06", studentName: "周子航", reason: "连续 2 次低分", score: 62, changeTrend: "下降" },
@@ -61,10 +61,10 @@ const homeworkEvaluationsRaw: HomeworkEvalInput[] = [
     ],
     questionAccuracy: [
       { questionNo: 1, title: "点的三面投影", knowledgeNodeId: "kn-mech-017", accuracy: 0.96 },
-      { questionNo: 2, title: "两点相对位置", knowledgeNodeId: "kn-mech-018", accuracy: 0.68 },
-      { questionNo: 3, title: "直线投影分类", knowledgeNodeId: "kn-mech-019", accuracy: 0.88 },
-      { questionNo: 4, title: "平面投影分类", knowledgeNodeId: "kn-mech-021", accuracy: 0.75 },
-      { questionNo: 5, title: "直线与平面相对位置", knowledgeNodeId: "kn-mech-022", accuracy: 0.79 },
+      { questionNo: 2, title: "两点相对位置", knowledgeNodeId: "kn-mech-004", accuracy: 0.68 },
+      { questionNo: 3, title: "直线投影分类", knowledgeNodeId: "kn-mech-004", accuracy: 0.88 },
+      { questionNo: 4, title: "平面投影分类", knowledgeNodeId: "kn-mech-004", accuracy: 0.75 },
+      { questionNo: 5, title: "直线与平面相对位置", knowledgeNodeId: "kn-mech-004", accuracy: 0.79 },
     ],
   },
 
@@ -103,7 +103,7 @@ const homeworkEvaluationsRaw: HomeworkEvalInput[] = [
     aiInsights: [],
     questionAccuracy: [
       { questionNo: 1, title: "点的投影", knowledgeNodeId: "kn-mech-017", accuracy: 0.78 },
-      { questionNo: 2, title: "线面相对位置", knowledgeNodeId: "kn-mech-022", accuracy: 0.62 },
+      { questionNo: 2, title: "线面相对位置", knowledgeNodeId: "kn-mech-004", accuracy: 0.62 },
     ],
   },
   {
@@ -141,7 +141,7 @@ const homeworkEvaluationsRaw: HomeworkEvalInput[] = [
     aiInsights: [],
     questionAccuracy: [
       { questionNo: 1, title: "点的投影", knowledgeNodeId: "kn-mech-017", accuracy: 0.85 },
-      { questionNo: 2, title: "直线投影分类", knowledgeNodeId: "kn-mech-019", accuracy: 0.8 },
+      { questionNo: 2, title: "直线投影分类", knowledgeNodeId: "kn-mech-004", accuracy: 0.8 },
     ],
   },
 
@@ -172,10 +172,10 @@ const homeworkEvaluationsRaw: HomeworkEvalInput[] = [
     ],
     aiRatings: { excellent: 4, good: 12, pass: 11, fail: 1 },
     hotWrongPoints: [
-      { name: "截交线绘制遗漏", knowledgeNodeId: "kn-mech-028", wrongRate: 0.43, sampleWrongAnswer: "轴承座圆柱被斜切后截交线未画，俯视图为封闭椭圆。", aiCause: "学生对截交线出现的触发条件认识模糊——平面切割回转体必产生截交线，且需投影到所有视图。" },
-      { name: "相贯线判别错误", knowledgeNodeId: "kn-mech-029", wrongRate: 0.39, sampleWrongAnswer: "两圆柱垂直相贯线画成圆弧而非非圆曲线。", aiCause: "学生尚未掌握两回转体轴线正交情况下相贯线的走向规律。" },
-      { name: "过渡线处理错误", knowledgeNodeId: "kn-mech-031", wrongRate: 0.29, sampleWrongAnswer: "底板和立柱过渡处把圆角误画成直角。", aiCause: "学生习惯机械化按轮廓画线，忽略铸造圆角的工艺合理性。" },
-      { name: "组合体尺寸重复标注", knowledgeNodeId: "kn-mech-032", wrongRate: 0.25, aiCause: "学生对定形/定位/总体尺寸的层次理解不清。" },
+      { name: "截交线绘制遗漏", knowledgeNodeId: "kn-mech-006", wrongRate: 0.43, sampleWrongAnswer: "轴承座圆柱被斜切后截交线未画，俯视图为封闭椭圆。", aiCause: "学生对截交线出现的触发条件认识模糊——平面切割回转体必产生截交线，且需投影到所有视图。" },
+      { name: "相贯线判别错误", knowledgeNodeId: "kn-mech-006", wrongRate: 0.39, sampleWrongAnswer: "两圆柱垂直相贯线画成圆弧而非非圆曲线。", aiCause: "学生尚未掌握两回转体轴线正交情况下相贯线的走向规律。" },
+      { name: "过渡线处理错误", knowledgeNodeId: "kn-mech-005", wrongRate: 0.29, sampleWrongAnswer: "底板和立柱过渡处把圆角误画成直角。", aiCause: "学生习惯机械化按轮廓画线，忽略铸造圆角的工艺合理性。" },
+      { name: "组合体尺寸重复标注", knowledgeNodeId: "kn-mech-009", wrongRate: 0.25, aiCause: "学生对定形/定位/总体尺寸的层次理解不清。" },
     ],
     keyStudents: [
       { studentId: "s-mech2301-02", studentName: "刘静雯", reason: "综合题优秀 · 作图规范好", score: 93, changeTrend: "稳定" },
@@ -218,14 +218,14 @@ const homeworkEvaluationsRaw: HomeworkEvalInput[] = [
       },
     ],
     questionAccuracy: [
-      { questionNo: 1, title: "组合体构成方式识别", knowledgeNodeId: "kn-mech-030", accuracy: 0.89 },
-      { questionNo: 2, title: "形体分析法应用", knowledgeNodeId: "kn-mech-034", accuracy: 0.82 },
-      { questionNo: 3, title: "轴承座三视图绘制", knowledgeNodeId: "kn-mech-031", accuracy: 0.71 },
-      { questionNo: 4, title: "支架三视图 + 尺寸标注", knowledgeNodeId: "kn-mech-031", accuracy: 0.68 },
-      { questionNo: 5, title: "连接座综合绘制", knowledgeNodeId: "kn-mech-031", accuracy: 0.62 },
-      { questionNo: 6, title: "读组合体视图", knowledgeNodeId: "kn-mech-033", accuracy: 0.75 },
-      { questionNo: 7, title: "截交线综合", knowledgeNodeId: "kn-mech-028", accuracy: 0.57 },
-      { questionNo: 8, title: "相贯线综合", knowledgeNodeId: "kn-mech-029", accuracy: 0.61 },
+      { questionNo: 1, title: "组合体构成方式识别", knowledgeNodeId: "kn-mech-005", accuracy: 0.89 },
+      { questionNo: 2, title: "形体分析法应用", knowledgeNodeId: "kn-mech-005", accuracy: 0.82 },
+      { questionNo: 3, title: "轴承座三视图绘制", knowledgeNodeId: "kn-mech-005", accuracy: 0.71 },
+      { questionNo: 4, title: "支架三视图 + 尺寸标注", knowledgeNodeId: "kn-mech-005", accuracy: 0.68 },
+      { questionNo: 5, title: "连接座综合绘制", knowledgeNodeId: "kn-mech-005", accuracy: 0.62 },
+      { questionNo: 6, title: "读组合体视图", knowledgeNodeId: "kn-mech-005", accuracy: 0.75 },
+      { questionNo: 7, title: "截交线综合", knowledgeNodeId: "kn-mech-006", accuracy: 0.57 },
+      { questionNo: 8, title: "相贯线综合", knowledgeNodeId: "kn-mech-006", accuracy: 0.61 },
     ],
   },
 
@@ -257,8 +257,8 @@ const homeworkEvaluationsRaw: HomeworkEvalInput[] = [
     aiRatings: { excellent: 3, good: 3, pass: 11, fail: 6 },
     hotWrongPoints: [
       { name: "三视图对应规律违反", knowledgeNodeId: "kn-mech-015", wrongRate: 0.52, aiCause: "后 1/4 学生基础长对正-高平齐-宽相等都没掌握。" },
-      { name: "截交线绘制遗漏", knowledgeNodeId: "kn-mech-028", wrongRate: 0.57, aiCause: "与 2301 班相同但错误率更高。" },
-      { name: "相贯线判别错误", knowledgeNodeId: "kn-mech-029", wrongRate: 0.52, aiCause: "基础空间想象力不足。" },
+      { name: "截交线绘制遗漏", knowledgeNodeId: "kn-mech-006", wrongRate: 0.57, aiCause: "与 2301 班相同但错误率更高。" },
+      { name: "相贯线判别错误", knowledgeNodeId: "kn-mech-006", wrongRate: 0.52, aiCause: "基础空间想象力不足。" },
     ],
     keyStudents: [
       { studentId: "s-mech2302-03", studentName: "马俊豪", reason: "进度落后 · 订正未完成", score: 41, changeTrend: "下降" },
@@ -280,11 +280,11 @@ const homeworkEvaluationsRaw: HomeworkEvalInput[] = [
       },
     ],
     questionAccuracy: [
-      { questionNo: 1, title: "组合体构成方式识别", knowledgeNodeId: "kn-mech-030", accuracy: 0.74 },
-      { questionNo: 2, title: "形体分析法应用", knowledgeNodeId: "kn-mech-034", accuracy: 0.68 },
-      { questionNo: 3, title: "轴承座三视图绘制", knowledgeNodeId: "kn-mech-031", accuracy: 0.55 },
-      { questionNo: 7, title: "截交线综合", knowledgeNodeId: "kn-mech-028", accuracy: 0.43 },
-      { questionNo: 8, title: "相贯线综合", knowledgeNodeId: "kn-mech-029", accuracy: 0.48 },
+      { questionNo: 1, title: "组合体构成方式识别", knowledgeNodeId: "kn-mech-005", accuracy: 0.74 },
+      { questionNo: 2, title: "形体分析法应用", knowledgeNodeId: "kn-mech-005", accuracy: 0.68 },
+      { questionNo: 3, title: "轴承座三视图绘制", knowledgeNodeId: "kn-mech-005", accuracy: 0.55 },
+      { questionNo: 7, title: "截交线综合", knowledgeNodeId: "kn-mech-006", accuracy: 0.43 },
+      { questionNo: 8, title: "相贯线综合", knowledgeNodeId: "kn-mech-006", accuracy: 0.48 },
     ],
   },
 
@@ -335,8 +335,8 @@ const homeworkEvaluationsRaw: HomeworkEvalInput[] = [
       },
     ],
     questionAccuracy: [
-      { questionNo: 1, title: "形体分析法应用", knowledgeNodeId: "kn-mech-034", accuracy: 0.8 },
-      { questionNo: 2, title: "三视图手绘清稿", knowledgeNodeId: "kn-mech-031", accuracy: 0.72 },
+      { questionNo: 1, title: "形体分析法应用", knowledgeNodeId: "kn-mech-005", accuracy: 0.8 },
+      { questionNo: 2, title: "三视图手绘清稿", knowledgeNodeId: "kn-mech-005", accuracy: 0.72 },
     ],
   },
 
@@ -369,7 +369,7 @@ const homeworkEvaluationsRaw: HomeworkEvalInput[] = [
     hotWrongPoints: [
       {
         name: "急停与防护栏条目漏勾",
-        knowledgeNodeId: "kn-mech-048",
+        knowledgeNodeId: "kn-mech-009",
         wrongRate: 0.08,
         aiCause: "多选题未完整阅读题干，建议车间首日再口头复核。",
       },
@@ -377,8 +377,8 @@ const homeworkEvaluationsRaw: HomeworkEvalInput[] = [
     keyStudents: [],
     aiInsights: [],
     questionAccuracy: [
-      { questionNo: 1, title: "车间安全红线", knowledgeNodeId: "kn-mech-048", accuracy: 0.94 },
-      { questionNo: 2, title: "量具领用与归还", knowledgeNodeId: "kn-mech-049", accuracy: 0.91 },
+      { questionNo: 1, title: "车间安全红线", knowledgeNodeId: "kn-mech-009", accuracy: 0.94 },
+      { questionNo: 2, title: "量具领用与归还", knowledgeNodeId: "kn-mech-009", accuracy: 0.91 },
     ],
   },
   {
@@ -407,7 +407,7 @@ const homeworkEvaluationsRaw: HomeworkEvalInput[] = [
     hotWrongPoints: [
       {
         name: "防护装备穿戴要点",
-        knowledgeNodeId: "kn-mech-048",
+        knowledgeNodeId: "kn-mech-009",
         wrongRate: 0.18,
         aiCause: "与读图类错题同源——审题不细，需现场带教再强调。",
       },
@@ -415,8 +415,8 @@ const homeworkEvaluationsRaw: HomeworkEvalInput[] = [
     keyStudents: [],
     aiInsights: [],
     questionAccuracy: [
-      { questionNo: 1, title: "车间安全红线", knowledgeNodeId: "kn-mech-048", accuracy: 0.84 },
-      { questionNo: 2, title: "量具领用与归还", knowledgeNodeId: "kn-mech-049", accuracy: 0.8 },
+      { questionNo: 1, title: "车间安全红线", knowledgeNodeId: "kn-mech-009", accuracy: 0.84 },
+      { questionNo: 2, title: "量具领用与归还", knowledgeNodeId: "kn-mech-009", accuracy: 0.8 },
     ],
   },
 
@@ -449,7 +449,7 @@ const homeworkEvaluationsRaw: HomeworkEvalInput[] = [
     hotWrongPoints: [
       {
         name: "俯视读数与主视标注错位",
-        knowledgeNodeId: "kn-mech-049",
+        knowledgeNodeId: "kn-mech-009",
         wrongRate: 0.18,
         aiCause: "对照图纸时未先锁定基准要素，导致量测点与标注线不对应。",
       },
@@ -471,8 +471,8 @@ const homeworkEvaluationsRaw: HomeworkEvalInput[] = [
       },
     ],
     questionAccuracy: [
-      { questionNo: 1, title: "五处关键尺寸量测与记录", knowledgeNodeId: "kn-mech-049", accuracy: 0.86 },
-      { questionNo: 2, title: "图纸线型与量具接触点自检", knowledgeNodeId: "kn-mech-048", accuracy: 0.82 },
+      { questionNo: 1, title: "五处关键尺寸量测与记录", knowledgeNodeId: "kn-mech-009", accuracy: 0.86 },
+      { questionNo: 2, title: "图纸线型与量具接触点自检", knowledgeNodeId: "kn-mech-009", accuracy: 0.82 },
     ],
   },
   {
@@ -501,7 +501,7 @@ const homeworkEvaluationsRaw: HomeworkEvalInput[] = [
     hotWrongPoints: [
       {
         name: "长宽方向读反",
-        knowledgeNodeId: "kn-mech-049",
+        knowledgeNodeId: "kn-mech-009",
         wrongRate: 0.34,
         aiCause: "与制图课「宽相等」痛点同源，需在车间白板再画一次 45° 辅助对照。",
       },
@@ -523,8 +523,8 @@ const homeworkEvaluationsRaw: HomeworkEvalInput[] = [
       },
     ],
     questionAccuracy: [
-      { questionNo: 1, title: "五处关键尺寸量测与记录", knowledgeNodeId: "kn-mech-049", accuracy: 0.66 },
-      { questionNo: 2, title: "现场安全与读数复诵", knowledgeNodeId: "kn-mech-048", accuracy: 0.74 },
+      { questionNo: 1, title: "五处关键尺寸量测与记录", knowledgeNodeId: "kn-mech-009", accuracy: 0.66 },
+      { questionNo: 2, title: "现场安全与读数复诵", knowledgeNodeId: "kn-mech-009", accuracy: 0.74 },
     ],
   },
 
@@ -555,8 +555,8 @@ const homeworkEvaluationsRaw: HomeworkEvalInput[] = [
     ],
     aiRatings: { excellent: 5, good: 13, pass: 9, fail: 0 },
     hotWrongPoints: [
-      { name: "剖切面位置标注", knowledgeNodeId: "kn-mech-039", wrongRate: 0.27, aiCause: "剖切符号 A-A 标注遗漏或方向反。" },
-      { name: "半剖与全剖选择", knowledgeNodeId: "kn-mech-039", wrongRate: 0.22, aiCause: "学生在对称件上纠结使用半剖还是全剖。" },
+      { name: "剖切面位置标注", knowledgeNodeId: "kn-mech-007", wrongRate: 0.27, aiCause: "剖切符号 A-A 标注遗漏或方向反。" },
+      { name: "半剖与全剖选择", knowledgeNodeId: "kn-mech-007", wrongRate: 0.22, aiCause: "学生在对称件上纠结使用半剖还是全剖。" },
     ],
     keyStudents: [{ studentId: "s-mech2301-06", studentName: "周子航", reason: "刚及格边缘 · 已连续 4 次", score: 64, changeTrend: "稳定" }],
     aiInsights: [
@@ -603,16 +603,16 @@ const homeworkEvaluationsRaw: HomeworkEvalInput[] = [
     ],
     aiRatings: { excellent: 7, good: 12, pass: 6, fail: 0 },
     hotWrongPoints: [
-      { name: "形位公差符号选用", knowledgeNodeId: "kn-mech-051", wrongRate: 0.28, aiCause: "学生对「同轴度」和「圆度」的适用场景仍混淆。" },
+      { name: "形位公差符号选用", knowledgeNodeId: "kn-mech-009", wrongRate: 0.28, aiCause: "学生对「同轴度」和「圆度」的适用场景仍混淆。" },
     ],
     keyStudents: [{ studentId: "s-mech2301-04", studentName: "赵思齐", reason: "CAD 完整度与规范性双满分", score: 97 }],
     aiInsights: [
       { id: "ai-m-005-1", title: "整体已进入优良区间", summary: "75% 以上学生已能按国标完成零件图。", actionSuggestion: "鼓励尖子生参加学院 CAD 比赛。" },
     ],
     questionAccuracy: [
-      { questionNo: 1, title: "零件图视图选择", knowledgeNodeId: "kn-mech-048", accuracy: 0.89 },
-      { questionNo: 2, title: "公差配合标注", knowledgeNodeId: "kn-mech-050", accuracy: 0.84 },
-      { questionNo: 3, title: "形位公差", knowledgeNodeId: "kn-mech-051", accuracy: 0.72 },
+      { questionNo: 1, title: "零件图视图选择", knowledgeNodeId: "kn-mech-009", accuracy: 0.89 },
+      { questionNo: 2, title: "公差配合标注", knowledgeNodeId: "kn-mech-009", accuracy: 0.84 },
+      { questionNo: 3, title: "形位公差", knowledgeNodeId: "kn-mech-009", accuracy: 0.72 },
     ],
   },
 
@@ -643,16 +643,16 @@ const homeworkEvaluationsRaw: HomeworkEvalInput[] = [
     ],
     aiRatings: { excellent: 9, good: 10, pass: 5, fail: 0 },
     hotWrongPoints: [
-      { name: "图层规划不合理", knowledgeNodeId: "kn-mech-055", wrongRate: 0.21, aiCause: "学生习惯于直接绘制，忽视图层前置规划。" },
+      { name: "图层规划不合理", knowledgeNodeId: "kn-mech-011", wrongRate: 0.21, aiCause: "学生习惯于直接绘制，忽视图层前置规划。" },
     ],
     keyStudents: [{ studentId: "s-mech2301-04", studentName: "赵思齐", reason: "满分作业 · CAD 全面优秀", score: 100 }],
     aiInsights: [
       { id: "ai-m-006-1", title: "CAD 实训整体突出", summary: "优良率 79.2%，学生对软件操作适应良好。", actionSuggestion: "可适当加入协同绘图实训。" },
     ],
     questionAccuracy: [
-      { questionNo: 1, title: "图层管理规范", knowledgeNodeId: "kn-mech-055", accuracy: 0.79 },
-      { questionNo: 2, title: "CAD 标注", knowledgeNodeId: "kn-mech-054", accuracy: 0.88 },
-      { questionNo: 3, title: "出图打印设置", knowledgeNodeId: "kn-mech-057", accuracy: 0.84 },
+      { questionNo: 1, title: "图层管理规范", knowledgeNodeId: "kn-mech-011", accuracy: 0.79 },
+      { questionNo: 2, title: "CAD 标注", knowledgeNodeId: "kn-mech-011", accuracy: 0.88 },
+      { questionNo: 3, title: "出图打印设置", knowledgeNodeId: "kn-mech-011", accuracy: 0.84 },
     ],
   },
 
@@ -696,25 +696,25 @@ const homeworkEvaluationsRaw: HomeworkEvalInput[] = [
       {
         questionNo: 1,
         title: "草图基准与全约束：按附图完成支架草图（含对称与重合约束）",
-        knowledgeNodeId: "kn-mech-054",
+        knowledgeNodeId: "kn-mech-011",
         accuracy: 0.82,
       },
       {
         questionNo: 2,
         title: "拉伸与切除：板厚 10mm，两侧 R6 圆角，中间腰形孔贯通",
-        knowledgeNodeId: "kn-mech-056",
+        knowledgeNodeId: "kn-mech-011",
         accuracy: 0.76,
       },
       {
         questionNo: 3,
         title: "图层与线型：轮廓/中心线/虚线分层，线宽随层",
-        knowledgeNodeId: "kn-mech-055",
+        knowledgeNodeId: "kn-mech-011",
         accuracy: 0.79,
       },
       {
         questionNo: 4,
         title: "交付物：导出 DWG + PDF，文件命名 学号-姓名-7.1拓展",
-        knowledgeNodeId: "kn-mech-057",
+        knowledgeNodeId: "kn-mech-011",
         accuracy: 0.71,
       },
     ],
@@ -747,8 +747,8 @@ const homeworkEvaluationsRaw: HomeworkEvalInput[] = [
     ],
     aiRatings: { excellent: 6, good: 14, pass: 10, fail: 0 },
     hotWrongPoints: [
-      { name: "基孔制/基轴制选用混淆", knowledgeNodeId: "kn-mech-050", wrongRate: 0.31, aiCause: "未先判断「工艺习惯」与「标准件外购件」约束。" },
-      { name: "公差等级过紧导致成本惩罚", knowledgeNodeId: "kn-mech-050", wrongRate: 0.22, aiCause: "忽略 IT 等级与加工方法的对应关系。" },
+      { name: "基孔制/基轴制选用混淆", knowledgeNodeId: "kn-mech-009", wrongRate: 0.31, aiCause: "未先判断「工艺习惯」与「标准件外购件」约束。" },
+      { name: "公差等级过紧导致成本惩罚", knowledgeNodeId: "kn-mech-009", wrongRate: 0.22, aiCause: "忽略 IT 等级与加工方法的对应关系。" },
     ],
     keyStudents: [
       { studentId: "s-mech2101-01", studentName: "白若雪", reason: "公差链分析满分档", score: 96 },
@@ -758,9 +758,9 @@ const homeworkEvaluationsRaw: HomeworkEvalInput[] = [
       { id: "ai-tol-001-1", title: "配合制度选用是集中失分点", summary: "约 1/3 学生在基孔/基轴判断上犹豫过久。", actionSuggestion: "课堂增加 2 个「外购轴承 + 光轴」对照案例。" },
     ],
     questionAccuracy: [
-      { questionNo: 1, title: "极限偏差查表", knowledgeNodeId: "kn-mech-050", accuracy: 0.87 },
-      { questionNo: 2, title: "配合性质判断", knowledgeNodeId: "kn-mech-050", accuracy: 0.69 },
-      { questionNo: 3, title: "公差链推算", knowledgeNodeId: "kn-mech-051", accuracy: 0.72 },
+      { questionNo: 1, title: "极限偏差查表", knowledgeNodeId: "kn-mech-009", accuracy: 0.87 },
+      { questionNo: 2, title: "配合性质判断", knowledgeNodeId: "kn-mech-009", accuracy: 0.69 },
+      { questionNo: 3, title: "公差链推算", knowledgeNodeId: "kn-mech-009", accuracy: 0.72 },
     ],
   },
   {
@@ -786,16 +786,16 @@ const homeworkEvaluationsRaw: HomeworkEvalInput[] = [
     ],
     aiRatings: { excellent: 4, good: 11, pass: 14, fail: 1 },
     hotWrongPoints: [
-      { name: "基准要素选择不当", knowledgeNodeId: "kn-mech-051", wrongRate: 0.36, aiCause: "未优先选装配定位面作第一基准。" },
+      { name: "基准要素选择不当", knowledgeNodeId: "kn-mech-009", wrongRate: 0.36, aiCause: "未优先选装配定位面作第一基准。" },
     ],
     keyStudents: [],
     aiInsights: [
       { id: "ai-tol-002-1", title: "基准体系仍薄弱", summary: "与装配图课程衔接不足，建议用同一零件跨课复盘。", actionSuggestion: "下一讲用齿轮泵支架做课堂同题再练。" },
     ],
     questionAccuracy: [
-      { questionNo: 1, title: "形位公差符号识别", knowledgeNodeId: "kn-mech-051", accuracy: 0.88 },
-      { questionNo: 2, title: "基准标注", knowledgeNodeId: "kn-mech-051", accuracy: 0.64 },
-      { questionNo: 3, title: "与尺寸公差关系", knowledgeNodeId: "kn-mech-050", accuracy: 0.71 },
+      { questionNo: 1, title: "形位公差符号识别", knowledgeNodeId: "kn-mech-009", accuracy: 0.88 },
+      { questionNo: 2, title: "基准标注", knowledgeNodeId: "kn-mech-009", accuracy: 0.64 },
+      { questionNo: 3, title: "与尺寸公差关系", knowledgeNodeId: "kn-mech-009", accuracy: 0.71 },
     ],
   },
 
@@ -826,15 +826,15 @@ const homeworkEvaluationsRaw: HomeworkEvalInput[] = [
     ],
     aiRatings: { excellent: 9, good: 11, pass: 6, fail: 0 },
     hotWrongPoints: [
-      { name: "工具坐标系未标定", knowledgeNodeId: "kn-mech-058", wrongRate: 0.19, aiCause: "直接沿用默认 TCP，导致落点偏移。" },
+      { name: "工具坐标系未标定", knowledgeNodeId: "kn-mech-012", wrongRate: 0.19, aiCause: "直接沿用默认 TCP，导致落点偏移。" },
     ],
     keyStudents: [{ studentId: "s-mech2303-01", studentName: "宋佳雯", reason: "轨迹平滑、节拍最优", score: 100 }],
     aiInsights: [
       { id: "ai-rob-001-1", title: "数模优势转化为节拍优势", summary: "前 1/3 学生已能兼顾避障与安全裕度。", actionSuggestion: "开放 1 次班内「节拍挑战赛」。" },
     ],
     questionAccuracy: [
-      { questionNo: 1, title: "坐标系与点位", knowledgeNodeId: "kn-mech-059", accuracy: 0.91 },
-      { questionNo: 2, title: "示教路径规划", knowledgeNodeId: "kn-mech-060", accuracy: 0.84 },
+      { questionNo: 1, title: "坐标系与点位", knowledgeNodeId: "kn-mech-012", accuracy: 0.91 },
+      { questionNo: 2, title: "示教路径规划", knowledgeNodeId: "kn-mech-012", accuracy: 0.84 },
     ],
   },
   {
@@ -861,15 +861,15 @@ const homeworkEvaluationsRaw: HomeworkEvalInput[] = [
     ],
     aiRatings: { excellent: 7, good: 10, pass: 9, fail: 0 },
     hotWrongPoints: [
-      { name: "安全围栏干涉未检出", knowledgeNodeId: "kn-mech-052", wrongRate: 0.24, aiCause: "仿真模型简化过度，未导入完整工装。" },
+      { name: "安全围栏干涉未检出", knowledgeNodeId: "kn-mech-010", wrongRate: 0.24, aiCause: "仿真模型简化过度，未导入完整工装。" },
     ],
     keyStudents: [],
     aiInsights: [
       { id: "ai-rob-002-1", title: "仿真—现场一致性提醒", summary: "约 1/4 学生报告节拍与现场试跑差异>15%。", actionSuggestion: "增加「仿真标定检查表」必交项。" },
     ],
     questionAccuracy: [
-      { questionNo: 1, title: "仿真建模完整性", knowledgeNodeId: "kn-mech-060", accuracy: 0.86 },
-      { questionNo: 2, title: "节拍与产能换算", knowledgeNodeId: "kn-mech-052", accuracy: 0.76 },
+      { questionNo: 1, title: "仿真建模完整性", knowledgeNodeId: "kn-mech-012", accuracy: 0.86 },
+      { questionNo: 2, title: "节拍与产能换算", knowledgeNodeId: "kn-mech-010", accuracy: 0.76 },
       { questionNo: 3, title: "互锁逻辑描述", knowledgeNodeId: "core-mech-003", accuracy: 0.79 },
     ],
   },

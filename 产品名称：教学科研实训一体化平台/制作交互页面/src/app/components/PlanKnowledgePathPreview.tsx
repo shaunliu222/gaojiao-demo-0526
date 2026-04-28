@@ -2,7 +2,13 @@ import { useEffect, useMemo, useState } from "react";
 import { BookMarked, Map } from "lucide-react";
 import { getPlanKnowledgePathGraph, teachingPlans } from "@mock";
 import type { GraphEdge, GraphNode, PlanKGraphEdge, PlanKGraphNode } from "@mock";
-import { colorOfCluster } from "../data/graphLayout";
+import {
+  colorOfGraphNodeLayer,
+  graphVisualLayerColor,
+  graphVisualLayerLabel,
+  graphVisualLayerOrder,
+  visualLayerOfNode,
+} from "../data/graphLayout";
 import {
   GraphNodeShapePath,
   KnowledgeGraphCanvas,
@@ -18,8 +24,13 @@ function toGraphNodes(
     professionId,
     name: n.name,
     nodeType: n.nodeType,
+    layer: n.layer,
+    kind: n.kind,
     cluster: n.cluster,
     description: n.description,
+    status: n.status ?? "confirmed",
+    locked: true,
+    sources: [],
   }));
 }
 
@@ -88,26 +99,27 @@ export function PlanKnowledgePathPreview({
     [SVG_W, SVG_H, L.macro, L.micro, L.grow],
   );
 
-  const { layoutNodes, layoutEdges, clusters } = useMemo(() => {
+  const { layoutNodes, layoutEdges, layers } = useMemo(() => {
     if (!gData) {
       return {
         layoutNodes: [] as GraphNode[],
         layoutEdges: [] as GraphEdge[],
-        clusters: [] as string[],
+        layers: [] as ReturnType<typeof visualLayerOfNode>[],
       };
     }
     const layoutNodes = toGraphNodes(gData.nodes, profId);
     const layoutEdges = toGraphEdges(gData.edges, profId);
-    const clusters = Array.from(
-      new Set(layoutNodes.map((n) => n.cluster)),
+    const layerSet = new Set(layoutNodes.map((n) => visualLayerOfNode(n)));
+    const layers = graphVisualLayerOrder.filter((layer) =>
+      layerSet.has(layer),
     );
-    return { layoutNodes, layoutEdges, clusters };
+    return { layoutNodes, layoutEdges, layers };
   }, [gData, profId]);
 
   const title =
     variant === "teacher" ? "教学计划 · 知识路径" : "学习计划 · 知识路径";
   const sub =
-    "节点与学科知识引擎中本专业全库知识图谱一致；本图展示本学期涉及节点及其关联（全库边的子集）。";
+    "节点与学科知识引擎中本专业主图一致；本图展示教师从主图切出的素养、能力、知识点、课程/实训路径。";
 
   if (valid.length === 0) {
     return (
@@ -177,30 +189,32 @@ export function PlanKnowledgePathPreview({
           {layout === "detail" && (
             <div className="hidden md:flex items-center gap-2 mr-1 text-[0.625rem] text-slate-500 border border-slate-200 rounded-full bg-white/95 px-2 py-0.5">
               <span className="inline-flex items-center gap-0.5">
-                <span className="text-indigo-300">—</span> 先修
+                <span className="text-indigo-300">—</span> Depend
               </span>
               <span className="text-slate-300">|</span>
               <span className="inline-flex items-center gap-0.5">
-                <span className="text-amber-300">—</span> 相关
+                <span className="text-amber-300">—</span> Influence
               </span>
               <span className="text-slate-300">|</span>
               <span className="inline-flex items-center gap-0.5">
-                <span className="text-emerald-300">—</span> 支撑
+                <span className="text-emerald-300">—</span> Support
               </span>
               <span className="text-slate-300">|</span>
-              <span>包含</span>
+              <span>contain</span>
             </div>
           )}
-          {clusters.map((k) => (
+          {layers.map((layer) => (
             <div
-              key={k}
+              key={layer}
               className="flex items-center gap-1.5 bg-white/95 border border-slate-200 rounded-full px-2 py-0.5"
             >
               <span
                 className="size-2.5 rounded-full"
-                style={{ background: colorOfCluster(k) }}
+                style={{ background: graphVisualLayerColor[layer] }}
               />
-              <span className="text-slate-500 text-xs">{k}</span>
+              <span className="text-slate-500 text-xs">
+                {graphVisualLayerLabel[layer]}
+              </span>
             </div>
           ))}
         </div>
@@ -225,7 +239,7 @@ export function PlanKnowledgePathPreview({
                   type={node.nodeType}
                   x={x}
                   y={y}
-                  color={colorOfCluster(node.cluster)}
+                  color={colorOfGraphNodeLayer(node)}
                   planFocus={planFocus}
                   selected={isSel}
                 />

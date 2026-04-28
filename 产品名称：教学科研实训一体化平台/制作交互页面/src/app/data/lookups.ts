@@ -109,16 +109,35 @@ export const studentProfileByStudentId = (studentId: string): StudentProfile | u
 // ==========================================================================
 
 /** 某知识节点挂载的课程 */
-export const coursesByNode = (nodeId: string): Course[] =>
-  courses.filter((c) => c.knowledgeNodeIds.includes(nodeId));
+export const coursesByNode = (nodeId: string): Course[] => {
+  const node = nodeById[nodeId];
+  if (node?.refCourseId) {
+    const c = courseById_[node.refCourseId];
+    return c ? [c] : [];
+  }
+  return courses.filter((c) => c.knowledgeNodeIds.includes(nodeId));
+};
 
-/** 某知识节点挂载的资源 */
-export const resourcesByNode = (nodeId: string): Resource[] =>
-  resources.filter((r) => r.knowledgeNodeIds.includes(nodeId));
+/** 某图谱节点可触达的资源：节点 -> 课程/实训 -> 资源 */
+export const resourcesByNode = (nodeId: string): Resource[] => {
+  const courseIds = new Set(coursesByNode(nodeId).map((c) => c.id));
+  const trainingIds = new Set(trainingsByNode(nodeId).map((t) => t.id));
+  return resources.filter(
+    (r) =>
+      r.courseIds.some((id) => courseIds.has(id)) ||
+      (r.trainingIds ?? []).some((id) => trainingIds.has(id)),
+  );
+};
 
 /** 某知识节点挂载的实训项目 */
-export const trainingsByNode = (nodeId: string): TrainingProject[] =>
-  trainingProjects.filter((t) => t.knowledgeNodeIds.includes(nodeId));
+export const trainingsByNode = (nodeId: string): TrainingProject[] => {
+  const node = nodeById[nodeId];
+  if (node?.refTrainingId) {
+    const t = trainingById_[node.refTrainingId];
+    return t ? [t] : [];
+  }
+  return trainingProjects.filter((t) => t.knowledgeNodeIds.includes(nodeId));
+};
 
 /** 某课程下的全部资源 */
 export const resourcesByCourse = (courseId: string): Resource[] =>
@@ -127,6 +146,10 @@ export const resourcesByCourse = (courseId: string): Resource[] =>
 /** 某课程下的全部实训项目 */
 export const trainingsByCourse = (courseId: string): TrainingProject[] =>
   trainingProjects.filter((t) => t.courseIds.includes(courseId));
+
+/** 某实训下的全部资源 */
+export const resourcesByTraining = (trainingId: string): Resource[] =>
+  resources.filter((r) => (r.trainingIds ?? []).includes(trainingId));
 
 /** 某班级的全部作业评价 */
 export const homeworksByClass = (classId: string): HomeworkEvalSummary[] =>

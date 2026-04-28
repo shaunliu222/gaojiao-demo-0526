@@ -47,7 +47,11 @@ import {
   subjectById,
   teacherById,
 } from "../data/lookups";
-import { clusterColor, colorOfCluster } from "../data/graphLayout";
+import {
+  clusterColor,
+  colorOfCluster,
+  colorOfGraphNodeLayer,
+} from "../data/graphLayout";
 import { AiBadge, PageHeader } from "./Layout";
 import {
   GraphNodeShapeWizard,
@@ -79,7 +83,7 @@ const GENERATION_TASKS: Array<{
 }> = [
   {
     title: "解析知识图谱引用节点",
-    detail: "匹配专业图谱中的知识点 / 技能点 / 核心素养",
+    detail: "匹配主图中的能力 / 知识点 / 课程与实训节点",
     durationMs: 600,
   },
   {
@@ -94,7 +98,7 @@ const GENERATION_TASKS: Array<{
   },
   {
     title: "生成章节与小节骨架",
-    detail: "产出 5 个章节、14 个小节的初稿",
+    detail: "产出章节、小节和每节图谱路径初稿",
     durationMs: 610,
   },
   {
@@ -373,6 +377,9 @@ export function PlanWizard({
             setDraftChapters={setDraftChapters}
             collapsed={collapsed}
             setCollapsed={setCollapsed}
+            course={course}
+            professionId={professionId}
+            selectedClassIds={selectedClassIds}
           />
         )}
       </div>
@@ -722,7 +729,7 @@ function Step1Scope({
   const nodes = nodesByProfession[professionId] ?? [];
   const edges = edgesByProfession[professionId] ?? [];
   const courseNodeSet = useMemo(
-    () => new Set(course?.knowledgeNodeIds ?? []),
+    () => new Set(course ? [course.id, ...course.knowledgeNodeIds] : []),
     [course],
   );
 
@@ -789,15 +796,17 @@ function Step1Scope({
 
   // 节点分类统计（课程挂载）
   const mountedTypeStats = useMemo(() => {
-    let kn = 0; let sk = 0; let core = 0;
+    let knowledge = 0;
+    let ability = 0;
+    let activity = 0;
     for (const n of nodes) {
       if (courseNodeSet.has(n.id)) {
-        if (n.nodeType === "知识点") kn += 1;
-        else if (n.nodeType === "技能点") sk += 1;
-        else core += 1;
+        if (n.layer === "knowledge") knowledge += 1;
+        else if (n.layer === "ability") ability += 1;
+        else if (n.layer === "courseOrTraining") activity += 1;
       }
     }
-    return { kn, sk, core };
+    return { knowledge, ability, activity };
   }, [nodes, courseNodeSet]);
 
   return (
@@ -816,12 +825,12 @@ function Step1Scope({
             <div className="leading-tight flex-1">
               <div className="text-slate-900">知识图谱 · AI 规划教学路径</div>
               <div className="text-slate-500 text-[0.6875rem]">
-                高亮节点 = 课程挂载知识点 · 灰色 = 暂不纳入本课程范围
+                高亮节点 = 课程推荐路径 · 灰色 = 暂不纳入本课程范围
               </div>
             </div>
             {hasGraph && course && (
               <AiBadge>
-                课程挂载 {courseNodeSet.size} / {nodes.length} 节点
+                推荐路径 {courseNodeSet.size} / {nodes.length} 节点
               </AiBadge>
             )}
           </div>
@@ -905,7 +914,7 @@ function Step1Scope({
                 }}
                 renderNode={({ node, x, y }) => {
                   const mounted = courseNodeSet.has(node.id);
-                  const color = colorOfCluster(node.cluster);
+                  const color = colorOfGraphNodeLayer(node);
                   return (
                     <g style={{ pointerEvents: "none" }}>
                       <GraphNodeShapeWizard
@@ -946,15 +955,15 @@ function Step1Scope({
               <div className="mt-3 flex items-center gap-3 text-[0.6875rem] text-slate-500">
                 <span className="inline-flex items-center gap-1">
                   <span className="size-2.5 rounded-full bg-indigo-500" />
-                  知识点 {mountedTypeStats.kn}
+                  知识点 {mountedTypeStats.knowledge}
                 </span>
                 <span className="inline-flex items-center gap-1">
                   <span className="size-2.5 rounded-full bg-emerald-500" />
-                  技能点 {mountedTypeStats.sk}
+                  能力 {mountedTypeStats.ability}
                 </span>
                 <span className="inline-flex items-center gap-1">
                   <span className="size-2.5 rounded-full bg-amber-500" />
-                  核心素养 {mountedTypeStats.core}
+                  课程/实训 {mountedTypeStats.activity}
                 </span>
               </div>
             </div>
@@ -976,7 +985,7 @@ function Step1Scope({
                 <div className="grid grid-cols-2 gap-2 pt-1">
                   <InfoCell k="学时" v={`${course.totalHours} 学时`} />
                   <InfoCell k="学分" v={`${course.credit} 学分`} />
-                  <InfoCell k="挂载知识节点" v={`${course.knowledgeNodeIds.length} 个`} />
+                  <InfoCell k="推荐图谱节点" v={`${course.knowledgeNodeIds.length} 个`} />
                   <InfoCell k="负责教师" v={teacher?.name ?? "—"} />
                 </div>
                 <div className="flex flex-wrap gap-1.5 pt-1">
@@ -1552,11 +1561,13 @@ function Step4Graph({
   course,
   professionId,
   draftChapters,
+  setDraftChapters,
   selectedClassIds,
 }: {
   course: Course | undefined;
   professionId: string;
   draftChapters: DraftChapter[];
+  setDraftChapters: React.Dispatch<React.SetStateAction<DraftChapter[] | null>>;
   selectedClassIds: string[];
 }) {
   const [selectedChapterId, setSelectedChapterId] = useState<string | null>(
@@ -1649,7 +1660,7 @@ function Step4Graph({
 
   const courseNodeSet = useMemo(() => {
     if (!course) return new Set<string>();
-    return new Set(course.knowledgeNodeIds);
+    return new Set([course.id, ...course.knowledgeNodeIds]);
   }, [course]);
 
   // 簇覆盖度
@@ -1672,21 +1683,53 @@ function Step4Graph({
 
   // 节点分类统计
   const typeStats = useMemo(() => {
-    let kn = 0;
-    let sk = 0;
-    let core = 0;
+    let ability = 0;
+    let knowledge = 0;
+    let activity = 0;
     for (const n of nodes) {
       if (referencedIds.has(n.id)) {
-        if (n.nodeType === "知识点") kn += 1;
-        else if (n.nodeType === "技能点") sk += 1;
-        else core += 1;
+        if (n.layer === "knowledge") knowledge += 1;
+        else if (n.layer === "ability") ability += 1;
+        else if (n.layer === "courseOrTraining") activity += 1;
       }
     }
-    return { kn, sk, core };
+    return { ability, knowledge, activity };
   }, [nodes, referencedIds]);
 
   // 高亮 chip 时联动
   const onHoverChip = (id: string | null) => setHoveredNodeId(id);
+
+  const toggleNodeInSelectedChapter = useCallback(
+    (node: GraphNode) => {
+      if (!selectedChapterId) return;
+      setDraftChapters((prev) => {
+        if (!prev) return prev;
+        return prev.map((ch) => {
+          if (ch.id !== selectedChapterId) return ch;
+          const exists = ch.sections.some((sec) =>
+            sec.knowledgeNodeIds.includes(node.id),
+          );
+          const sections = ch.sections.map((sec, idx) => {
+            if (exists) {
+              return {
+                ...sec,
+                knowledgeNodeIds: sec.knowledgeNodeIds.filter((id) => id !== node.id),
+              };
+            }
+            if (idx === 0) {
+              return {
+                ...sec,
+                knowledgeNodeIds: [...sec.knowledgeNodeIds, node.id],
+              };
+            }
+            return sec;
+          });
+          return { ...ch, sections };
+        });
+      });
+    },
+    [selectedChapterId, setDraftChapters],
+  );
 
   const clustersInGraph = useMemo(() => {
     const set = new Set<string>();
@@ -1708,7 +1751,7 @@ function Step4Graph({
           <div className="leading-tight flex-1">
             <div className="text-slate-900">AI 正从知识图谱抽取教学路径</div>
             <div className="text-slate-500 text-[0.6875rem]">
-              高亮实色节点 = 本计划引用 · 虚线外圈 = 当前选中章节 · 灰色 = 未引用
+              高亮实色节点 = 本计划引用 · 虚线外圈 = 当前选中章节 · 点击节点可加入/移出当前章节
             </div>
           </div>
           <AiBadge>引用 {referencedIds.size} / {nodes.length} 节点</AiBadge>
@@ -1776,6 +1819,7 @@ function Step4Graph({
                 width={graphViewport.w}
                 height={graphViewport.h}
                 focusNodeId={hoveredNodeId}
+                onNodeClick={toggleNodeInSelectedChapter}
                 renderEdge={(e, a, b) => {
                   const bothCited =
                     referencedIds.has(e.from) && referencedIds.has(e.to);
@@ -1795,9 +1839,9 @@ function Step4Graph({
                   const isFocus = focusIds.has(node.id);
                   const isHovered = hoveredNodeId === node.id;
                   const isCourseMounted = courseNodeSet.has(node.id);
-                  const color = colorOfCluster(node.cluster);
+                  const color = colorOfGraphNodeLayer(node);
                   return (
-                    <g style={{ pointerEvents: "none" }}>
+                    <g>
                       {isFocus && (
                         <circle
                           cx={x}
@@ -1864,15 +1908,15 @@ function Step4Graph({
           <div className="mt-3 flex items-center gap-3 text-[0.6875rem] text-slate-500">
             <span className="inline-flex items-center gap-1">
               <span className="size-2.5 rounded-full bg-indigo-500" />
-              知识点 {typeStats.kn}
+              知识点 {typeStats.knowledge}
             </span>
             <span className="inline-flex items-center gap-1">
               <span className="size-2.5 rounded-full bg-emerald-500" />
-              技能点 {typeStats.sk}
+              能力 {typeStats.ability}
             </span>
             <span className="inline-flex items-center gap-1">
               <span className="size-2.5 rounded-full bg-amber-500" />
-              核心素养 {typeStats.core}
+              课程/实训 {typeStats.activity}
             </span>
           </div>
         </div>
@@ -2015,11 +2059,17 @@ function Step5({
   setDraftChapters,
   collapsed,
   setCollapsed,
+  course,
+  professionId,
+  selectedClassIds,
 }: {
   draftChapters: DraftChapter[];
   setDraftChapters: React.Dispatch<React.SetStateAction<DraftChapter[] | null>>;
   collapsed: Record<string, boolean>;
   setCollapsed: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
+  course: Course | undefined;
+  professionId: string;
+  selectedClassIds: string[];
 }) {
   const totalMinutes = draftChapters.reduce(
     (sum, ch) => sum + ch.sections.reduce((s, sec) => s + sec.durationMinutes, 0),
@@ -2087,6 +2137,13 @@ function Step5({
 
   return (
     <div className="space-y-3">
+        <Step4Graph
+          course={course}
+          professionId={professionId}
+          draftChapters={draftChapters}
+          setDraftChapters={setDraftChapters}
+          selectedClassIds={selectedClassIds}
+        />
         <div className="bg-white rounded-xl border border-slate-200 p-4 flex items-center gap-6">
           <Stat icon={<Layers size={14} />} label="章节" value={`${draftChapters.length}`} />
           <Stat icon={<Layers size={14} />} label="小节" value={`${totalSections}`} />

@@ -34,9 +34,9 @@ const examEvaluationsRaw: ExamEvalInput[] = [
       { range: "<60", count: 5 },
     ],
     hotWrongPoints: [
-      { name: "组合体综合题（读图+画图）", knowledgeNodeId: "kn-mech-031", wrongRate: 0.42, aiCause: "综合题仍是最难的一类，主要扣分点在尺寸重复或遗漏。" },
-      { name: "截交线相贯线", knowledgeNodeId: "kn-mech-029", wrongRate: 0.48, aiCause: "专题训练过但仍有半数学生未能在考场短时间完成。" },
-      { name: "剖视图选型错误", knowledgeNodeId: "kn-mech-039", wrongRate: 0.31, aiCause: "学生对「对称件优先用半剖」理解浅。" },
+      { name: "组合体综合题（读图+画图）", knowledgeNodeId: "kn-mech-005", wrongRate: 0.42, aiCause: "综合题仍是最难的一类，主要扣分点在尺寸重复或遗漏。" },
+      { name: "截交线相贯线", knowledgeNodeId: "kn-mech-006", wrongRate: 0.48, aiCause: "专题训练过但仍有半数学生未能在考场短时间完成。" },
+      { name: "剖视图选型错误", knowledgeNodeId: "kn-mech-007", wrongRate: 0.31, aiCause: "学生对「对称件优先用半剖」理解浅。" },
     ],
     keyStudents: [
       { studentId: "s-mech2301-01", studentName: "张伟", reason: "全校第一（98 分）", score: 98 },
@@ -71,11 +71,11 @@ const examEvaluationsRaw: ExamEvalInput[] = [
       { classId: "cls-mech-2302", avgScore: 68.3, passRate: 0.76 },
     ],
     questionAccuracy: [
-      { questionNo: 1, title: "投影与三视图基础", knowledgeNodeId: "kn-mech-018", accuracy: 0.88 },
-      { questionNo: 2, title: "点线面综合", knowledgeNodeId: "kn-mech-022", accuracy: 0.75 },
-      { questionNo: 3, title: "组合体读图与补线", knowledgeNodeId: "kn-mech-031", accuracy: 0.58 },
-      { questionNo: 4, title: "截交线与相贯线", knowledgeNodeId: "kn-mech-029", accuracy: 0.52 },
-      { questionNo: 5, title: "剖视图与机件表达", knowledgeNodeId: "kn-mech-039", accuracy: 0.69 },
+      { questionNo: 1, title: "投影与三视图基础", knowledgeNodeId: "kn-mech-004", accuracy: 0.88 },
+      { questionNo: 2, title: "点线面综合", knowledgeNodeId: "kn-mech-004", accuracy: 0.75 },
+      { questionNo: 3, title: "组合体读图与补线", knowledgeNodeId: "kn-mech-005", accuracy: 0.58 },
+      { questionNo: 4, title: "截交线与相贯线", knowledgeNodeId: "kn-mech-006", accuracy: 0.52 },
+      { questionNo: 5, title: "剖视图与机件表达", knowledgeNodeId: "kn-mech-007", accuracy: 0.69 },
     ],
   },
 
@@ -134,9 +134,9 @@ const examEvaluationsRaw: ExamEvalInput[] = [
       { range: "<60", count: 1 },
     ],
     hotWrongPoints: [
-      { name: "形位公差基准体系", knowledgeNodeId: "kn-mech-051", wrongRate: 0.35, aiCause: "多基准组合时遗漏最大实体要求。" },
-      { name: "配合代号与工艺可行性", knowledgeNodeId: "kn-mech-050", wrongRate: 0.28, aiCause: "选用过紧公差未对照典型加工方法。" },
-      { name: "粗糙度与功能表面", knowledgeNodeId: "kn-mech-049", wrongRate: 0.20, aiCause: "密封面与非功能面 Ra 取值依据表述不清。" },
+      { name: "形位公差基准体系", knowledgeNodeId: "kn-mech-009", wrongRate: 0.35, aiCause: "多基准组合时遗漏最大实体要求。" },
+      { name: "配合代号与工艺可行性", knowledgeNodeId: "kn-mech-009", wrongRate: 0.28, aiCause: "选用过紧公差未对照典型加工方法。" },
+      { name: "粗糙度与功能表面", knowledgeNodeId: "kn-mech-009", wrongRate: 0.20, aiCause: "密封面与非功能面 Ra 取值依据表述不清。" },
     ],
     keyStudents: [
       { studentId: "s-mech2101-01", studentName: "白若雪", reason: "第一名 96 分", score: 96 },
@@ -151,10 +151,10 @@ const examEvaluationsRaw: ExamEvalInput[] = [
     ],
     classComparison: [{ classId: "cls-mech-2101", avgScore: 79.8, passRate: 0.97 }],
     questionAccuracy: [
-      { questionNo: 1, title: "极限与配合概念", knowledgeNodeId: "kn-mech-050", accuracy: 0.90 },
-      { questionNo: 2, title: "形位公差标注", knowledgeNodeId: "kn-mech-051", accuracy: 0.68 },
-      { questionNo: 3, title: "粗糙度选用", knowledgeNodeId: "kn-mech-049", accuracy: 0.78 },
-      { questionNo: 4, title: "简易检测方案", knowledgeNodeId: "kn-mech-048", accuracy: 0.72 },
+      { questionNo: 1, title: "极限与配合概念", knowledgeNodeId: "kn-mech-009", accuracy: 0.90 },
+      { questionNo: 2, title: "形位公差标注", knowledgeNodeId: "kn-mech-009", accuracy: 0.68 },
+      { questionNo: 3, title: "粗糙度选用", knowledgeNodeId: "kn-mech-009", accuracy: 0.78 },
+      { questionNo: 4, title: "简易检测方案", knowledgeNodeId: "kn-mech-009", accuracy: 0.72 },
     ],
   },
 
@@ -182,8 +182,8 @@ const examEvaluationsRaw: ExamEvalInput[] = [
       { range: "<60", count: 0 },
     ],
     hotWrongPoints: [
-      { name: "工作站 I/O 互锁逻辑", knowledgeNodeId: "kn-mech-052", wrongRate: 0.26, aiCause: "仿真能通过但逻辑图表达不完整。" },
-      { name: "工具坐标与工件坐标混用", knowledgeNodeId: "kn-mech-059", wrongRate: 0.21, aiCause: "程序注释缺失导致复查困难。" },
+      { name: "工作站 I/O 互锁逻辑", knowledgeNodeId: "kn-mech-010", wrongRate: 0.26, aiCause: "仿真能通过但逻辑图表达不完整。" },
+      { name: "工具坐标与工件坐标混用", knowledgeNodeId: "kn-mech-012", wrongRate: 0.21, aiCause: "程序注释缺失导致复查困难。" },
     ],
     keyStudents: [{ studentId: "s-mech2303-01", studentName: "宋佳雯", reason: "第一名 99 分", score: 99 }],
     aiInsights: [
@@ -196,10 +196,10 @@ const examEvaluationsRaw: ExamEvalInput[] = [
     ],
     classComparison: [{ classId: "cls-mech-2303", avgScore: 83.1, passRate: 1.0 }],
     questionAccuracy: [
-      { questionNo: 1, title: "坐标系与示教基础", knowledgeNodeId: "kn-mech-058", accuracy: 0.91 },
-      { questionNo: 2, title: "轨迹与节拍", knowledgeNodeId: "kn-mech-060", accuracy: 0.84 },
-      { questionNo: 3, title: "互锁与安全", knowledgeNodeId: "kn-mech-052", accuracy: 0.74 },
-      { questionNo: 4, title: "与装配图衔接", knowledgeNodeId: "kn-mech-053", accuracy: 0.80 },
+      { questionNo: 1, title: "坐标系与示教基础", knowledgeNodeId: "kn-mech-012", accuracy: 0.91 },
+      { questionNo: 2, title: "轨迹与节拍", knowledgeNodeId: "kn-mech-012", accuracy: 0.84 },
+      { questionNo: 3, title: "互锁与安全", knowledgeNodeId: "kn-mech-010", accuracy: 0.74 },
+      { questionNo: 4, title: "与装配图衔接", knowledgeNodeId: "kn-mech-010", accuracy: 0.80 },
     ],
   },
 ];

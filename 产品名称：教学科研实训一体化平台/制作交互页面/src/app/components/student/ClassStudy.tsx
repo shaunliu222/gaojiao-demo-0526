@@ -14,7 +14,6 @@ import {
   type LearnCenterSessionContext,
 } from "../../data/learnCenterSession";
 import {
-  MasteryPanel,
   ResourceContentView,
   ResourceOutlineAside,
   ShellChatPanel,
@@ -60,13 +59,6 @@ export function ClassStudy({
   const [chatByResource, setChatByResource] = useState<Record<string, LearnCenterAgentMessage[]>>({});
   const [focusHighlightId, setFocusHighlightId] = useState<string | null>(null);
   const [input, setInput] = useState("");
-  const [mastered, setMastered] = useState<boolean[]>(() =>
-    Array(Math.max(goalNodeIds.length, 3)).fill(false),
-  );
-
-  const goalNodes = goalNodeIds
-    .map(graphNodeById)
-    .filter((n): n is NonNullable<typeof n> => Boolean(n));
 
   const selectedResource = useMemo(() => {
     if (teacherResourceItems.length === 0) return undefined;
@@ -86,7 +78,6 @@ export function ClassStudy({
     [resourceExplanation],
   );
   const currentChat = selectedResource ? chatByResource[selectedResource.id] ?? [] : [];
-  const hasResourceChat = currentChat.length > 0;
 
   useEffect(() => {
     setChatByResource({});
@@ -112,10 +103,6 @@ export function ClassStudy({
       setSelectedResourceId(teacherResourceItems[0]!.id);
     }
   }, [teacherResourceItems, selectedResourceId]);
-
-  useEffect(() => {
-    setMastered(Array(Math.max(goalNodeIds.length, 3)).fill(false));
-  }, [goalNodeIds]);
 
   const send = () => {
     const content = input.trim();
@@ -148,7 +135,7 @@ export function ClassStudy({
         },
       ],
     }));
-    setFocusHighlightId(selectedResource.knowledgeNodeIds[0] ?? null);
+    setFocusHighlightId(goalNodeIds[0] ?? null);
     setInput("");
   };
 
@@ -178,8 +165,40 @@ export function ClassStudy({
       <PageHeader title={headerTitle} />
 
       <div className="flex-1 min-h-0 p-4">
-        <div className="h-full grid grid-cols-12 gap-4 min-h-0">
-          <main className="col-span-8 min-h-0 flex flex-col min-w-0">
+        <div className="h-full min-h-0 grid grid-cols-12 gap-4 items-stretch">
+          <aside className="col-span-2 min-h-0 flex flex-col">
+            {asideMode === "list" ? (
+              <TeacherResourceList
+                fillHeight
+                items={teacherResourceItems}
+                selectedId={selectedResource?.id}
+                listTitle="本节资料"
+                onSelect={(id) => {
+                  setSelectedResourceId(id);
+                  setResourcePageIndex(0);
+                  setAsideMode("outline");
+                }}
+              />
+            ) : (
+              <ResourceOutlineAside
+                fillHeight
+                fileTitle={selectedResource?.title ?? "—"}
+                outline={resourceOutlineItems}
+                activePageIndex={
+                  resourceExplanation && resourceExplanation.contentPages.length > 0
+                    ? Math.max(
+                        0,
+                        Math.min(resourcePageIndex, resourceExplanation.contentPages.length - 1),
+                      )
+                    : 0
+                }
+                onPickPage={(idx) => setResourcePageIndex(idx)}
+                onBackToList={() => setAsideMode("list")}
+              />
+            )}
+          </aside>
+
+          <main className="col-span-7 min-h-0 h-full flex flex-col min-w-0">
             {selectedResource && resourceExplanation ? (
               <div className="flex-1 min-h-0 flex flex-col rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-sm">
                 <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4 flex flex-col">
@@ -242,25 +261,6 @@ export function ClassStudy({
                     ) : null}
                   </div>
                 </div>
-
-                <div className="shrink-0 border-t border-slate-100 bg-white min-h-[10rem] max-h-[min(44vh,420px)] flex flex-col">
-                  <div className="flex-1 min-h-0 flex flex-col">
-                    <ShellChatPanel
-                      embedded
-                      stretch
-                      showMessageList={hasResourceChat}
-                      messages={currentChat}
-                      inputValue={input}
-                      onInputChange={setInput}
-                      onSend={send}
-                      placeholder="课堂同步提问… Cmd+Enter"
-                      showPaperclip
-                      roleSlot={
-                        <ShellChatRoleButtons chatRole={chatRole} onRoleChange={setChatRole} />
-                      }
-                    />
-                  </div>
-                </div>
               </div>
             ) : (
               <div className="flex-1 rounded-2xl border border-dashed border-slate-200 bg-white flex items-center justify-center text-slate-400 text-sm p-8 min-h-[12rem]">
@@ -269,46 +269,27 @@ export function ClassStudy({
             )}
           </main>
 
-          <aside className="col-span-4 min-h-0 overflow-auto space-y-4">
-            {asideMode === "list" ? (
-              <TeacherResourceList
-                items={teacherResourceItems}
-                selectedId={selectedResource?.id}
-                listTitle={`本节资料（优先${focus}）`}
-                onSelect={(id) => {
-                  setSelectedResourceId(id);
-                  setResourcePageIndex(0);
-                  setAsideMode("outline");
-                }}
-              />
-            ) : (
-              <ResourceOutlineAside
-                fileTitle={selectedResource?.title ?? "—"}
-                outline={resourceOutlineItems}
-                activePageIndex={
-                  resourceExplanation && resourceExplanation.contentPages.length > 0
-                    ? Math.max(
-                        0,
-                        Math.min(resourcePageIndex, resourceExplanation.contentPages.length - 1),
-                      )
-                    : 0
-                }
-                onPickPage={(idx) => setResourcePageIndex(idx)}
-                onBackToList={() => setAsideMode("list")}
-              />
-            )}
-            <MasteryPanel
-              goalNodes={goalNodes}
-              mastered={mastered}
-              onToggle={(idx) =>
-                setMastered((prev) => {
-                  const next = [...prev];
-                  next[idx] = !next[idx];
-                  return next;
-                })
+          <div className="col-span-3 min-h-0 h-full flex flex-col min-w-0">
+            <ShellChatPanel
+              stretch
+              subtitle="课堂同步提问"
+              showMessageList
+              messages={currentChat}
+              emptyHint={
+                teacherResourceItems.length === 0
+                  ? "暂无本节资料，请从学习中心选择其他小节。"
+                  : undefined
+              }
+              inputValue={input}
+              onInputChange={setInput}
+              onSend={send}
+              placeholder="课堂同步提问… Cmd+Enter"
+              showPaperclip
+              roleSlot={
+                <ShellChatRoleButtons chatRole={chatRole} onRoleChange={setChatRole} />
               }
             />
-          </aside>
+          </div>
         </div>
       </div>
     </div>

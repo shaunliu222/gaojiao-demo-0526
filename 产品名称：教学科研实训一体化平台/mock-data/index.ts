@@ -35,6 +35,7 @@ export {
 } from "./knowledgeGraphTrainingPlanDocs";
 export { courses } from "./courses";
 export { resources } from "./resources";
+export { planSectionResourcesSeed } from "./planSectionResources";
 export { trainingProjects } from "./trainings";
 
 // 教学闭环

@@ -24,14 +24,22 @@ export interface Profession {
   college: string; // 所属学院
   description: string;
   hasKnowledgeGraph: boolean; // 是否已经建立知识图谱
-  /** 知识图谱页可点开查看的培养计划（人才培养方案）假文档 id，见 knowledgeGraphTrainingPlanDocs */
-  knowledgeGraphTrainingPlanDocumentId?: string;
+  /** 知识图谱页可点开查看的培养方案及相关附件 id 列表，见 knowledgeGraphTrainingPlanDocs */
+  knowledgeGraphTrainingPlanDocumentIds?: ID[];
 }
 
-/** 知识图谱配套：专业关联的本科人才培养方案文档（假数据，供交互页弹层展示） */
+/** 知识图谱页附件文档的业务类别（用于列表标签展示） */
+export type KnowledgeGraphTrainingPlanAttachmentKind =
+  | "talent_scheme"
+  | "job_analysis"
+  | "introductory"
+  | "industry_outlook";
+
+/** 知识图谱配套：专业关联的培养方案及补充附件（假数据，供交互页弹层展示） */
 export interface KnowledgeGraphTrainingPlanDocument {
   id: ID;
   professionId: ID;
+  kind: KnowledgeGraphTrainingPlanAttachmentKind;
   /** 列表、下载区展示用文件名 */
   fileName: string;
   /** 弹层中展示的正文（拟真节选） */
@@ -141,25 +149,91 @@ export interface StudentProfile {
 
 // ============ 3. 知识图谱 ============
 
-export type GraphNodeType = "知识点" | "技能点" | "核心素养";
+export type GraphNodeLayer =
+  | "core"
+  | "ability"
+  | "knowledge"
+  | "courseOrTraining";
+
+export type GraphNodeKind = "course" | "training";
+
+export type GraphNodeType = "核心素养" | "能力" | "知识点" | "课程" | "实训";
+
+export type GraphNodeStatus = "ai_draft" | "edited" | "confirmed";
+
+export interface GraphNodeSource {
+  fileName: string;
+  locator: string;
+  excerpt: string;
+}
 
 /** 图谱节点 */
 export interface GraphNode {
   id: ID;
   professionId: ID; // 所属专业图谱
   name: string;
+  /** UI 中文标签，兼容旧组件；业务层级以 layer 为准 */
   nodeType: GraphNodeType;
+  layer: GraphNodeLayer;
+  /** 仅课程/实训节点使用 */
+  kind?: GraphNodeKind;
+  /** 引用内容库课程实体，避免复制课程详情 */
+  refCourseId?: ID;
+  /** 引用实训项目实体，避免复制实训详情 */
+  refTrainingId?: ID;
   cluster: string; // 主题簇名（用于布局分组）
   description: string;
+  /** AI 生成/人工编辑/确认状态，用于动态建图与重新生成 diff */
+  status: GraphNodeStatus;
+  /** 人工确认或编辑后锁定，重新生成时默认不覆盖 */
+  locked: boolean;
+  /** 来源片段；AI 草稿与确认节点必须可追溯 */
+  sources: GraphNodeSource[];
   /** 辅助视觉：用于前端渲染时按簇着色（可选） */
   clusterColor?: string;
 }
 
 export type GraphEdgeRelation =
-  | "先修" // A 是 B 的先修
-  | "包含" // A 包含 B
-  | "支撑" // 技能/素养支撑知识
-  | "相关"; // 相关关联
+  | "contain"
+  | "guide"
+  | "Influence"
+  | "Cultivate"
+  | "Support"
+  | "Map to"
+  | "Depend"
+  | "Decide"
+  | "Belong to";
+
+export const allowedGraphEdgeRelations: Record<
+  GraphEdgeRelation,
+  Array<{
+    from: GraphNodeLayer | "source";
+    to: GraphNodeLayer;
+  }>
+> = {
+  contain: [
+    { from: "core", to: "ability" },
+    { from: "ability", to: "knowledge" },
+  ],
+  guide: [{ from: "ability", to: "courseOrTraining" }],
+  Influence: [
+    { from: "core", to: "core" },
+    { from: "ability", to: "ability" },
+  ],
+  Cultivate: [{ from: "courseOrTraining", to: "ability" }],
+  Support: [{ from: "knowledge", to: "ability" }],
+  "Map to": [{ from: "courseOrTraining", to: "knowledge" }],
+  Depend: [
+    { from: "knowledge", to: "knowledge" },
+    { from: "courseOrTraining", to: "courseOrTraining" },
+  ],
+  Decide: [{ from: "source", to: "core" }],
+  "Belong to": [
+    { from: "ability", to: "core" },
+    { from: "knowledge", to: "ability" },
+    { from: "courseOrTraining", to: "ability" },
+  ],
+};
 
 /** 图谱边 */
 export interface GraphEdge {
@@ -176,6 +250,9 @@ export interface PlanKGraphNode {
   id: ID;
   name: string;
   nodeType: GraphNodeType;
+  layer: GraphNodeLayer;
+  kind?: GraphNodeKind;
+  status?: GraphNodeStatus;
   /** 与 graphLayout 中 clusterColor 对齐的教学模块/阶段名，用于分簇与着色 */
   cluster: string;
   description: string;
@@ -235,9 +312,8 @@ export interface Resource {
   title: string;
   type: ResourceType;
   professionId: ID; // 所属专业（主挂载）
-  /** 多对多挂载到知识点（可跨学科） */
-  knowledgeNodeIds: ID[];
   courseIds: ID[]; // 所属课程
+  trainingIds?: ID[]; // 所属实训；资源作为课程/实训的资料内容，不再作为图谱节点
   description: string;
   duration?: string; // 视频/音频时长 "12:35"
   sizeMb?: number;
@@ -247,6 +323,27 @@ export interface Resource {
   tags: string[];
   /** 是否由平台 AI 生成（教学设计产物回写的也在这里标） */
   isAiGenerated?: boolean;
+}
+
+/**
+ * 教学计划某小节已挂载的课程资源（本节资源清单）。
+ * 可与资源库 {@link Resource} 关联，也可仅存本地上传附件元数据。
+ */
+export interface PlanSectionResourceItem {
+  id: ID;
+  planId: ID;
+  sectionId: ID;
+  /** 列表主标题（可与资源库标题不同） */
+  title: string;
+  /** 关联资源库 id；未填表示仅存于本节的附件占位 */
+  resourceId?: ID;
+  /** 文件名或附件展示名 */
+  displayName: string;
+  kind: ResourceType;
+  status: "draft" | "published";
+  uploaderTeacherId: ID;
+  updatedAt: ISODateTime;
+  sizeMb?: number;
 }
 
 /** 实训项目 */
@@ -301,7 +398,8 @@ export interface PlanSection {
   id: ID;
   title: string;
   plannedDate: ISODate; // 计划授课日期（精确到天）
-  knowledgeNodeIds: ID[]; // 挂载的知识点
+  knowledgeNodeIds: ID[]; // 引用的图谱节点，可跨能力/知识点/课程/实训层
+  subgraphEdgeIds?: ID[]; // 本小节引用的图谱边，用于计划路径迷你图
   objectives: string[]; // 教学目标
   durationMinutes: number; // 课时（分钟）
   hasDesign: boolean; // 是否已经做了教学设计

@@ -10,12 +10,21 @@
  *   - deviceUsageByStudent：每个学生在硬件上的最近使用记录
  *   - learnScenarios：学习中心的历史学习场景
  *   - aiPushesByStudent：学生端 AI 推送建议
+ *
+ * 学习中心业务轴（假数据需能区分）：
+ *   - teacher_class_follow：预习/课堂——跟随教师在本小节发布的「课堂」「讲义」设计与资料互动；
+ *   - adaptive_remediation：复习/作业/考试/自建——依错题、已有讲义与题库重新编排，或按个人计划挂载对应讲义、题目、实训练。
  */
 
 import { students, teachingPlans } from "@mock";
 import type { TeachingPlan } from "@mock";
 
 // ============ 类型 ============
+
+/** 学习中心两条数据轴：课堂跟教师设计 vs 错题/计划驱动的个性练与素材重排 */
+export type LearnCenterStudyAxis =
+  | "teacher_class_follow"
+  | "adaptive_remediation";
 
 export type SectionProgressStatus =
   | "mastered" // 已掌握
@@ -31,6 +40,18 @@ export interface SectionProgress {
   note?: string; // 学生/AI 给的一句话
 }
 
+/** 个人计划里「讲义 / 题 / 练」的挂载说明（展示用） */
+export interface PersonalPlanMaterialMix {
+  /** 引用的教师讲义切片、微课页码等 */
+  handoutLabels: string[];
+  /** 题库、作业变式、客观题组卷 */
+  questionPracticeLabel: string;
+  /** 手绘/CAD/实训等动手练 */
+  drillLabel: string;
+  /** 是否包含 AI 依据错题再生成的变式题 */
+  hasAiRemix: boolean;
+}
+
 export interface PersonalPlan {
   id: string;
   title: string;
@@ -40,6 +61,17 @@ export interface PersonalPlan {
   createdAt: string;
   knowledgeNodeIds: string[];
   sourceTags: string[]; // 展示用
+  /** 个性轴下均为 adaptive_remediation（与「跟堂」区分） */
+  studyAxis: "adaptive_remediation";
+  /** 由错题驱动编排 vs 学生自定目标 */
+  origin: "ai_from_errors" | "student_custom";
+  /** 作为编排种子的错题本 id（可与 mock 错题本互查） */
+  seedWrongQuestionIds?: string[];
+  /** 挂靠的教师计划小节，便于拉取原课讲义与课堂资料 */
+  relatedSectionIds?: string[];
+  materialMix: PersonalPlanMaterialMix;
+  /** 一句话交代：从错题/考情还是自选目标来，会用什么资料 */
+  remediationSummary: string;
   steps: Array<{
     id: string;
     title: string;
@@ -78,6 +110,13 @@ export interface DeviceUsageRecord {
 export interface LearnScenario {
   id: string;
   studentId: string;
+  /** 历史场景同样区分：跟堂讲义互动 vs 错题/考后重练 */
+  studyAxis: LearnCenterStudyAxis;
+  /** 跟堂轴：对应教师计划中的小节与讲义/课堂 Tab */
+  teacherSync?: { planId: string; sectionId: string; designTab: "课堂" | "讲义" };
+  /** 个性轴：素材从哪类学习任务延伸 */
+  remediationSource?: "wrong_book" | "exam" | "homework";
+  axisNote?: string;
   title: string;
   goal: string;
   durationLabel: string;
@@ -132,6 +171,9 @@ export interface ClassSessionHighlight {
   weekLabel: string;
   label: string;
   designFocusTab: "课堂" | "讲义";
+  studyAxis: "teacher_class_follow";
+  /** 本节课堂：学生跟教师已配好的讲义/H5/板演互动 */
+  teacherHandoutInteract: string;
 }
 
 // ============ 工具 ============
@@ -361,6 +403,9 @@ export const classSessionHighlights: ClassSessionHighlight[] = [
     weekLabel: "第 6 周",
     label: "组合体三视图绘制 · 课堂",
     designFocusTab: "课堂",
+    studyAxis: "teacher_class_follow",
+    teacherHandoutInteract:
+      "学生跟李建国老师发布的课堂 PPT、随堂找茬 H5 与板演步骤互动；讲义与课堂活动一一对应，不另起炉灶。",
   },
 ];
 
@@ -427,6 +472,45 @@ export function trainingAssignmentForPlanSection(
   );
 }
 
+/** 学习中心各页签：区分「跟教师课堂/讲义」与「错题/计划驱动的个性素材」 */
+export type LearnCenterHubSectionKey =
+  | "prep"
+  | "homework"
+  | "review"
+  | "personal"
+  | "exam";
+
+export const learnCenterHubNarratives: Record<
+  LearnCenterHubSectionKey,
+  { studyAxis: LearnCenterStudyAxis; headline: string }
+> = {
+  prep: {
+    studyAxis: "teacher_class_follow",
+    headline:
+      "预习与课堂：跟随教师在本小节配置的「课堂」「讲义」与互动资源，与班级授课进度一致。",
+  },
+  homework: {
+    studyAxis: "adaptive_remediation",
+    headline:
+      "作业：在教师布置与评分点之上，按你的错题本与薄弱知识点分步辅导；可挂原节讲义切片、变式题与自查表。",
+  },
+  review: {
+    studyAxis: "adaptive_remediation",
+    headline:
+      "复习：对已学小节重做教师讲义与课堂活动；若有相关错题，并入「个性重排」提示与加练。",
+  },
+  personal: {
+    studyAxis: "adaptive_remediation",
+    headline:
+      "自建计划：自选目标或由 AI 从错题生成路线，系统自动挂载对应讲义、题库与实训资料。",
+  },
+  exam: {
+    studyAxis: "adaptive_remediation",
+    headline:
+      "考试：考后薄弱点续学依托卷面与错题，材料来自本节知识链上的讲义、真题范型与再组卷练习。",
+  },
+};
+
 // ============ 数据：个人学习计划 ============
 
 export const personalPlans: PersonalPlan[] = [
@@ -438,13 +522,24 @@ export const personalPlans: PersonalPlan[] = [
     durationLabel: "2 小时",
     difficulty: "进阶",
     createdAt: "2026-04-14T20:20:00+08:00",
-    knowledgeNodeIds: ["kn-mech-058", "kn-mech-059", "kn-mech-060", "sk-mech-003"],
+    knowledgeNodeIds: ["kn-mech-011", "kn-mech-012", "sk-mech-003"],
     sourceTags: ["SolidWorks 官方教程", "教研室视频库", "AI 合成练习集"],
+    studyAxis: "adaptive_remediation",
+    origin: "student_custom",
+    relatedSectionIds: ["sec-6-1"],
+    materialMix: {
+      handoutLabels: ["教研室 · SW 草图与特征速查（节选）", "本课工程图输出规范一页纸"],
+      questionPracticeLabel: "AI 合成：草图约束辨识 5 题 + 特征参数表填空 3 题",
+      drillLabel: "减速器端盖分步建模 + 装配体轻量载入（与实训工单对齐）",
+      hasAiRemix: true,
+    },
+    remediationSummary:
+      "自选目标路径：从你的三维兴趣课目标出发挂载官方教程节选与教研室讲义，练习题为 AI 按需组卷（非本节跟堂）。",
     steps: [
-      { id: "ppl-zw-sw-s1", title: "草图入门：约束与尺寸驱动（示范 + 5 题）", minutes: 25, knowledgeNodeIds: ["kn-mech-058"], done: true },
-      { id: "ppl-zw-sw-s2", title: "拉伸 / 旋转：从轴类入门", minutes: 30, knowledgeNodeIds: ["kn-mech-059"], done: true },
-      { id: "ppl-zw-sw-s3", title: "扫描 / 放样：从复杂件过渡", minutes: 35, knowledgeNodeIds: ["kn-mech-059", "kn-mech-060"], done: false },
-      { id: "ppl-zw-sw-s4", title: "工程图：从 3D 模型输出三视图", minutes: 30, knowledgeNodeIds: ["kn-mech-060", "sk-mech-003"], done: false },
+      { id: "ppl-zw-sw-s1", title: "草图入门：约束与尺寸驱动（示范 + 5 题）", minutes: 25, knowledgeNodeIds: ["kn-mech-011"], done: true },
+      { id: "ppl-zw-sw-s2", title: "拉伸 / 旋转：从轴类入门", minutes: 30, knowledgeNodeIds: ["kn-mech-012"], done: true },
+      { id: "ppl-zw-sw-s3", title: "扫描 / 放样：从复杂件过渡", minutes: 35, knowledgeNodeIds: ["kn-mech-012"], done: false },
+      { id: "ppl-zw-sw-s4", title: "工程图：从 3D 模型输出三视图", minutes: 30, knowledgeNodeIds: ["kn-mech-012", "sk-mech-003"], done: false },
     ],
     progress: 0.5,
     aiRationale:
@@ -458,13 +553,25 @@ export const personalPlans: PersonalPlan[] = [
     durationLabel: "30 分钟",
     difficulty: "综合",
     createdAt: "2026-04-12T21:10:00+08:00",
-    knowledgeNodeIds: ["kn-mech-028", "kn-mech-029"],
+    knowledgeNodeIds: ["kn-mech-006"],
     sourceTags: ["教师上传微课", "AI 错题本（个人）"],
+    studyAxis: "adaptive_remediation",
+    origin: "ai_from_errors",
+    seedWrongQuestionIds: ["wq-zw-1", "wq-zw-2"],
+    relatedSectionIds: ["sec-3-2", "sec-3-4"],
+    materialMix: {
+      handoutLabels: ["第3章 · 相贯线归纳页（教师微课配套）", "期中典型卷面截图（脱敏）"],
+      questionPracticeLabel: "由错题 wq-zw-1/2 变形的 8 道题组 + AI 口述步骤卡",
+      drillLabel: "板演纸面 3 小题 + CAD 任选 1 题描线校核",
+      hasAiRemix: true,
+    },
+    remediationSummary:
+      "错题驱动：从个人错题本的相贯题出发，截取原课讲义与高失分题库，重做变式并保持与讲台例题同源。",
     steps: [
-      { id: "ppl-zw-exam-s1", title: "回顾：6 类截交线形态（3 min）", minutes: 3, knowledgeNodeIds: ["kn-mech-028"], done: true },
-      { id: "ppl-zw-exam-s2", title: "特殊相贯情况：轴线相交且直径相近", minutes: 10, knowledgeNodeIds: ["kn-mech-029"], done: false },
-      { id: "ppl-zw-exam-s3", title: "真题闯关 · 5 题（含解析）", minutes: 12, knowledgeNodeIds: ["kn-mech-028", "kn-mech-029"], done: false },
-      { id: "ppl-zw-exam-s4", title: "AI 出卷 · 自测小测 3 题", minutes: 5, knowledgeNodeIds: ["kn-mech-028", "kn-mech-029"], done: false },
+      { id: "ppl-zw-exam-s1", title: "回顾：6 类截交线形态（3 min）", minutes: 3, knowledgeNodeIds: ["kn-mech-006"], done: true },
+      { id: "ppl-zw-exam-s2", title: "特殊相贯情况：轴线相交且直径相近", minutes: 10, knowledgeNodeIds: ["kn-mech-006"], done: false },
+      { id: "ppl-zw-exam-s3", title: "真题闯关 · 5 题（含解析）", minutes: 12, knowledgeNodeIds: ["kn-mech-006"], done: false },
+      { id: "ppl-zw-exam-s4", title: "AI 出卷 · 自测小测 3 题", minutes: 5, knowledgeNodeIds: ["kn-mech-006"], done: false },
     ],
     progress: 0.15,
     aiRationale:
@@ -478,13 +585,25 @@ export const personalPlans: PersonalPlan[] = [
     durationLabel: "30 分钟",
     difficulty: "入门",
     createdAt: "2026-04-10T19:30:00+08:00",
-    knowledgeNodeIds: ["kn-mech-012", "kn-mech-013", "kn-mech-014", "kn-mech-015"],
+    knowledgeNodeIds: ["kn-mech-003", "kn-mech-004"],
     sourceTags: ["李老师 · 补救视频", "AI 逐步讲解", "模型柜手搓"],
+    studyAxis: "adaptive_remediation",
+    origin: "ai_from_errors",
+    seedWrongQuestionIds: ["wq-ch-1", "wq-ch-2", "wq-ch-3"],
+    relatedSectionIds: ["sec-2-2", "sec-2-3"],
+    materialMix: {
+      handoutLabels: ["第2章补救版讲义（低密度）", "三投影面展开示意（单页）"],
+      questionPracticeLabel: "错因题库：三面体系 + 宽相等 + 俯视补线各一题进阶变式",
+      drillLabel: "模型柜三件实物 ↔ 平面图对照训练",
+      hasAiRemix: true,
+    },
+    remediationSummary:
+      "作业批改根因回溯：将你多次出错的投影题抽成微路径，讲义与练习均短于课堂版，侧重复现与矫正。",
     steps: [
-      { id: "ppl-ch-rescue-s1", title: "换一种讲法：故事化解释三投影面体系", minutes: 6, knowledgeNodeIds: ["kn-mech-012"], done: true },
-      { id: "ppl-ch-rescue-s2", title: "亲手握一下：模型柜 3 个实体配合看图", minutes: 8, knowledgeNodeIds: ["kn-mech-013", "kn-mech-014"], done: false },
-      { id: "ppl-ch-rescue-s3", title: "AI 带你做：5 个最基础的三视图图片（逐步解析）", minutes: 10, knowledgeNodeIds: ["kn-mech-015"], done: false },
-      { id: "ppl-ch-rescue-s4", title: "自测：3 题（允许看口诀，不计分）", minutes: 6, knowledgeNodeIds: ["kn-mech-015"], done: false },
+      { id: "ppl-ch-rescue-s1", title: "换一种讲法：故事化解释三投影面体系", minutes: 6, knowledgeNodeIds: ["kn-mech-003"], done: true },
+      { id: "ppl-ch-rescue-s2", title: "亲手握一下：模型柜 3 个实体配合看图", minutes: 8, knowledgeNodeIds: ["kn-mech-003"], done: false },
+      { id: "ppl-ch-rescue-s3", title: "AI 带你做：5 个最基础的三视图图片（逐步解析）", minutes: 10, knowledgeNodeIds: ["kn-mech-004"], done: false },
+      { id: "ppl-ch-rescue-s4", title: "自测：3 题（允许看口诀，不计分）", minutes: 6, knowledgeNodeIds: ["kn-mech-004"], done: false },
     ],
     progress: 0.2,
     aiRationale:
@@ -498,11 +617,22 @@ export const personalPlans: PersonalPlan[] = [
     durationLabel: "2 × 45 分钟",
     difficulty: "进阶",
     createdAt: "2026-04-08T18:00:00+08:00",
-    knowledgeNodeIds: ["kn-mech-031", "kn-mech-030", "kn-mech-034"],
+    knowledgeNodeIds: ["kn-mech-005"],
     sourceTags: ["朋辈辅导 · 林诗涵", "教师上传讲义"],
+    studyAxis: "adaptive_remediation",
+    origin: "student_custom",
+    relatedSectionIds: ["sec-3-2"],
+    materialMix: {
+      handoutLabels: ["李建国 · 3.2 节正式讲义（与班级同步）", "朋辈补充白板照片"],
+      questionPracticeLabel: "教师题库选 4 题 + 朋辈口述改编 2 题",
+      drillLabel: "课堂同款轴承座 / 支架草图二选一加练",
+      hasAiRemix: false,
+    },
+    remediationSummary:
+      "自选节奏 + 朋辈：沿用教师已发布的 3.2 讲义与题库，由同学带着走一遍；非直播课但材料与课堂同源。",
     steps: [
-      { id: "ppl-ch-peer-s1", title: "Day1：形体分析法讲解 + 1 题实操", minutes: 45, knowledgeNodeIds: ["kn-mech-030", "kn-mech-034"], done: false },
-      { id: "ppl-ch-peer-s2", title: "Day2：作业讲评 + 3 题独立练习", minutes: 45, knowledgeNodeIds: ["kn-mech-031"], done: false },
+      { id: "ppl-ch-peer-s1", title: "Day1：形体分析法讲解 + 1 题实操", minutes: 45, knowledgeNodeIds: ["kn-mech-005"], done: false },
+      { id: "ppl-ch-peer-s2", title: "Day2：作业讲评 + 3 题独立练习", minutes: 45, knowledgeNodeIds: ["kn-mech-005"], done: false },
     ],
     progress: 0,
     aiRationale:
@@ -639,13 +769,16 @@ export const learnScenarios: LearnScenario[] = [
   {
     id: "ls-zw-001",
     studentId: "s-mech2301-01",
+    studyAxis: "adaptive_remediation",
+    axisNote:
+      "个性练：与个人计划「SW 两小时」对齐，用的是教研室整理的教程节选与 AI 组题，不与某一节线下课堂一对一绑定。",
     title: "2 小时快速上手 SolidWorks 草图",
     goal: "在周末快速摸透 SolidWorks 草图约束和尺寸驱动",
     durationLabel: "1 小时 48 分",
     startedAt: "2026-04-14T20:20:00+08:00",
     completed: true,
     personaId: "persona-preset-lecturer",
-    knowledgeNodeIds: ["kn-mech-058", "kn-mech-059"],
+    knowledgeNodeIds: ["kn-mech-011", "kn-mech-012"],
     messages: [
       { role: "user", content: "我已经会 AutoCAD，直接给我 SolidWorks 草图和常用约束的重点就行。" },
       {
@@ -686,13 +819,17 @@ export const learnScenarios: LearnScenario[] = [
   {
     id: "ls-zw-002",
     studentId: "s-mech2301-01",
+    studyAxis: "adaptive_remediation",
+    remediationSource: "wrong_book",
+    axisNote:
+      "错题再练：根据作业错题与卷面归因，截取第3章相贯相关讲义段落 + 题库变式（非重播全班直播）。",
     title: "相贯线特殊情况 30 分钟专题",
     goal: "攻克轴线相交且直径相近时的相贯线",
     durationLabel: "28 分",
     startedAt: "2026-04-11T20:10:00+08:00",
     completed: true,
     personaId: "persona-li-custom-1",
-    knowledgeNodeIds: ["kn-mech-029"],
+    knowledgeNodeIds: ["kn-mech-006"],
     messages: [
       {
         role: "user",
@@ -716,13 +853,17 @@ export const learnScenarios: LearnScenario[] = [
   {
     id: "ls-ch-001",
     studentId: "s-mech2302-01",
+    studyAxis: "adaptive_remediation",
+    remediationSource: "wrong_book",
+    axisNote:
+      "补救路径：错题根因回溯到三面体系；材料为教师补救视频 + 低密度讲义副本，再配合模型柜触感练。",
     title: "三投影面体系 · 故事化重学",
     goal: "用最直白的方式把三视图基础打牢",
     durationLabel: "42 分",
     startedAt: "2026-04-10T19:45:00+08:00",
     completed: true,
     personaId: "persona-li-custom-2",
-    knowledgeNodeIds: ["kn-mech-012", "kn-mech-013"],
+    knowledgeNodeIds: ["kn-mech-003", "kn-mech-004"],
     messages: [
       { role: "user", content: "老师课上讲的「V/H/W 面」我一直没搞懂是啥关系。" },
       {

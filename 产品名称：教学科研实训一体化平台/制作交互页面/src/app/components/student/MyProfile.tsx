@@ -681,10 +681,20 @@ function buildTimeline(
 
   // 近期学习场景
   scenarios.slice(0, 5).forEach((s) => {
+    const axis =
+      s.studyAxis === "teacher_class_follow"
+        ? "跟堂讲义"
+        : s.remediationSource === "wrong_book"
+          ? "错题重练"
+          : s.remediationSource === "exam"
+            ? "考后巩固"
+            : s.remediationSource === "homework"
+              ? "作业延伸"
+              : "个性重排";
     entries.push({
       date: s.startedAt.slice(0, 10),
-      title: `完成学习场景 · ${s.title}`,
-      detail: `${s.durationLabel} · 产物 ${s.outputs.length} 个 · 已掌握 ${s.masteryCheck.filter((c) => c.ok).length}/${s.masteryCheck.length}`,
+      title: `${axis} · ${s.title}`,
+      detail: `${s.durationLabel}${s.axisNote ? ` · ${s.axisNote}` : ""} · 产物 ${s.outputs.length} 个 · 掌握检查 ${s.masteryCheck.filter((c) => c.ok).length}/${s.masteryCheck.length}`,
       icon: Sparkles,
       dotBg: "bg-indigo-500",
       dotText: "text-white",

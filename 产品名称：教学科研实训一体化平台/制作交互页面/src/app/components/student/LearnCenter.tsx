@@ -1,21 +1,24 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  BookMarked,
   ChevronRight,
+  Clock,
   Sparkles,
 } from "lucide-react";
 import type { ExamEvalSummary, HomeworkEvalSummary, TeachingPlan } from "@mock";
-import { PageHeader } from "../Layout";
-import { classById, trainingById } from "../../data/lookups";
+import { AiBadge, PageHeader } from "../Layout";
+import { classById } from "../../data/lookups";
+import type { PersonalPlan } from "../../data/studentMock";
 import {
   aiPushesByStudent,
   findResumeSectionId,
   getPlanProgressSummary,
   getSectionProgress,
-  trainingAssignmentsForStudent,
+  learnCenterHubNarratives,
+  personalPlansByStudent,
 } from "../../data/studentMock";
 import {
   courseNameForPlan,
-  findHandoutDesign,
   findPlanSection,
   findSectionIdByKnowledgeNode,
   getExamStudentSummary,
@@ -26,6 +29,7 @@ import {
   getStudentPlans,
   type LearnCenterReviewRow,
 } from "../../data/learnCenterSession";
+import type { StudentLearnNavigateInput } from "./MyPlans";
 
 type ReviewChapterGroup = {
   key: string;
@@ -69,7 +73,6 @@ function ReviewRowCard({
     goalNodeIds?: string[];
   }) => void;
 }) {
-  const hasHandout = Boolean(findHandoutDesign(row.planId, row.sectionId));
   return (
     <div className="rounded-lg border border-slate-100 bg-slate-50/80 px-3 py-2.5 flex flex-col sm:flex-row gap-3 sm:justify-between sm:items-start">
       <div className="min-w-0 flex-1">
@@ -87,6 +90,11 @@ function ReviewRowCard({
         {row.progressHint ? (
           <div className="text-slate-600 text-[0.72rem] mt-1 line-clamp-2">{row.progressHint}</div>
         ) : null}
+        {row.adaptiveRemediationHint ? (
+          <div className="text-violet-900/90 text-[0.68rem] mt-1.5 leading-snug line-clamp-3 border-l border-violet-200 pl-2">
+            {row.adaptiveRemediationHint}
+          </div>
+        ) : null}
       </div>
       <div className="flex flex-wrap gap-2 shrink-0">
         <button
@@ -100,25 +108,9 @@ function ReviewRowCard({
               goalNodeIds: section?.knowledgeNodeIds,
             });
           }}
-          className="inline-flex items-center justify-center rounded-lg border border-indigo-200 bg-indigo-50 text-indigo-900 px-3 py-1.5 text-[0.8125rem] hover:bg-indigo-100"
+          className="inline-flex items-center justify-center rounded-lg bg-indigo-600 text-white px-3 py-1.5 text-[0.8125rem] hover:bg-indigo-700"
         >
-          课堂复习
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            const section = findPlanSection(row.planId, row.sectionId).section;
-            onEnterClassStudy({
-              planId: row.planId,
-              sectionId: row.sectionId,
-              focus: "讲义",
-              goalNodeIds: section?.knowledgeNodeIds,
-            });
-          }}
-          disabled={!hasHandout}
-          className="inline-flex items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-700 px-3 py-1.5 text-[0.8125rem] hover:bg-slate-50 disabled:opacity-45 disabled:pointer-events-none"
-        >
-          讲义回顾
+          进入课堂
         </button>
       </div>
     </div>
@@ -174,7 +166,13 @@ function learnHubToneClass(tone: "cheer" | "warn" | "info") {
   return "border-slate-200 bg-white text-slate-800";
 }
 
-type LearnHubSectionId = "prep" | "homework" | "review" | "training" | "exam";
+function personalDifficultyClass(d: PersonalPlan["difficulty"]) {
+  if (d === "入门") return "bg-emerald-50 text-emerald-700";
+  if (d === "进阶") return "bg-amber-50 text-amber-700";
+  return "bg-rose-50 text-rose-700";
+}
+
+type LearnHubSectionId = "prep" | "homework" | "review" | "personal" | "exam";
 
 function LearnCenterHub({
   studentId,
@@ -182,8 +180,9 @@ function LearnCenterHub({
   activePlanId,
   onEnterClassStudy,
   onEnterHomeworkWorkbench,
-  onEnterTrainingWorkbench,
   onEnterExamWeak,
+  onOpenStudentLearningPlans,
+  onContinuePersonalLearn,
 }: {
   studentId: string;
   plans: TeachingPlan[];
@@ -195,8 +194,11 @@ function LearnCenterHub({
     goalNodeIds?: string[];
   }) => void;
   onEnterHomeworkWorkbench: (homeworkId: string) => void;
-  onEnterTrainingWorkbench: (assignmentId: string) => void;
   onEnterExamWeak: (exam: ExamEvalSummary) => void;
+  /** 侧栏「学习计划」列表页（含创建个人计划） */
+  onOpenStudentLearningPlans: () => void;
+  /** 个人计划直接进入课堂壳（可按知识点挂靠） */
+  onContinuePersonalLearn: (opts: StudentLearnNavigateInput) => void;
 }) {
   const activePlan = useMemo(
     () => plans.find((p) => p.id === activePlanId),
@@ -210,12 +212,6 @@ function LearnCenterHub({
   }, [studentId, activePlanId]);
 
   const exams = useMemo(() => getStudentExams(studentId), [studentId]);
-  const trainings = useMemo(() => trainingAssignmentsForStudent(studentId), [studentId]);
-
-  const scopedTrainings = useMemo(() => {
-    if (!activePlanId) return [];
-    return trainings.filter((t) => !t.planId || t.planId === activePlanId);
-  }, [trainings, activePlanId]);
 
   const scopedExams = useMemo(() => {
     if (!activePlan?.courseId) return [];
@@ -254,6 +250,8 @@ function LearnCenterHub({
     };
   }, [scopedReviewRows, studentId]);
 
+  const personalPlans = useMemo(() => personalPlansByStudent(studentId), [studentId]);
+
   const [hubSection, setHubSection] = useState<LearnHubSectionId>("prep");
 
   useEffect(() => {
@@ -285,7 +283,7 @@ function LearnCenterHub({
                 ["prep", "预习"],
                 ["homework", "作业"],
                 ["review", "复习"],
-                ["training", "实训"],
+                ["personal", "自建计划"],
                 ["exam", "考试"],
               ] as const
             ).map(([id, label]) => {
@@ -308,6 +306,10 @@ function LearnCenterHub({
               );
             })}
           </div>
+
+        <div className="rounded-lg border border-slate-100/90 bg-white/80 px-3 py-2 text-slate-600 text-[0.72rem] leading-relaxed">
+          {learnCenterHubNarratives[hubSection].headline}
+        </div>
 
         {pushes.length > 0 && (
           <div className="rounded-xl border border-slate-200/80 bg-white px-3 py-2">
@@ -415,27 +417,11 @@ function LearnCenterHub({
                           onEnterClassStudy({
                             planId: prep.planId,
                             sectionId: prep.sectionId,
-                            focus: "讲义",
-                            goalNodeIds: section?.knowledgeNodeIds,
-                          });
-                        }}
-                        disabled={!findHandoutDesign(prep.planId, prep.sectionId)}
-                        className="inline-flex items-center gap-1 rounded-lg bg-indigo-600 text-white px-3 py-1.5 text-[0.8125rem] hover:bg-indigo-700 disabled:opacity-45 disabled:pointer-events-none"
-                      >
-                        按讲义预习
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const section = findPlanSection(prep.planId, prep.sectionId).section;
-                          onEnterClassStudy({
-                            planId: prep.planId,
-                            sectionId: prep.sectionId,
                             focus: "课堂",
                             goalNodeIds: section?.knowledgeNodeIds,
                           });
                         }}
-                        className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white text-slate-700 px-3 py-1.5 text-[0.8125rem] hover:bg-slate-50"
+                        className="inline-flex items-center gap-1 rounded-lg bg-indigo-600 text-white px-3 py-1.5 text-[0.8125rem] hover:bg-indigo-700"
                       >
                         进入课堂
                       </button>
@@ -625,52 +611,99 @@ function LearnCenterHub({
               </>
             )}
 
-            {hubSection === "training" && (
+            {hubSection === "personal" && (
               <>
-          {scopedTrainings.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-slate-200 bg-white p-8 text-center text-slate-400 text-sm">
-              {!activePlanId
-                ? "请选择上方课程"
-                : "该课程下暂无派发到你所在班级的实训"}
-            </div>
-          ) : (
-            <div className="rounded-2xl border border-slate-200 bg-white divide-y divide-slate-100 overflow-hidden">
-              {scopedTrainings.map((ta) => {
-                const proj = trainingById(ta.trainingProjectId);
-                const cls = classById(ta.classId);
-                const st =
-                  ta.status === "submitted"
-                    ? "已提交"
-                    : ta.status === "in_progress"
-                      ? "进行中"
-                      : "未开始";
-                return (
-                  <div
-                    key={ta.id}
-                    className="px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-3 sm:justify-between"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <div className="text-slate-900 text-[0.875rem] font-medium">
-                        {proj?.name ?? ta.trainingProjectId}
-                      </div>
-                      <div className="text-slate-500 text-[0.75rem] mt-1">
-                        {cls?.name ?? ta.classId} · 布置 {ta.assignedAt}
-                        {ta.dueAt ? ` · 截止 ${ta.dueAt}` : ""} · {st}
-                      </div>
-                      <p className="text-slate-600 text-[0.75rem] mt-1 line-clamp-2">{ta.instruction}</p>
+                <div className="rounded-xl border border-violet-100 bg-gradient-to-r from-violet-50/90 to-white px-4 py-3 flex flex-col sm:flex-row sm:items-center gap-3 sm:justify-between">
+                  <div className="min-w-0 flex items-start gap-3">
+                    <div className="size-10 rounded-lg bg-violet-100 text-violet-600 flex items-center justify-center shrink-0">
+                      <BookMarked size={20} />
                     </div>
+                    <div>
+                      <div className="text-slate-900 font-medium text-[0.875rem]">
+                        与侧栏「学习计划」中的个人计划同步
+                      </div>
+                      <p className="text-slate-500 text-[0.75rem] mt-0.5 leading-relaxed">
+                        新建或调整自建计划，请在学习计划页操作；此处可快速继续学习。
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={onOpenStudentLearningPlans}
+                    className="shrink-0 inline-flex items-center justify-center rounded-lg border border-violet-200 bg-white text-violet-800 px-3 py-1.5 text-[0.8125rem] hover:bg-violet-50"
+                  >
+                    打开学习计划
+                  </button>
+                </div>
+
+                {personalPlans.length === 0 ? (
+                  <div className="rounded-xl border border-dashed border-slate-200 bg-white p-8 text-center space-y-3">
+                    <p className="text-slate-400 text-sm">暂无自建学习计划</p>
                     <button
                       type="button"
-                      onClick={() => onEnterTrainingWorkbench(ta.id)}
-                      className="shrink-0 inline-flex items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-900 px-3 py-1.5 text-[0.8125rem] hover:bg-emerald-100"
+                      onClick={onOpenStudentLearningPlans}
+                      className="inline-flex items-center justify-center rounded-lg bg-indigo-600 text-white px-3 py-1.5 text-[0.8125rem] hover:bg-indigo-700"
                     >
-                      实训工作台
+                      去学习计划创建
                     </button>
                   </div>
-                );
-              })}
-            </div>
-          )}
+                ) : (
+                  <div className="rounded-2xl border border-slate-200 bg-white divide-y divide-slate-100 overflow-hidden">
+                    {personalPlans.map((plan) => {
+                      const pct = Math.round(plan.progress * 100);
+                      return (
+                        <div
+                          key={plan.id}
+                          className="px-4 py-3 flex flex-col lg:flex-row lg:items-center gap-3 lg:justify-between"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <AiBadge>自建</AiBadge>
+                              <span
+                                className={`px-2 py-0.5 rounded-md text-[0.65rem] ${personalDifficultyClass(plan.difficulty)}`}
+                              >
+                                {plan.difficulty}
+                              </span>
+                              <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600 inline-flex items-center gap-1 text-[0.65rem]">
+                                <Clock size={11} /> {plan.durationLabel}
+                              </span>
+                            </div>
+                            <div className="text-slate-900 text-[0.875rem] font-medium mt-2">
+                              {plan.title}
+                            </div>
+                            <p className="text-slate-600 text-[0.75rem] mt-1 line-clamp-2">{plan.goal}</p>
+                            <p className="text-slate-500 text-[0.7rem] mt-1 line-clamp-2 border-l border-violet-100 pl-2">
+                              {plan.remediationSummary}
+                            </p>
+                            <div className="mt-3 max-w-md">
+                              <div className="flex items-center justify-between text-slate-500 mb-1 text-[0.6875rem]">
+                                <span>进度</span>
+                                <span>{pct}%</span>
+                              </div>
+                              <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden">
+                                <div
+                                  className="h-full rounded-full bg-gradient-to-r from-violet-500 to-indigo-500"
+                                  style={{ width: `${pct}%` }}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex flex-wrap gap-2 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() =>
+                                onContinuePersonalLearn({ goalNodeIds: plan.knowledgeNodeIds })
+                              }
+                              className="inline-flex items-center justify-center rounded-lg bg-indigo-600 text-white px-3 py-1.5 text-[0.8125rem] hover:bg-indigo-700"
+                            >
+                              进入课堂
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </>
             )}
 
@@ -778,7 +811,8 @@ export function LearnCenter({
   studentId,
   onEnterClassStudy,
   onEnterHomeworkWorkbench,
-  onEnterTrainingWorkbench,
+  onOpenStudentLearningPlans,
+  onContinuePersonalLearn,
 }: {
   studentId: string;
   onEnterClassStudy: (args: {
@@ -788,7 +822,8 @@ export function LearnCenter({
     goalNodeIds?: string[];
   }) => void;
   onEnterHomeworkWorkbench: (homeworkId: string) => void;
-  onEnterTrainingWorkbench: (assignmentId: string) => void;
+  onOpenStudentLearningPlans: () => void;
+  onContinuePersonalLearn: (opts: StudentLearnNavigateInput) => void;
 }) {
   const plans = useMemo(() => getStudentPlans(studentId), [studentId]);
   const [activePlanId, setActivePlanId] = useState<string>("");
@@ -836,8 +871,9 @@ export function LearnCenter({
         activePlanId={activePlanId}
         onEnterClassStudy={onEnterClassStudy}
         onEnterHomeworkWorkbench={onEnterHomeworkWorkbench}
-        onEnterTrainingWorkbench={onEnterTrainingWorkbench}
         onEnterExamWeak={enterExamWeakFromHub}
+        onOpenStudentLearningPlans={onOpenStudentLearningPlans}
+        onContinuePersonalLearn={onContinuePersonalLearn}
       />
     </div>
   );

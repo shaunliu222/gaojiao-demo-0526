@@ -9,8 +9,8 @@ import {
   Library,
   ListChecks,
   Paperclip,
-  Presentation,
   Send,
+  User,
   Users,
 } from "lucide-react";
 import { graphNodeById } from "../../data/lookups";
@@ -21,7 +21,10 @@ import type {
   ResourceContentKind,
   ResourceContentPage,
 } from "../../data/learnCenterSession";
-import { resourceContentOutlineItems } from "../../data/learnCenterSession";
+import {
+  inferContentKindForItem,
+  resourceContentOutlineItems,
+} from "../../data/learnCenterSession";
 
 /** 课堂 / 作业 / 实训共用的对话区样式（与 ClassStudy 对齐） */
 export function ShellChatPanel({
@@ -99,6 +102,13 @@ export function ShellChatPanel({
         </div>
       ) : null}
       <div className="shrink-0 flex flex-col gap-1.5 border-t border-slate-200/60 bg-slate-50 px-2.5 py-1.5">
+        <div
+          className="flex items-center justify-center gap-3 pt-0.5 pb-0.5"
+          role="group"
+          aria-label="对话身份"
+        >
+          {roleSlot}
+        </div>
         <div className="flex items-center gap-1.5">
           <div className="flex-1 min-w-0 h-9 flex items-stretch gap-1 rounded-md border border-slate-200/90 bg-white px-1.5">
             {showPaperclip ? (
@@ -121,9 +131,6 @@ export function ShellChatPanel({
               className="min-h-0 min-w-0 flex-1 self-stretch max-h-9 bg-transparent outline-none border-0 resize-none py-1.5 text-[0.75rem] leading-5 focus:ring-0 placeholder:text-slate-400"
             />
           </div>
-          <div className="flex shrink-0 items-center gap-0.5 h-9" role="group" aria-label="对话身份">
-            {roleSlot}
-          </div>
           <button
             type="button"
             onClick={onSend}
@@ -145,15 +152,33 @@ export function ShellChatRoleButtons({
   chatRole: ChatRole;
   onRoleChange: (r: ChatRole) => void;
 }) {
+  const roles = [
+    {
+      id: "teacher" as const,
+      label: "智能教师",
+      shortLabel: "教师",
+      icon: User,
+      faceClass: "bg-gradient-to-br from-indigo-500 to-violet-600 text-white shadow-sm",
+    },
+    {
+      id: "assistant" as const,
+      label: "助教",
+      shortLabel: "助教",
+      icon: Headset,
+      faceClass: "bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-sm",
+    },
+    {
+      id: "peer" as const,
+      label: "同学",
+      shortLabel: "同学",
+      icon: Users,
+      faceClass: "bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-sm",
+    },
+  ] as const;
+
   return (
     <>
-      {(
-        [
-          { id: "teacher" as const, label: "智能教师", icon: Presentation },
-          { id: "assistant" as const, label: "助教", icon: Headset },
-          { id: "peer" as const, label: "同学", icon: Users },
-        ] as const
-      ).map((r) => {
+      {roles.map((r) => {
         const Icon = r.icon;
         const on = chatRole === r.id;
         return (
@@ -162,14 +187,28 @@ export function ShellChatRoleButtons({
             type="button"
             title={r.label}
             aria-label={r.label}
+            aria-pressed={on}
             onClick={() => onRoleChange(r.id)}
-            className={`flex h-9 w-9 items-center justify-center rounded-md border transition ${
-              on
-                ? "border-indigo-400 bg-indigo-50 text-indigo-700"
-                : "border-slate-200/90 bg-white text-slate-500 hover:border-slate-300 hover:text-slate-700"
+            className={`flex flex-col items-center gap-0.5 min-w-[2.75rem] transition ${
+              on ? "scale-[1.04]" : "opacity-90 hover:opacity-100"
             }`}
           >
-            <Icon size={18} strokeWidth={1.75} className="shrink-0 pointer-events-none" aria-hidden />
+            <span
+              className={`flex h-10 w-10 items-center justify-center rounded-full transition-shadow ${
+                on
+                  ? `${r.faceClass} border-2 border-indigo-500/90 shadow-[0_6px_20px_-4px_rgba(79,70,229,0.45)]`
+                  : `${r.faceClass} border-[0.1875rem] border-white shadow-md`
+              }`}
+            >
+              <Icon size={18} strokeWidth={2} className="shrink-0 pointer-events-none drop-shadow-sm" aria-hidden />
+            </span>
+            <span
+              className={`text-[0.625rem] leading-none ${
+                on ? "text-indigo-700 font-medium" : "text-slate-500"
+              }`}
+            >
+              {r.shortLabel}
+            </span>
           </button>
         );
       })}
@@ -238,13 +277,10 @@ export function ResourceContentView({
   if (kind === "document") {
     return (
       <div>
-        <div className="mx-auto max-w-2xl rounded-lg border border-slate-200 bg-white p-5 shadow-sm min-h-[12rem]">
-          <div className="flex items-baseline justify-between gap-2 border-b border-slate-100 pb-2 mb-3">
+        <div className="mx-auto max-w-2xl rounded-lg border border-slate-200 bg-white p-5 shadow-sm min-h-[8rem]">
+          <div className="flex items-baseline justify-between gap-2 border-b border-slate-100 pb-2">
             <span className="text-slate-900 font-medium text-[0.9rem]">{page.title}</span>
             <span className="text-slate-400 text-[0.65rem] shrink-0">第 {page.pageNo} 页</span>
-          </div>
-          <div className="text-slate-700 text-[0.8125rem] leading-relaxed whitespace-pre-line">
-            {page.body}
           </div>
         </div>
         {pageTotal > 1 ? nav : null}
@@ -286,15 +322,22 @@ export function ResourceOutlineAside({
   activePageIndex,
   onPickPage,
   onBackToList,
+  fillHeight = false,
 }: {
   fileTitle: string;
   outline: ReturnType<typeof resourceContentOutlineItems>;
   activePageIndex: number;
   onPickPage: (index: number) => void;
   onBackToList: () => void;
+  /** 与右侧主区同高，底部对齐 */
+  fillHeight?: boolean;
 }) {
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 p-4">
+    <div
+      className={`bg-white rounded-2xl border border-slate-200 p-4 ${
+        fillHeight ? "h-full min-h-0 flex flex-col" : ""
+      }`}
+    >
       <button
         type="button"
         onClick={onBackToList}
@@ -306,13 +349,17 @@ export function ResourceOutlineAside({
       <div className="text-slate-900 text-[0.8125rem] font-medium line-clamp-2 mb-3" title={fileTitle}>
         {fileTitle}
       </div>
-      <div className="text-slate-500 text-[0.75rem] mb-2 flex items-center gap-1.5">
+      <div className="text-slate-500 text-[0.75rem] mb-2 flex items-center gap-1.5 shrink-0">
         <ListChecks size={12} className="text-indigo-500 shrink-0" /> 大纲
       </div>
       {outline.length === 0 ? (
         <div className="text-slate-400 text-[0.75rem] py-2">暂无页结构</div>
       ) : (
-        <ol className="space-y-1 max-h-[min(50vh,22rem)] overflow-y-auto pr-0.5">
+        <ol
+          className={`space-y-1 overflow-y-auto pr-0.5 ${
+            fillHeight ? "flex-1 min-h-0" : "max-h-[min(50vh,22rem)]"
+          }`}
+        >
           {outline.map((item) => {
             const active = item.pageIndex === activePageIndex;
             return (
@@ -343,23 +390,35 @@ export function TeacherResourceList({
   selectedId,
   onSelect,
   listTitle = "学习资料",
+  fillHeight = false,
 }: {
   items: LearnCenterResourceItem[];
   selectedId?: string;
   onSelect: (id: string) => void;
   listTitle?: string;
+  /** 与右侧主区同高，底部对齐；列表区域在卡片内滚动 */
+  fillHeight?: boolean;
 }) {
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 p-4">
-      <div className="text-slate-900 flex items-center gap-2 mb-3">
+    <div
+      className={`bg-white rounded-2xl border border-slate-200 p-4 ${
+        fillHeight ? "h-full min-h-0 flex flex-col" : ""
+      }`}
+    >
+      <div className="text-slate-900 flex items-center gap-2 mb-3 shrink-0">
         <Library size={14} className="text-indigo-500" /> {listTitle}
       </div>
       {items.length === 0 ? (
         <div className="text-slate-400 text-sm py-6 text-center">暂无资料</div>
       ) : (
-        <div className="space-y-2 max-h-[min(60vh,28rem)] overflow-auto pr-0.5">
+        <div
+          className={`space-y-2 overflow-y-auto pr-0.5 ${
+            fillHeight ? "flex-1 min-h-0" : "max-h-[min(60vh,28rem)]"
+          }`}
+        >
           {items.map((item) => {
             const active = item.id === selectedId;
+            const contentKind = inferContentKindForItem(item.type, item.title);
             return (
               <button
                 key={item.id}
@@ -378,9 +437,11 @@ export function TeacherResourceList({
                 <div className="text-slate-900 text-[0.875rem] line-clamp-2 mt-0.5">
                   {item.title}
                 </div>
-                <p className="text-slate-500 text-[0.75rem] line-clamp-2 mt-1 leading-relaxed">
-                  {item.summary}
-                </p>
+                {contentKind !== "document" ? (
+                  <p className="text-slate-500 text-[0.75rem] line-clamp-2 mt-1 leading-relaxed">
+                    {item.summary}
+                  </p>
+                ) : null}
                 {item.metaLabel && (
                   <div className="text-slate-400 text-[0.625rem] mt-1">{item.metaLabel}</div>
                 )}

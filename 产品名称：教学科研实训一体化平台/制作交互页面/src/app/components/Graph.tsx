@@ -1,12 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { X, BookOpen, Film, FileText, FlaskConical, Image as ImageIcon, Music, Code2, Database, ListChecks, Sparkles, Pencil, Upload } from "lucide-react";
+import { X, BookOpen, Film, FileText, FlaskConical, Image as ImageIcon, Music, Code2, Database, ListChecks, Sparkles, Pencil, Upload, ChevronDown } from "lucide-react";
 import {
   professions,
   nodesByProfession,
   edgesByProfession,
   knowledgeGraphTrainingPlanDocumentById,
+  allowedGraphEdgeRelations,
 } from "@mock";
-import type { GraphNode, ResourceType } from "@mock";
+import type {
+  GraphEdgeRelation,
+  GraphNode,
+  KnowledgeGraphTrainingPlanAttachmentKind,
+  ResourceType,
+} from "@mock";
 import {
   resourceById,
   coursesByNode,
@@ -14,10 +20,18 @@ import {
   trainingsByNode,
   teacherById,
   courseById,
+  trainingById,
   graphNodeById,
   teacherSeesAllScopedContent,
 } from "../data/lookups";
-import { colorOfCluster, clusterColor } from "../data/graphLayout";
+import {
+  colorOfGraphNodeLayer,
+  graphVisualLayerColor,
+  graphVisualLayerLabel,
+  graphVisualLayerOrder,
+  visualLayerOfNode,
+  type GraphVisualLayer,
+} from "../data/graphLayout";
 import { PageHeader, AiBadge, type Role } from "./Layout";
 import { AssociatedKnowledgeNodes } from "./AssociatedKnowledgeNodes";
 import {
@@ -26,7 +40,35 @@ import {
   truncateGraphLabel,
 } from "./knowledgeGraph";
 
-const SVG_H = 520;
+const SVG_H = 720;
+
+const attachmentKindLabel: Record<
+  KnowledgeGraphTrainingPlanAttachmentKind,
+  string
+> = {
+  talent_scheme: "培养方案",
+  job_analysis: "岗位分析",
+  introductory: "概论导引",
+  industry_outlook: "形势简报",
+};
+
+const statusLabel: Record<GraphNode["status"], string> = {
+  ai_draft: "AI 草稿",
+  edited: "人工编辑",
+  confirmed: "已确认",
+};
+const edgeRelationLabel: Record<GraphEdgeRelation, string> = {
+  contain: "包含",
+  guide: "引导",
+  Influence: "影响",
+  Cultivate: "培养",
+  Support: "支撑",
+  "Map to": "映射",
+  Depend: "依赖",
+  Decide: "决定",
+  "Belong to": "归属",
+};
+const allEdgeRelations = Object.keys(allowedGraphEdgeRelations) as GraphEdgeRelation[];
 
 export function GraphBrowse({
   onOpenResource,
@@ -49,23 +91,36 @@ export function GraphBrowse({
   const scopeTeacherId = role === "teacher" ? currentTeacherId : undefined;
   const [profId, setProfId] = useState<string>("prof-mech");
   const [selected, setSelected] = useState<string | null>(null);
-  const [hiddenClusters, setHiddenClusters] = useState<Set<string>>(() => new Set());
+  const [visibleLayers, setVisibleLayers] = useState<Set<GraphVisualLayer>>(
+    () => new Set(graphVisualLayerOrder),
+  );
+  const [visibleRelations, setVisibleRelations] = useState<Set<GraphEdgeRelation>>(
+    () => new Set(allEdgeRelations),
+  );
+  const [statusFilter, setStatusFilter] = useState<"" | GraphNode["status"]>("");
   const [nodeOverrides, setNodeOverrides] = useState<
     Record<string, { name?: string; description?: string }>
   >({});
   const [genOpen, setGenOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
-  const [planDocOpen, setPlanDocOpen] = useState(false);
+  const [planDocOpenId, setPlanDocOpenId] = useState<string | null>(null);
+  const [attachmentMenuOpen, setAttachmentMenuOpen] = useState(false);
   const [actionHint, setActionHint] = useState<string | null>(null);
   const graphAreaRef = useRef<HTMLDivElement>(null);
+  const attachmentMenuRef = useRef<HTMLDivElement>(null);
   const [viewBox, setViewBox] = useState({ w: 900, h: 400 });
 
   const prof = professions.find((p) => p.id === profId);
-  const trainingPlanDoc = useMemo(() => {
-    const id = prof?.knowledgeGraphTrainingPlanDocumentId;
-    if (!id) return undefined;
-    return knowledgeGraphTrainingPlanDocumentById(id);
+  const trainingPlanDocs = useMemo(() => {
+    const ids = prof?.knowledgeGraphTrainingPlanDocumentIds;
+    if (!ids?.length) return [];
+    return ids
+      .map((id) => knowledgeGraphTrainingPlanDocumentById(id))
+      .filter((d): d is NonNullable<typeof d> => d != null);
   }, [prof]);
+  const openPlanDoc = planDocOpenId
+    ? knowledgeGraphTrainingPlanDocumentById(planDocOpenId)
+    : undefined;
   const baseNodes = nodesByProfession[profId] ?? [];
   const edges = edgesByProfession[profId] ?? [];
   const nodes = useMemo(
@@ -77,21 +132,42 @@ export function GraphBrowse({
 
   const node = selected ? nodes.find((n) => n.id === selected) : undefined;
 
-  // 当前图谱真正出现的簇（用于图例，避免全局簇色盘太长）
-  const clustersInGraph = useMemo(() => {
-    const set = new Set<string>();
-    for (const n of nodes) set.add(n.cluster);
-    return Array.from(set);
-  }, [nodes]);
+  const relationsInGraph = useMemo(() => {
+    const set = new Set<GraphEdgeRelation>();
+    for (const e of edges) set.add(e.relation);
+    return allEdgeRelations.filter((relation) => set.has(relation));
+  }, [edges]);
 
   useEffect(() => {
     if (focusNodeId == null || focusNodeId === "") return;
     const n = graphNodeById(focusNodeId);
     if (!n) return;
     setProfId(n.professionId);
-    setHiddenClusters(new Set());
+    setVisibleLayers(new Set(graphVisualLayerOrder));
+    setVisibleRelations(new Set(allEdgeRelations));
     setSelected(n.id);
   }, [focusNodeId]);
+
+  useEffect(() => {
+    if (!attachmentMenuOpen) return;
+    const onDocMouseDown = (e: MouseEvent) => {
+      if (
+        attachmentMenuRef.current &&
+        !attachmentMenuRef.current.contains(e.target as Node)
+      ) {
+        setAttachmentMenuOpen(false);
+      }
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setAttachmentMenuOpen(false);
+    };
+    document.addEventListener("mousedown", onDocMouseDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", onDocMouseDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [attachmentMenuOpen]);
 
   useEffect(() => {
     const el = graphAreaRef.current;
@@ -109,8 +185,13 @@ export function GraphBrowse({
   }, []);
 
   const visibleNodes = useMemo(
-    () => nodes.filter((n) => !hiddenClusters.has(n.cluster)),
-    [nodes, hiddenClusters],
+    () =>
+      nodes.filter(
+        (n) =>
+          visibleLayers.has(visualLayerOfNode(n)) &&
+          (!statusFilter || n.status === statusFilter),
+      ),
+    [nodes, statusFilter, visibleLayers],
   );
   const visibleNodeIds = useMemo(
     () => new Set(visibleNodes.map((n) => n.id)),
@@ -119,29 +200,37 @@ export function GraphBrowse({
   const visibleEdges = useMemo(
     () =>
       edges.filter(
-        (e) => visibleNodeIds.has(e.from) && visibleNodeIds.has(e.to),
+        (e) =>
+          visibleNodeIds.has(e.from) &&
+          visibleNodeIds.has(e.to) &&
+          visibleRelations.has(e.relation),
       ),
-    [edges, visibleNodeIds],
+    [edges, visibleNodeIds, visibleRelations],
   );
 
-  const toggleCluster = useCallback((name: string) => {
-    setHiddenClusters((prev) => {
+  const toggleLayer = useCallback((layer: GraphVisualLayer) => {
+    setVisibleLayers((prev) => {
       const next = new Set(prev);
-      if (next.has(name)) next.delete(name);
-      else next.add(name);
+      if (next.has(layer)) next.delete(layer);
+      else next.add(layer);
       return next;
     });
   }, []);
 
-  const showAllClusters = useCallback(() => {
-    setHiddenClusters(new Set());
+  const toggleRelation = useCallback((relation: GraphEdgeRelation) => {
+    setVisibleRelations((prev) => {
+      const next = new Set(prev);
+      if (next.has(relation)) next.delete(relation);
+      else next.add(relation);
+      return next;
+    });
   }, []);
 
   useEffect(() => {
     if (!selected) return;
     const n = nodes.find((x) => x.id === selected);
-    if (n && hiddenClusters.has(n.cluster)) setSelected(null);
-  }, [selected, hiddenClusters, nodes]);
+    if (n && !visibleLayers.has(visualLayerOfNode(n))) setSelected(null);
+  }, [selected, visibleLayers, nodes]);
 
   return (
     <div>
@@ -154,7 +243,8 @@ export function GraphBrowse({
               onChange={(e) => {
                 const nid = e.target.value;
                 setProfId(nid);
-                setHiddenClusters(new Set());
+                setVisibleLayers(new Set(graphVisualLayerOrder));
+                setVisibleRelations(new Set(allEdgeRelations));
                 setSelected(null);
               }}
               className="bg-white border border-slate-200 rounded-md px-2 py-1"
@@ -174,7 +264,7 @@ export function GraphBrowse({
                   className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md border border-violet-200 bg-violet-50 text-violet-800 hover:bg-violet-100"
                 >
                   <Sparkles size={14} />
-                  生成图谱
+                  重新生成
                 </button>
                 <button
                   type="button"
@@ -226,63 +316,157 @@ export function GraphBrowse({
             />
           ) : (
             <>
-              {trainingPlanDoc && (
-                <div className="shrink-0 flex items-center gap-2 border-b border-slate-100 bg-slate-50/50 px-3 py-2">
-                  <FileText
-                    className="size-4 shrink-0 text-slate-400"
-                    strokeWidth={1.75}
-                    aria-hidden
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setPlanDocOpen(true)}
-                    className="min-w-0 text-left text-[0.8125rem] text-slate-600 hover:text-indigo-700 hover:underline truncate"
-                    title={trainingPlanDoc.fileName}
+              {trainingPlanDocs.length > 0 && (
+                <div className="shrink-0 border-b border-slate-100 bg-slate-50/50 px-3 py-2">
+                  <div
+                    ref={attachmentMenuRef}
+                    className="flex min-h-[2rem] items-center gap-2"
                   >
-                    {trainingPlanDoc.fileName}
-                  </button>
+                    <FileText
+                      className="size-4 shrink-0 text-slate-400"
+                      strokeWidth={1.75}
+                      aria-hidden
+                    />
+                    <p className="min-w-0 flex-1 truncate text-[0.8125rem] text-slate-600">
+                      <span className="text-slate-500">
+                        {prof?.name ?? "本专业"}
+                        图谱依据：
+                      </span>
+                      培养方案、岗位研判与概论等教学档案共{" "}
+                      <span className="tabular-nums text-slate-800">
+                        {trainingPlanDocs.length}
+                      </span>{" "}
+                      份
+                    </p>
+                    <div className="relative shrink-0">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setAttachmentMenuOpen((open) => !open)
+                        }
+                        className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1 text-[0.75rem] font-medium text-slate-700 shadow-sm hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-900"
+                        aria-expanded={attachmentMenuOpen}
+                        aria-haspopup="true"
+                        aria-controls="kg-attachment-menu"
+                      >
+                        附件清单
+                        <ChevronDown
+                          className={`size-3.5 text-slate-500 transition-transform ${attachmentMenuOpen ? "rotate-180" : ""}`}
+                          aria-hidden
+                        />
+                      </button>
+                      {attachmentMenuOpen && (
+                        <div
+                          id="kg-attachment-menu"
+                          role="menu"
+                          className="absolute right-0 top-[calc(100%+0.25rem)] z-30 w-[min(calc(100vw-3rem),22rem)] rounded-lg border border-slate-200 bg-white py-1 shadow-lg ring-1 ring-black/5"
+                        >
+                          <div className="max-h-[min(50vh,280px)] overflow-y-auto px-1">
+                            {trainingPlanDocs.map((doc) => (
+                              <button
+                                key={doc.id}
+                                type="button"
+                                role="menuitem"
+                                className="flex w-full items-start gap-2 rounded-md px-2 py-2 text-left text-[0.8125rem] hover:bg-slate-50"
+                                onClick={() => {
+                                  setPlanDocOpenId(doc.id);
+                                  setAttachmentMenuOpen(false);
+                                }}
+                              >
+                                <span className="mt-0.5 shrink-0 rounded bg-slate-100 px-1.5 py-0.5 text-[0.625rem] font-medium text-slate-600">
+                                  {attachmentKindLabel[doc.kind]}
+                                </span>
+                                <span className="min-w-0 break-words text-slate-800">
+                                  {doc.fileName}
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               )}
               <div className="shrink-0 border-b border-slate-100 px-3 py-2">
                 <div className="text-[0.625rem] text-slate-400 mb-1.5">
-                  点击图例可显示/隐藏该知识簇
+                  层级自中心向外扩散；点击标签可显示/隐藏节点或边
                 </div>
-                <div className="flex max-h-20 flex-wrap items-center gap-2 overflow-y-auto pr-0.5">
-                  {hiddenClusters.size > 0 && (
-                    <button
-                      type="button"
-                      onClick={showAllClusters}
-                      className="shrink-0 text-[0.6875rem] text-indigo-600 hover:text-indigo-800"
-                    >
-                      全部显示
-                    </button>
-                  )}
-                  {clustersInGraph.map((k) => {
-                    const off = hiddenClusters.has(k);
+                <div className="mb-2 flex flex-wrap items-center gap-1.5">
+                  {graphVisualLayerOrder.map((layer) => {
+                    const on = visibleLayers.has(layer);
                     return (
                       <button
-                        key={k}
+                        key={layer}
                         type="button"
-                        onClick={() => toggleCluster(k)}
-                        title={off ? "点击在图中显示" : "点击在图中隐藏"}
-                        className={`flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-left text-[0.75rem] transition
-                          ${
-                            off
-                              ? "border-slate-200 bg-slate-50/90 opacity-50 line-through"
-                              : "border-slate-200 bg-slate-50/90 hover:border-indigo-300"
-                          }`}
+                        onClick={() => toggleLayer(layer)}
+                        className={`rounded-full border px-2 py-0.5 text-[0.6875rem] ${
+                          on
+                            ? "border-slate-200 bg-white text-slate-700"
+                            : "border-slate-200 bg-slate-50 text-slate-400 line-through"
+                        }`}
                       >
                         <span
-                          className="size-2.5 shrink-0 rounded-full"
-                          style={{
-                            background: clusterColor[k] ?? colorOfCluster(k),
-                            opacity: off ? 0.4 : 1,
-                          }}
+                          className="mr-1.5 inline-block size-2 rounded-full align-middle"
+                          style={{ background: graphVisualLayerColor[layer] }}
                         />
-                        <span className="text-slate-600">{k}</span>
+                        {graphVisualLayerLabel[layer]}
                       </button>
                     );
                   })}
+                  <select
+                    value={statusFilter}
+                    onChange={(e) =>
+                      setStatusFilter(e.target.value as "" | GraphNode["status"])
+                    }
+                    className="ml-auto rounded-md border border-slate-200 bg-white px-2 py-0.5 text-[0.6875rem] text-slate-600"
+                    aria-label="按节点状态筛选"
+                  >
+                    <option value="">全部状态</option>
+                    <option value="ai_draft">AI 草稿</option>
+                    <option value="edited">人工编辑</option>
+                    <option value="confirmed">已确认</option>
+                  </select>
+                </div>
+                <div className="flex max-h-20 flex-wrap items-center gap-2 overflow-y-auto pr-0.5">
+                  <span className="text-[0.6875rem] text-slate-400">边关系</span>
+                  {relationsInGraph.map((relation) => {
+                    const on = visibleRelations.has(relation);
+                    return (
+                      <button
+                        key={relation}
+                        type="button"
+                        onClick={() => toggleRelation(relation)}
+                        title={on ? "点击隐藏该类边" : "点击显示该类边"}
+                        className={`flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-left text-[0.75rem] transition
+                          ${
+                            on
+                              ? "border-slate-200 bg-slate-50/90 hover:border-indigo-300"
+                              : "border-slate-200 bg-slate-50/90 opacity-50 line-through"
+                          }`}
+                      >
+                        <span className="text-slate-600">{edgeRelationLabel[relation]}</span>
+                      </button>
+                    );
+                  })}
+                  {visibleRelations.size < relationsInGraph.length && (
+                    <button
+                      type="button"
+                      onClick={() => setVisibleRelations(new Set(allEdgeRelations))}
+                      className="shrink-0 text-[0.6875rem] text-indigo-600 hover:text-indigo-800"
+                    >
+                      显示全部边
+                    </button>
+                  )}
+                  {visibleLayers.size < graphVisualLayerOrder.length && (
+                    <button
+                      type="button"
+                      onClick={() => setVisibleLayers(new Set(graphVisualLayerOrder))}
+                      className="shrink-0 text-[0.6875rem] text-indigo-600 hover:text-indigo-800"
+                    >
+                      显示全部节点
+                    </button>
+                  )}
                 </div>
               </div>
               <div
@@ -291,7 +475,7 @@ export function GraphBrowse({
               >
                 {visibleNodes.length === 0 ? (
                   <div className="absolute inset-0 flex items-center justify-center text-slate-400 text-sm">
-                    当前已隐藏全部分簇，请点图例或「全部显示」
+                    当前已隐藏全部节点，请点层级标签或「显示全部节点」
                   </div>
                 ) : (
                   <KnowledgeGraphCanvas
@@ -299,13 +483,17 @@ export function GraphBrowse({
                     edges={visibleEdges}
                     width={viewBox.w}
                     height={viewBox.h}
-                    edgeStrokeMode="neutral"
+                    edgeStrokeMode="byRelation"
+                    layoutOverrides={{
+                      nodeMinCenterDistance: 82,
+                      layoutEdgePadding: 42,
+                    }}
                     focusNodeId={selected}
                     onNodeClick={(n) =>
                       setSelected((s) => (s === n.id ? null : n.id))
                     }
                     renderNode={({ node, x, y }) => {
-                      const color = colorOfCluster(node.cluster);
+                      const color = colorOfGraphNodeLayer(node);
                       const isSel = node.id === selected;
                       const isFocus = focusIds.has(node.id);
                       return (
@@ -326,6 +514,7 @@ export function GraphBrowse({
                             y={y}
                             color={color}
                             selected={isSel}
+                            status={node.status}
                           />
                           <text
                             x={x}
@@ -367,11 +556,12 @@ export function GraphBrowse({
           )}
         </aside>
       </div>
-      {planDocOpen && trainingPlanDoc && (
+      {openPlanDoc && (
         <TrainingPlanDocumentDialog
-          fileName={trainingPlanDoc.fileName}
-          content={trainingPlanDoc.content}
-          onClose={() => setPlanDocOpen(false)}
+          fileName={openPlanDoc.fileName}
+          kindLabel={attachmentKindLabel[openPlanDoc.kind]}
+          content={openPlanDoc.content}
+          onClose={() => setPlanDocOpenId(null)}
         />
       )}
       {genOpen && prof && canManageGraph && (
@@ -405,10 +595,12 @@ export function GraphBrowse({
 
 function TrainingPlanDocumentDialog({
   fileName,
+  kindLabel,
   content,
   onClose,
 }: {
   fileName: string;
+  kindLabel?: string;
   content: string;
   onClose: () => void;
 }) {
@@ -425,12 +617,19 @@ function TrainingPlanDocumentDialog({
         aria-labelledby="training-plan-doc-title"
       >
         <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-5 py-4 shrink-0">
-          <div
-            id="training-plan-doc-title"
-            className="min-w-0 text-slate-900 font-medium truncate pr-2"
-            title={fileName}
-          >
-            {fileName}
+          <div className="min-w-0 pr-2">
+            {kindLabel && (
+              <div className="mb-1 text-[0.6875rem] font-medium text-indigo-700">
+                {kindLabel}
+              </div>
+            )}
+            <div
+              id="training-plan-doc-title"
+              className="text-slate-900 font-medium truncate"
+              title={fileName}
+            >
+              {fileName}
+            </div>
           </div>
           <button
             type="button"
@@ -471,7 +670,7 @@ function GenerateGraphDialog({
         className="bg-white rounded-xl max-w-lg w-full p-6 shadow-xl border border-slate-200"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="text-slate-900 font-medium">按培养计划生成知识图谱</div>
+        <div className="text-slate-900 font-medium">选择材料重新生成知识图谱</div>
         <div className="mt-4">
           <div className="flex flex-wrap items-center gap-2">
             <input
@@ -501,10 +700,10 @@ function GenerateGraphDialog({
             <>
               将依据
               <span className="text-slate-800 font-medium">《{file.name}》</span>
-              从培养规格中梳理知识点、技能点与能力模块之间的结构关系。
+              从培养方案、岗位 JD、教学大纲中重新梳理「素养 → 能力 → 知识点 → 课程/实训」路径；已锁定节点默认保留。
             </>
           ) : (
-            "请上传文件"
+            "请上传培养方案、JD、教学大纲或课程体系文件"
           )}
         </p>
         <div className="mt-5 flex justify-end gap-2">
@@ -521,7 +720,7 @@ function GenerateGraphDialog({
             onClick={() => file && onConfirm(file.name)}
             className="px-3 py-1.5 rounded-md bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            开始生成
+            开始重新生成
           </button>
         </div>
       </div>
@@ -647,6 +846,7 @@ function NodeDetailPanel({
   const ts = trainingsByNode(node.id).filter(
     (t) => seesAll || t.ownerTeacherId === scopeTeacherId,
   );
+  const visualLayer = visualLayerOfNode(node);
   return (
     <div>
       <div className="flex items-start justify-between">
@@ -655,13 +855,26 @@ function NodeDetailPanel({
           <div className="mt-1 flex gap-1.5 flex-wrap">
             <span
               className="px-2 py-0.5 rounded-md text-white"
-              style={{ background: colorOfCluster(node.cluster) }}
+              style={{ background: graphVisualLayerColor[visualLayer] }}
             >
-              {node.nodeType}
+              {graphVisualLayerLabel[visualLayer]}
             </span>
-            <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700">
-              {node.cluster}
+            <span
+              className={`px-2 py-0.5 rounded-md ${
+                node.status === "ai_draft"
+                  ? "bg-violet-50 text-violet-700"
+                  : node.status === "edited"
+                  ? "bg-amber-50 text-amber-700"
+                  : "bg-emerald-50 text-emerald-700"
+              }`}
+            >
+              {statusLabel[node.status]}
             </span>
+            {node.locked && (
+              <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600">
+                已锁定
+              </span>
+            )}
           </div>
         </div>
         <button onClick={onClose} className="text-slate-400 hover:text-slate-700">
@@ -669,6 +882,17 @@ function NodeDetailPanel({
         </button>
       </div>
       <p className="mt-3 text-slate-600 leading-relaxed">{node.description}</p>
+      {node.sources.length > 0 && (
+        <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
+          <div className="text-slate-500 text-xs mb-1">来源依据</div>
+          <div className="text-slate-700 text-sm">
+            {node.sources[0]!.fileName} · {node.sources[0]!.locator}
+          </div>
+          <div className="mt-1 text-slate-500 text-xs line-clamp-2">
+            {node.sources[0]!.excerpt}
+          </div>
+        </div>
+      )}
 
       <div className="mt-4">
         <div className="flex items-center gap-1.5 text-slate-500 mb-2">
@@ -697,7 +921,7 @@ function NodeDetailPanel({
 
       <div className="mt-4">
         <div className="flex items-center gap-1.5 text-slate-500 mb-2">
-          <FileText size={14} /> 挂载资源（{rs.length}）
+          <FileText size={14} /> 课程/实训资料（{rs.length}）
         </div>
         <div className="space-y-1.5">
           {rs.slice(0, 8).map((r) => (
@@ -712,7 +936,7 @@ function NodeDetailPanel({
               {r.isAiGenerated && <AiBadge>AI</AiBadge>}
             </button>
           ))}
-          {rs.length === 0 && <div className="text-slate-400">该节点暂未挂载资源</div>}
+          {rs.length === 0 && <div className="text-slate-400">该节点关联的课程/实训暂无资料</div>}
           {rs.length > 8 && (
             <div className="text-slate-400">还有 {rs.length - 8} 个资源…</div>
           )}
@@ -810,6 +1034,8 @@ export function ResourceDetail({
 
   const uploader = teacherById(r.uploaderTeacherId);
   const courses = r.courseIds.map(courseById).filter(Boolean);
+  const trainings = (r.trainingIds ?? []).map(trainingById).filter(Boolean);
+  const resourceNodeIds = [...r.courseIds, ...(r.trainingIds ?? [])];
 
   return (
     <div>
@@ -857,12 +1083,16 @@ export function ResourceDetail({
               k="所属课程"
               v={courses.length > 0 ? courses.map((c) => `《${c!.name}》`).join("、") : "—"}
             />
+            <Info2
+              k="所属实训"
+              v={trainings.length > 0 ? trainings.map((t) => t!.name).join("、") : "—"}
+            />
           </dl>
           <div className="mt-4 border-t border-slate-100 pt-4 max-h-[min(40vh,22rem)] overflow-y-auto pr-0.5">
             <AssociatedKnowledgeNodes
-              knowledgeNodeIds={r.knowledgeNodeIds}
+              knowledgeNodeIds={resourceNodeIds}
               onNodeClick={onOpenKnowledgeInGraph}
-              emptyMessage="资源关联节点在专业图谱中未找到，或该专业尚未建图谱。"
+              emptyMessage="资源关联的课程/实训节点在专业图谱中未找到，或该专业尚未建图谱。"
             />
           </div>
           {r.tags.length > 0 && (

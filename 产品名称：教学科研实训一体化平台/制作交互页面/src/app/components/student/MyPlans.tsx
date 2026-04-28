@@ -727,7 +727,7 @@ function PersonalPlanDetail({
             onClick={() => onGoLearn({ goalNodeIds: plan.knowledgeNodeIds })}
             className="px-3 py-1.5 rounded-md bg-indigo-600 text-white hover:bg-indigo-700 inline-flex items-center gap-1"
           >
-            <Sparkles size={14} /> 进入课堂学习
+            <Sparkles size={14} /> 进入课堂
           </button>
         }
       />
@@ -753,6 +753,35 @@ function PersonalPlanDetail({
             <span>学习目标</span>
           </div>
           <p className="text-slate-800 leading-relaxed mt-1">{plan.goal}</p>
+
+          <div className="mt-4 rounded-lg border border-violet-100 bg-violet-50/40 px-3 py-2.5 space-y-1 text-[0.8125rem]">
+            <div className="text-slate-600 font-medium text-[0.6875rem] uppercase tracking-wide">
+              {plan.origin === "ai_from_errors" ? "错题 / 薄弱驱动" : "自选目标"}
+            </div>
+            <p className="text-slate-700 leading-relaxed">{plan.remediationSummary}</p>
+            <dl className="space-y-1 text-[0.75rem] text-slate-600 pt-1">
+              <div>
+                <dt className="text-slate-400 inline">讲义：</dt>
+                <span>{plan.materialMix.handoutLabels.join("；")}</span>
+              </div>
+              <div>
+                <dt className="text-slate-400 inline">题库 / 组卷：</dt>
+                <span>{plan.materialMix.questionPracticeLabel}</span>
+              </div>
+              <div>
+                <dt className="text-slate-400 inline">动手练：</dt>
+                <span>{plan.materialMix.drillLabel}</span>
+              </div>
+              {plan.materialMix.hasAiRemix ? (
+                <div className="text-violet-800 text-[0.75rem]">含 AI 错题变式再生</div>
+              ) : null}
+              {plan.seedWrongQuestionIds?.length ? (
+                <div className="text-slate-500">
+                  错题种子：{plan.seedWrongQuestionIds.join("、")}
+                </div>
+              ) : null}
+            </dl>
+          </div>
 
           <div className="mt-4 flex items-center gap-2 text-slate-500">
             <Sparkles size={14} />

@@ -247,7 +247,7 @@ export function PlanDetail({
   onOpenSection: (planId: string, sectionId: string) => void;
 }) {
   const p = teachingPlans.find((x) => x.id === id);
-  const [tab, setTab] = useState<"path" | "info" | "strategy" | "ai">("path");
+  const [tab, setTab] = useState<"path" | "info">("path");
 
   useEffect(() => {
     if (focusSectionId) setTab("path");
@@ -327,8 +327,6 @@ export function PlanDetail({
             [
               ["info", "基础信息"],
               ["path", "教学路径"],
-              ["strategy", "策略详情"],
-              ["ai", "AI 建议"],
             ] as const
           ).map(([k, l]) => (
             <button
@@ -347,18 +345,69 @@ export function PlanDetail({
       </div>
       <div className="p-6">
         {tab === "info" && (
-          <div className="grid grid-cols-3 gap-4">
-            <Info k="日期区间" v={`${p.startDate} → ${p.endDate}`} />
-            <Info k="学时" v={`${planTotalHours(p)} 学时`} />
-            <Info k="状态" v={`${status} · ${progress}%`} />
-            <Info k="覆盖班级" v={planClassNames(p).join("、")} />
-            <Info k="主讲教师" v={teacher?.name ?? "—"} />
-            <Info k="教学策略" v={strategy?.name ?? "—"} />
+          <div className="space-y-8">
+            <div className="grid grid-cols-3 gap-4">
+              <Info k="日期区间" v={`${p.startDate} → ${p.endDate}`} />
+              <Info k="学时" v={`${planTotalHours(p)} 学时`} />
+              <Info k="状态" v={`${status} · ${progress}%`} />
+              <Info k="覆盖班级" v={planClassNames(p).join("、")} />
+              <Info k="主讲教师" v={teacher?.name ?? "—"} />
+              <Info k="教学策略" v={strategy?.name ?? "—"} />
+            </div>
+            <div>
+              <div className="text-slate-900 font-medium mb-3">策略详情</div>
+              <div className="grid grid-cols-3 gap-4">
+                <div className="col-span-2 bg-white rounded-xl border border-slate-200 p-5">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-slate-900">{strategy?.name ?? "教学策略"}</span>
+                    <AiBadge>当前应用</AiBadge>
+                  </div>
+                  <p className="text-slate-700 leading-relaxed whitespace-pre-line">{p.strategyBrief}</p>
+                  {strategy && (
+                    <div className="grid grid-cols-3 gap-3 mt-4">
+                      <Info k="节奏建议" v={strategy.paceSuggestion} />
+                      <Info k="难度曲线" v={strategy.difficultyCurve} />
+                      <Info k="活动建议" v={strategy.activitySuggestion} />
+                    </div>
+                  )}
+                </div>
+                <div className="col-span-1 bg-white rounded-xl border border-slate-200 p-4 space-y-2 max-h-[560px] overflow-auto">
+                  <div className="text-slate-500 mb-1">可选策略模板</div>
+                  {teachingStrategies.map((s) => (
+                    <div
+                      key={s.id}
+                      className={`px-3 py-2 rounded-lg border ${
+                        s.id === p.strategyId
+                          ? "border-indigo-300 bg-indigo-50/60"
+                          : "border-slate-200 hover:bg-slate-50"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-slate-900">{s.name}</span>
+                        <span className="text-slate-400 text-[0.6875rem]">{sourceLabel(s.source)}</span>
+                      </div>
+                      <div className="text-slate-500 line-clamp-2 mt-0.5">{s.description}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div>
+              <div className="text-slate-900 font-medium mb-3">AI 建议</div>
+              <div className="bg-white rounded-xl border border-slate-200 p-5">
+                <div className="flex items-center gap-2 mb-2">
+                  <AiBadge>AI 整体建议</AiBadge>
+                </div>
+                <p className="text-slate-700 leading-relaxed whitespace-pre-line">{p.aiAdvice}</p>
+              </div>
+            </div>
           </div>
         )}
         {tab === "path" && (
           <div className="space-y-4">
-            <div className="text-slate-500">点击已完成（深蓝）或已做设计的小节 → 跳转到教学设计工作台</div>
+            <div className="text-slate-500">
+              上方迷你图展示本计划从主图中切出的跨层路径；下方点击小节先查看「本节课程资源」，再可选择进入教学设计工作台。
+            </div>
             {p.chapters.map((c) => (
               <div key={c.id} className="bg-white rounded-xl border border-slate-200 p-4">
                 <div className="text-slate-900 mb-3 flex items-center gap-2">
@@ -399,53 +448,6 @@ export function PlanDetail({
                 </div>
               </div>
             ))}
-          </div>
-        )}
-        {tab === "strategy" && (
-          <div className="grid grid-cols-3 gap-4">
-            <div className="col-span-2 bg-white rounded-xl border border-slate-200 p-5">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-slate-900">{strategy?.name ?? "教学策略"}</span>
-                <AiBadge>当前应用</AiBadge>
-              </div>
-              <p className="text-slate-700 leading-relaxed whitespace-pre-line">{p.strategyBrief}</p>
-              {strategy && (
-                <div className="grid grid-cols-3 gap-3 mt-4">
-                  <Info k="节奏建议" v={strategy.paceSuggestion} />
-                  <Info k="难度曲线" v={strategy.difficultyCurve} />
-                  <Info k="活动建议" v={strategy.activitySuggestion} />
-                </div>
-              )}
-            </div>
-            <div className="col-span-1 bg-white rounded-xl border border-slate-200 p-4 space-y-2 max-h-[560px] overflow-auto">
-              <div className="text-slate-500 mb-1">可选策略模板</div>
-              {teachingStrategies.map((s) => (
-                <div
-                  key={s.id}
-                  className={`px-3 py-2 rounded-lg border ${
-                    s.id === p.strategyId
-                      ? "border-indigo-300 bg-indigo-50/60"
-                      : "border-slate-200 hover:bg-slate-50"
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-900">{s.name}</span>
-                    <span className="text-slate-400 text-[0.6875rem]">{sourceLabel(s.source)}</span>
-                  </div>
-                  <div className="text-slate-500 line-clamp-2 mt-0.5">{s.description}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-        {tab === "ai" && (
-          <div className="space-y-3">
-            <div className="bg-white rounded-xl border border-slate-200 p-5">
-              <div className="flex items-center gap-2 mb-2">
-                <AiBadge>AI 整体建议</AiBadge>
-              </div>
-              <p className="text-slate-700 leading-relaxed whitespace-pre-line">{p.aiAdvice}</p>
-            </div>
           </div>
         )}
       </div>

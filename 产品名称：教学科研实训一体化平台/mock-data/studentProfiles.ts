@@ -24,11 +24,11 @@ export const studentProfiles: StudentProfile[] = [
     activity: "高",
     masteryHeatmap: [
       { knowledgePointId: "kn-mech-015", knowledgePointName: "三视图对应规律", masteryLevel: 92 },
-      { knowledgePointId: "kn-mech-031", knowledgePointName: "组合体三视图绘制", masteryLevel: 88 },
-      { knowledgePointId: "kn-mech-028", knowledgePointName: "截交线", masteryLevel: 85 },
-      { knowledgePointId: "kn-mech-029", knowledgePointName: "相贯线", masteryLevel: 72 },
-      { knowledgePointId: "kn-mech-048", knowledgePointName: "零件图内容", masteryLevel: 80 },
-      { knowledgePointId: "kn-mech-059", knowledgePointName: "三维实体建模", masteryLevel: 90 },
+      { knowledgePointId: "kn-mech-005", knowledgePointName: "组合体三视图绘制", masteryLevel: 88 },
+      { knowledgePointId: "kn-mech-006", knowledgePointName: "截交线", masteryLevel: 85 },
+      { knowledgePointId: "kn-mech-006", knowledgePointName: "相贯线", masteryLevel: 72 },
+      { knowledgePointId: "kn-mech-009", knowledgePointName: "零件图内容", masteryLevel: 80 },
+      { knowledgePointId: "kn-mech-012", knowledgePointName: "三维实体建模", masteryLevel: 90 },
     ],
     recentScores: [
       { taskName: "第3章 · 三视图作业", score: 92, date: "2026-03-18" },
@@ -48,10 +48,10 @@ export const studentProfiles: StudentProfile[] = [
     masteryHeatmap: [
       { knowledgePointId: "kn-mech-003", knowledgePointName: "字体规范", masteryLevel: 98 },
       { knowledgePointId: "kn-mech-005", knowledgePointName: "尺寸标注基础", masteryLevel: 95 },
-      { knowledgePointId: "kn-mech-032", knowledgePointName: "组合体尺寸标注", masteryLevel: 90 },
-      { knowledgePointId: "kn-mech-031", knowledgePointName: "组合体三视图绘制", masteryLevel: 78 },
-      { knowledgePointId: "kn-mech-049", knowledgePointName: "表面粗糙度", masteryLevel: 82 },
-      { knowledgePointId: "kn-mech-050", knowledgePointName: "尺寸公差与配合", masteryLevel: 70 },
+      { knowledgePointId: "kn-mech-009", knowledgePointName: "组合体尺寸标注", masteryLevel: 90 },
+      { knowledgePointId: "kn-mech-005", knowledgePointName: "组合体三视图绘制", masteryLevel: 78 },
+      { knowledgePointId: "kn-mech-009", knowledgePointName: "表面粗糙度", masteryLevel: 82 },
+      { knowledgePointId: "kn-mech-009", knowledgePointName: "尺寸公差与配合", masteryLevel: 70 },
     ],
     recentScores: [
       { taskName: "第3章 · 三视图作业", score: 86, date: "2026-03-18" },
@@ -69,9 +69,9 @@ export const studentProfiles: StudentProfile[] = [
     learningStyle: "混合型",
     activity: "中",
     masteryHeatmap: [
-      { knowledgePointId: "kn-mech-031", knowledgePointName: "组合体三视图绘制", masteryLevel: 72 },
-      { knowledgePointId: "kn-mech-029", knowledgePointName: "相贯线", masteryLevel: 55 },
-      { knowledgePointId: "kn-mech-054", knowledgePointName: "AutoCAD 界面与命令", masteryLevel: 85 },
+      { knowledgePointId: "kn-mech-005", knowledgePointName: "组合体三视图绘制", masteryLevel: 72 },
+      { knowledgePointId: "kn-mech-006", knowledgePointName: "相贯线", masteryLevel: 55 },
+      { knowledgePointId: "kn-mech-011", knowledgePointName: "AutoCAD 界面与命令", masteryLevel: 85 },
     ],
     recentScores: [
       { taskName: "第3章 · 三视图作业", score: 78, date: "2026-03-18" },
@@ -88,10 +88,10 @@ export const studentProfiles: StudentProfile[] = [
     learningStyle: "动觉型",
     activity: "高",
     masteryHeatmap: [
-      { knowledgePointId: "kn-mech-054", knowledgePointName: "AutoCAD 界面与命令", masteryLevel: 96 },
-      { knowledgePointId: "kn-mech-055", knowledgePointName: "图层管理", masteryLevel: 94 },
-      { knowledgePointId: "kn-mech-057", knowledgePointName: "图纸空间与打印", masteryLevel: 92 },
-      { knowledgePointId: "kn-mech-031", knowledgePointName: "组合体三视图绘制", masteryLevel: 82 },
+      { knowledgePointId: "kn-mech-011", knowledgePointName: "AutoCAD 界面与命令", masteryLevel: 96 },
+      { knowledgePointId: "kn-mech-011", knowledgePointName: "图层管理", masteryLevel: 94 },
+      { knowledgePointId: "kn-mech-011", knowledgePointName: "图纸空间与打印", masteryLevel: 92 },
+      { knowledgePointId: "kn-mech-005", knowledgePointName: "组合体三视图绘制", masteryLevel: 82 },
     ],
     recentScores: [
       { taskName: "CAD 实训 1", score: 98, date: "2026-03-12" },
@@ -110,7 +110,7 @@ export const studentProfiles: StudentProfile[] = [
     masteryHeatmap: [
       { knowledgePointId: "kn-mech-008", knowledgePointName: "圆弧连接", masteryLevel: 95 },
       { knowledgePointId: "kn-mech-011", knowledgePointName: "徒手绘制草图", masteryLevel: 92 },
-      { knowledgePointId: "kn-mech-050", knowledgePointName: "尺寸公差与配合", masteryLevel: 60 },
+      { knowledgePointId: "kn-mech-009", knowledgePointName: "尺寸公差与配合", masteryLevel: 60 },
     ],
     recentScores: [
       { taskName: "第2章 · 几何作图", score: 96, date: "2026-03-08" },
@@ -128,8 +128,8 @@ export const studentProfiles: StudentProfile[] = [
     activity: "低",
     masteryHeatmap: [
       { knowledgePointId: "kn-mech-015", knowledgePointName: "三视图对应规律", masteryLevel: 62 },
-      { knowledgePointId: "kn-mech-028", knowledgePointName: "截交线", masteryLevel: 48 },
-      { knowledgePointId: "kn-mech-031", knowledgePointName: "组合体三视图绘制", masteryLevel: 55 },
+      { knowledgePointId: "kn-mech-006", knowledgePointName: "截交线", masteryLevel: 48 },
+      { knowledgePointId: "kn-mech-005", knowledgePointName: "组合体三视图绘制", masteryLevel: 55 },
     ],
     recentScores: [
       { taskName: "第3章 · 三视图作业", score: 62, date: "2026-03-18" },
@@ -148,9 +148,9 @@ export const studentProfiles: StudentProfile[] = [
     activity: "低",
     masteryHeatmap: [
       { knowledgePointId: "kn-mech-015", knowledgePointName: "三视图对应规律", masteryLevel: 48 },
-      { knowledgePointId: "kn-mech-028", knowledgePointName: "截交线", masteryLevel: 32 },
-      { knowledgePointId: "kn-mech-031", knowledgePointName: "组合体三视图绘制", masteryLevel: 40 },
-      { knowledgePointId: "kn-mech-054", knowledgePointName: "AutoCAD 界面与命令", masteryLevel: 55 },
+      { knowledgePointId: "kn-mech-006", knowledgePointName: "截交线", masteryLevel: 32 },
+      { knowledgePointId: "kn-mech-005", knowledgePointName: "组合体三视图绘制", masteryLevel: 40 },
+      { knowledgePointId: "kn-mech-011", knowledgePointName: "AutoCAD 界面与命令", masteryLevel: 55 },
     ],
     recentScores: [
       { taskName: "第3章 · 三视图作业", score: 54, date: "2026-03-18" },
@@ -168,9 +168,9 @@ export const studentProfiles: StudentProfile[] = [
     learningStyle: "视觉型",
     activity: "高",
     masteryHeatmap: [
-      { knowledgePointId: "kn-mech-031", knowledgePointName: "组合体三视图绘制", masteryLevel: 95 },
-      { knowledgePointId: "kn-mech-052", knowledgePointName: "装配图表达方法", masteryLevel: 88 },
-      { knowledgePointId: "kn-mech-058", knowledgePointName: "SolidWorks 草图", masteryLevel: 92 },
+      { knowledgePointId: "kn-mech-005", knowledgePointName: "组合体三视图绘制", masteryLevel: 95 },
+      { knowledgePointId: "kn-mech-010", knowledgePointName: "装配图表达方法", masteryLevel: 88 },
+      { knowledgePointId: "kn-mech-012", knowledgePointName: "SolidWorks 草图", masteryLevel: 92 },
     ],
     recentScores: [
       { taskName: "第3章 · 三视图作业", score: 96, date: "2026-03-18" },
@@ -188,10 +188,10 @@ export const studentProfiles: StudentProfile[] = [
     learningStyle: "视觉型",
     activity: "高",
     masteryHeatmap: [
-      { knowledgePointId: "kn-mech-058", knowledgePointName: "SolidWorks 草图", masteryLevel: 92 },
-      { knowledgePointId: "kn-mech-059", knowledgePointName: "三维实体建模", masteryLevel: 90 },
-      { knowledgePointId: "kn-mech-060", knowledgePointName: "三维装配与工程图输出", masteryLevel: 86 },
-      { knowledgePointId: "kn-mech-031", knowledgePointName: "组合体三视图绘制", masteryLevel: 78 },
+      { knowledgePointId: "kn-mech-012", knowledgePointName: "SolidWorks 草图", masteryLevel: 92 },
+      { knowledgePointId: "kn-mech-012", knowledgePointName: "三维实体建模", masteryLevel: 90 },
+      { knowledgePointId: "kn-mech-012", knowledgePointName: "三维装配与工程图输出", masteryLevel: 86 },
+      { knowledgePointId: "kn-mech-005", knowledgePointName: "组合体三视图绘制", masteryLevel: 78 },
     ],
     recentScores: [
       { taskName: "机器人示教编程作业 1", score: 94, date: "2026-03-20" },
@@ -209,10 +209,10 @@ export const studentProfiles: StudentProfile[] = [
     learningStyle: "读写型",
     activity: "高",
     masteryHeatmap: [
-      { knowledgePointId: "kn-mech-049", knowledgePointName: "表面粗糙度", masteryLevel: 94 },
-      { knowledgePointId: "kn-mech-050", knowledgePointName: "尺寸公差与配合", masteryLevel: 92 },
-      { knowledgePointId: "kn-mech-051", knowledgePointName: "形位公差", masteryLevel: 90 },
-      { knowledgePointId: "kn-mech-053", knowledgePointName: "装配图尺寸与技术要求", masteryLevel: 88 },
+      { knowledgePointId: "kn-mech-009", knowledgePointName: "表面粗糙度", masteryLevel: 94 },
+      { knowledgePointId: "kn-mech-009", knowledgePointName: "尺寸公差与配合", masteryLevel: 92 },
+      { knowledgePointId: "kn-mech-009", knowledgePointName: "形位公差", masteryLevel: 90 },
+      { knowledgePointId: "kn-mech-010", knowledgePointName: "装配图尺寸与技术要求", masteryLevel: 88 },
     ],
     recentScores: [
       { taskName: "互换性 · 公差链分析作业", score: 96, date: "2026-03-22" },

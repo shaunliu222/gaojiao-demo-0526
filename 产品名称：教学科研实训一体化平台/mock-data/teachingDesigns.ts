@@ -87,7 +87,7 @@ export const teachingDesigns: TeachingDesign[] = [
         sizeLabel: "6.2 MB",
         createdAt: "2026-03-16T10:11:00+08:00",
         summary: "7 页精排讲义，覆盖形体分析、案例演示、自查清单。",
-        tags: ["讲义", "焦点小节"],
+        tags: ["讲义", "主线"],
       },
       {
         id: "out-h-002",
@@ -97,7 +97,7 @@ export const teachingDesigns: TeachingDesign[] = [
         sizeLabel: "1.3 MB",
         createdAt: "2026-03-16T10:11:10+08:00",
         summary: "5 大分支 · 18 个节点，配色清晰。",
-        tags: ["导图", "焦点小节"],
+        tags: ["导图", "主线"],
       },
       {
         id: "out-h-003",
@@ -242,7 +242,7 @@ export const teachingDesigns: TeachingDesign[] = [
         sizeLabel: "1.4 MB",
         createdAt: "2026-03-17T14:11:00+08:00",
         summary: "4+3+1 题，90 分钟完成。",
-        tags: ["作业", "焦点小节"],
+        tags: ["作业", "主线"],
       },
       {
         id: "out-w-002",

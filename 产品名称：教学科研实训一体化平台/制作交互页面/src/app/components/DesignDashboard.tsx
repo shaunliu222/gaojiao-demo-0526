@@ -6,7 +6,6 @@ import {
   Layers,
   PenTool,
   Sparkles,
-  Target,
 } from "lucide-react";
 import { teachingPlans, designsBySection } from "@mock";
 import type { TeachingDesign, TeachingPlan } from "@mock";
@@ -31,7 +30,6 @@ function collectAllSections(): SectionRef[] {
   const out: SectionRef[] = [];
   for (const plan of teachingPlans) {
     for (const ch of plan.chapters) {
-      const isFocusChapter = ch.title.includes("焦点");
       for (const sec of ch.sections) {
         const key = `${plan.id}::${sec.id}`;
         const designs = designsBySection[key] ?? [];
@@ -49,10 +47,8 @@ function collectAllSections(): SectionRef[] {
           hasDesign: sec.hasDesign,
           designs,
           isFocus:
-            isFocusChapter ||
-            sec.id === "sec-3-2" || // 主线焦点小节
-            sec.id === "sec-wgw-1-2" || // 王海峰 · 金工量具对读
-            sec.title.includes("焦点"),
+            sec.id === "sec-3-2" ||
+            sec.id === "sec-wgw-1-2",
           latestUpdatedAt: latest,
         });
       }
@@ -98,7 +94,7 @@ export function DesignDashboard({
     return [...withDesigns, ...fillers].slice(0, 6);
   }, [all]);
 
-  // Group B · 焦点小节：焦点章节 + 主线焦点小节
+  // Group B · 优先备课小节
   const focusSections = useMemo(() => {
     return all
       .filter((s) => s.isFocus)
@@ -142,7 +138,7 @@ export function DesignDashboard({
           />
           <Metric
             icon={<Flag size={16} />}
-            label="焦点小节"
+            label="优先备课"
             value={focusCount}
             tone="indigo"
           />
@@ -165,13 +161,13 @@ export function DesignDashboard({
           onOpen={onOpenSection}
         />
 
-        {/* Group B · 焦点小节 */}
+        {/* Group B · 优先备课 */}
         <DashboardGroup
-          title="焦点小节"
-          hint="课程主线/重点章节，优先投入设计精力"
+          title="优先备课"
+          hint="当前主线优先跟进的小节"
           accent="violet"
           cards={focusSections}
-          emptyHint="暂无焦点小节"
+          emptyHint="暂无优先备课小节"
           cta="进入工作台"
           onOpen={onOpenSection}
         />
@@ -302,12 +298,6 @@ function SectionCard({
         data.isFocus ? "border-indigo-300 ring-1 ring-indigo-100" : "border-slate-200"
       }`}
     >
-      {data.isFocus && (
-        <span className="absolute top-3 right-3 inline-flex items-center gap-1 text-indigo-600 text-[0.6875rem]">
-          <Target size={11} />
-          焦点
-        </span>
-      )}
       <div className="text-slate-500 text-[0.6875rem] truncate">
         《{course?.name ?? data.plan.courseId}》 · {data.chapterTitle}
       </div>

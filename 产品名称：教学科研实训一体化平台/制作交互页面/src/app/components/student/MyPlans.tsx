@@ -581,9 +581,6 @@ function CoursePlanDetail({
             >
               <div className="text-slate-900 mb-3 flex items-center gap-2">
                 {ch.title}
-                {ch.title.includes("焦点") && (
-                  <span className="text-indigo-600">【焦点】★</span>
-                )}
               </div>
               {ch.summary && (
                 <div className="text-slate-500 mb-3">{ch.summary}</div>
@@ -622,9 +619,6 @@ function CoursePlanDetail({
                               {prog.masteryScore}
                             </span>
                           )}
-                        {isFocus && (
-                          <span className="text-indigo-600">★</span>
-                        )}
                       </button>
                       {ta && onGoTraining ? (
                         <button

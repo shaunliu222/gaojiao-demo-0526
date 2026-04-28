@@ -5,13 +5,15 @@ import { withHomeworkStudentResults } from "./evalResultBuilders";
  * 作业评价汇总（AI 批阅后的总览数据，用于协同评价页面）
  *
  * 主线《机械制图与CAD》6 次（其中 hw-m-003「组合体三视图」数据最详细）
+ * 金工实习 · 2301/2302 各 1 次（与 plan-wang-metalwork 小节绑定；学习中心按进度切片展示）
  * 辅线 · 互换性与技术测量 2 次（大四 2101）
  * 辅线 · 工业机器人 2 次（大二 2303）
- * 合计 10 次
+ * 另补 4 次「学习中心演示」用归档/课前测（ch2 班别练、金工 1.1 线上确认）
+ * 合计 17 次
  */
 const homeworkEvaluationsRaw: HomeworkEvalInput[] = [
   // ====================================================================
-  // 1. 主线 · 第2章投影基础小测（进行中班前期）
+  // 1. 主线 · 第2章投影基础小测【历史归档：早于当前「3.2 组合体周」】
   // ====================================================================
   {
     id: "hw-m-001",
@@ -66,6 +68,83 @@ const homeworkEvaluationsRaw: HomeworkEvalInput[] = [
     ],
   },
 
+  {
+    id: "hw-m-ch2-2302",
+    homeworkTitle: "第2章 · 投影基础阶段练（2302 班）",
+    courseId: "course-mech-draw",
+    planId: "plan-main",
+    sectionId: "sec-2-4",
+    classId: "cls-mech-2302",
+    teacherId: "t-wang",
+    assignedAt: "2026-03-12",
+    dueAt: "2026-03-15",
+    submissionCount: 22,
+    totalStudents: 25,
+    averageScore: 70.2,
+    maxScore: 92,
+    minScore: 48,
+    scoreBuckets: [
+      { range: "90-100", count: 2 },
+      { range: "80-89", count: 4 },
+      { range: "70-79", count: 8 },
+      { range: "60-69", count: 7 },
+      { range: "<60", count: 4 },
+    ],
+    aiRatings: { excellent: 2, good: 4, pass: 15, fail: 4 },
+    hotWrongPoints: [
+      {
+        name: "三视图对应规律",
+        knowledgeNodeId: "kn-mech-015",
+        wrongRate: 0.48,
+        aiCause: "与 2302 班投影基础画像一致，需与 3.2 课堂补救衔接。",
+      },
+    ],
+    keyStudents: [],
+    aiInsights: [],
+    questionAccuracy: [
+      { questionNo: 1, title: "点的投影", knowledgeNodeId: "kn-mech-017", accuracy: 0.78 },
+      { questionNo: 2, title: "线面相对位置", knowledgeNodeId: "kn-mech-022", accuracy: 0.62 },
+    ],
+  },
+  {
+    id: "hw-m-ch2-2303",
+    homeworkTitle: "第2章 · 投影基础阶段练（2303 班）",
+    courseId: "course-mech-draw",
+    planId: "plan-main",
+    sectionId: "sec-2-4",
+    classId: "cls-mech-2303",
+    teacherId: "t-li",
+    assignedAt: "2026-03-12",
+    dueAt: "2026-03-15",
+    submissionCount: 24,
+    totalStudents: 26,
+    averageScore: 76.5,
+    maxScore: 95,
+    minScore: 58,
+    scoreBuckets: [
+      { range: "90-100", count: 3 },
+      { range: "80-89", count: 9 },
+      { range: "70-79", count: 10 },
+      { range: "60-69", count: 3 },
+      { range: "<60", count: 1 },
+    ],
+    aiRatings: { excellent: 3, good: 9, pass: 12, fail: 2 },
+    hotWrongPoints: [
+      {
+        name: "线型层次与可见性",
+        knowledgeNodeId: "kn-mech-016",
+        wrongRate: 0.22,
+        aiCause: "数模表达强，对手绘迁移仍需对照训练。",
+      },
+    ],
+    keyStudents: [],
+    aiInsights: [],
+    questionAccuracy: [
+      { questionNo: 1, title: "点的投影", knowledgeNodeId: "kn-mech-017", accuracy: 0.85 },
+      { questionNo: 2, title: "直线投影分类", knowledgeNodeId: "kn-mech-019", accuracy: 0.8 },
+    ],
+  },
+
   // ====================================================================
   // 2. 主线 · 第3章组合体作业【核心数据】
   // ====================================================================
@@ -99,7 +178,7 @@ const homeworkEvaluationsRaw: HomeworkEvalInput[] = [
       { name: "组合体尺寸重复标注", knowledgeNodeId: "kn-mech-032", wrongRate: 0.25, aiCause: "学生对定形/定位/总体尺寸的层次理解不清。" },
     ],
     keyStudents: [
-      { studentId: "s-mech2301-01", studentName: "张伟", reason: "综合题满分 · 空间想象力突出", score: 95, changeTrend: "稳定" },
+      { studentId: "s-mech2301-02", studentName: "刘静雯", reason: "综合题优秀 · 作图规范好", score: 93, changeTrend: "稳定" },
       { studentId: "s-mech2301-06", studentName: "周子航", reason: "低于及格线 · 连续 3 次下滑", score: 54, changeTrend: "下降" },
       { studentId: "s-mech2301-03", studentName: "王一鸣", reason: "手工绘图明显差于 CAD · 软件依赖倾向", score: 72, changeTrend: "稳定" },
       { studentId: "s-mech2301-24", studentName: "张梓豪", reason: "从 78 升到 88 · 进步显著", score: 88, changeTrend: "上升" },
@@ -122,7 +201,7 @@ const homeworkEvaluationsRaw: HomeworkEvalInput[] = [
         id: "ai-m-003-2",
         title: "王一鸣的「软件依赖倾向」值得关注",
         summary: "王一鸣 CAD 题 95 分 vs 手绘题 48 分，差距显著。建议安排 2 次徒手绘图专项练习。",
-        actionSuggestion: "安排朋辈辅导（张伟为例），在下次小组作业中鼓励他先手绘后 CAD。",
+        actionSuggestion: "安排朋辈辅导（刘静雯为例），在下次小组作业中鼓励他先手绘后 CAD。",
         adjustCourse: {
           planId: "plan-main",
           sectionId: "sec-3-2",
@@ -182,20 +261,21 @@ const homeworkEvaluationsRaw: HomeworkEvalInput[] = [
       { name: "相贯线判别错误", knowledgeNodeId: "kn-mech-029", wrongRate: 0.52, aiCause: "基础空间想象力不足。" },
     ],
     keyStudents: [
-      { studentId: "s-mech2302-01", studentName: "陈浩宇", reason: "严重不及格 · 缺交 2 次", score: 38, changeTrend: "下降" },
+      { studentId: "s-mech2302-03", studentName: "马俊豪", reason: "进度落后 · 订正未完成", score: 41, changeTrend: "下降" },
       { studentId: "s-mech2302-02", studentName: "林诗涵", reason: "全班最高分", score: 96, changeTrend: "稳定" },
     ],
     aiInsights: [
       {
         id: "ai-m-003-2302-1",
-        title: "2302 班基础投影未掌握，后续学习风险极高",
+        title: "2302 班基础投影未掌握，需在 3.2 课堂内嵌补救",
         summary:
-          "52% 学生在最基础的「三视图对应规律」上出错，这属于 2.2 节的内容。当前继续向前推进风险高，建议安排一次「投影基础回顾测验」。",
-        actionSuggestion: "紧急：本周内安排 2 课时基础回顾 + 一对一答疑。陈浩宇等学生进入「基础补救小组」。",
+          "52% 学生在「三视图对应规律」上出错，根源可追溯至 2.2；班级进度已到组合体单元，不宜单独拆一节退回 2.2，应在次日 **3.2 轴承座课堂**开场嵌入约 10 分钟口诀回放与两道举牌快答，再继续形体分析法主干。",
+        actionSuggestion:
+          "紧急：在 3.2 教学设计勾选「分层补救脚本」；课后保留一对一答疑名单（含陈浩宇）；可选追加投影基础微课打卡但不替代课堂主线。",
         adjustCourse: {
           planId: "plan-main",
-          sectionId: "sec-2-2",
-          label: "2.2 投影法与三视图形成",
+          sectionId: "sec-3-2",
+          label: "3.2 组合体三视图绘制（嵌入投影口诀回放）",
         },
       },
     ],
@@ -205,6 +285,246 @@ const homeworkEvaluationsRaw: HomeworkEvalInput[] = [
       { questionNo: 3, title: "轴承座三视图绘制", knowledgeNodeId: "kn-mech-031", accuracy: 0.55 },
       { questionNo: 7, title: "截交线综合", knowledgeNodeId: "kn-mech-028", accuracy: 0.43 },
       { questionNo: 8, title: "相贯线综合", knowledgeNodeId: "kn-mech-029", accuracy: 0.48 },
+    ],
+  },
+
+  // ====================================================================
+  // 3c. 主线 · 2303 班组合体作业（与 2301/2302 同修制图）
+  // ====================================================================
+  {
+    id: "hw-m-003-2303",
+    homeworkTitle: "第3.2节 · 组合体三视图作业（2303 班）",
+    courseId: "course-mech-draw",
+    planId: "plan-main",
+    sectionId: "sec-3-2",
+    classId: "cls-mech-2303",
+    teacherId: "t-li",
+    assignedAt: "2026-03-18",
+    dueAt: "2026-03-23",
+    submissionCount: 24,
+    totalStudents: 26,
+    averageScore: 76.4,
+    maxScore: 94,
+    minScore: 52,
+    scoreBuckets: [
+      { range: "90-100", count: 3 },
+      { range: "80-89", count: 9 },
+      { range: "70-79", count: 8 },
+      { range: "60-69", count: 4 },
+      { range: "<60", count: 2 },
+    ],
+    aiRatings: { excellent: 3, good: 9, pass: 12, fail: 2 },
+    hotWrongPoints: [
+      {
+        name: "国标线型与手工作图一致性",
+        knowledgeNodeId: "kn-mech-004",
+        wrongRate: 0.28,
+        aiCause: "数模表达强但手绘迁移弱，虚线/中心线层次易混。",
+      },
+    ],
+    keyStudents: [
+      { studentId: "s-mech2303-02", studentName: "范博文", reason: "手绘线型进步快", score: 91, changeTrend: "上升" },
+    ],
+    aiInsights: [
+      {
+        id: "ai-m-003-2303",
+        title: "手绘规范仍弱于数模表现",
+        summary: "建议保留每周一次「手绘+数模」对照作业，与机器人课仿真安全模块错峰布置。",
+        actionSuggestion: "与赵老师协调实训周次，避免同一周末双重长作业；关注尚未提交学生的补交窗口。",
+        adjustCourse: { planId: "plan-main", sectionId: "sec-3-2", label: "3.2 组合体三视图绘制" },
+      },
+    ],
+    questionAccuracy: [
+      { questionNo: 1, title: "形体分析法应用", knowledgeNodeId: "kn-mech-034", accuracy: 0.8 },
+      { questionNo: 2, title: "三视图手绘清稿", knowledgeNodeId: "kn-mech-031", accuracy: 0.72 },
+    ],
+  },
+
+  // ====================================================================
+  // 3a. 金工实习 · 1.1 课前线上（演示「已提交」列）
+  // ====================================================================
+  {
+    id: "hw-wgw-prep-2301",
+    homeworkTitle: "金工实习 · 1.1 安全与车间纪律确认（课前线上）",
+    courseId: "course-mech-practice",
+    planId: "plan-wang-metalwork",
+    sectionId: "sec-wgw-1-1",
+    classId: "cls-mech-2301",
+    teacherId: "t-wang",
+    assignedAt: "2026-03-10",
+    dueAt: "2026-03-11",
+    submissionCount: 27,
+    totalStudents: 28,
+    averageScore: 93.6,
+    maxScore: 100,
+    minScore: 72,
+    scoreBuckets: [
+      { range: "90-100", count: 20 },
+      { range: "80-89", count: 6 },
+      { range: "70-79", count: 2 },
+      { range: "60-69", count: 0 },
+      { range: "<60", count: 0 },
+    ],
+    aiRatings: { excellent: 20, good: 6, pass: 2, fail: 0 },
+    hotWrongPoints: [
+      {
+        name: "急停与防护栏条目漏勾",
+        knowledgeNodeId: "kn-mech-048",
+        wrongRate: 0.08,
+        aiCause: "多选题未完整阅读题干，建议车间首日再口头复核。",
+      },
+    ],
+    keyStudents: [],
+    aiInsights: [],
+    questionAccuracy: [
+      { questionNo: 1, title: "车间安全红线", knowledgeNodeId: "kn-mech-048", accuracy: 0.94 },
+      { questionNo: 2, title: "量具领用与归还", knowledgeNodeId: "kn-mech-049", accuracy: 0.91 },
+    ],
+  },
+  {
+    id: "hw-wgw-prep-2302",
+    homeworkTitle: "金工实习 · 1.1 安全与车间纪律确认（课前线上 · 2302）",
+    courseId: "course-mech-practice",
+    planId: "plan-wang-metalwork",
+    sectionId: "sec-wgw-1-1",
+    classId: "cls-mech-2302",
+    teacherId: "t-wang",
+    assignedAt: "2026-03-10",
+    dueAt: "2026-03-11",
+    submissionCount: 22,
+    totalStudents: 25,
+    averageScore: 86.2,
+    maxScore: 100,
+    minScore: 62,
+    scoreBuckets: [
+      { range: "90-100", count: 10 },
+      { range: "80-89", count: 7 },
+      { range: "70-79", count: 5 },
+      { range: "60-69", count: 3 },
+      { range: "<60", count: 0 },
+    ],
+    aiRatings: { excellent: 10, good: 7, pass: 7, fail: 1 },
+    hotWrongPoints: [
+      {
+        name: "防护装备穿戴要点",
+        knowledgeNodeId: "kn-mech-048",
+        wrongRate: 0.18,
+        aiCause: "与读图类错题同源——审题不细，需现场带教再强调。",
+      },
+    ],
+    keyStudents: [],
+    aiInsights: [],
+    questionAccuracy: [
+      { questionNo: 1, title: "车间安全红线", knowledgeNodeId: "kn-mech-048", accuracy: 0.84 },
+      { questionNo: 2, title: "量具领用与归还", knowledgeNodeId: "kn-mech-049", accuracy: 0.8 },
+    ],
+  },
+
+  // ====================================================================
+  // 3b. 金工实习 · 与 1.2 小节同步（双班）
+  // ====================================================================
+  {
+    id: "hw-wgw-001",
+    homeworkTitle: "金工实习 · 1.2 游标卡尺与图纸尺寸对读（现场过关）",
+    courseId: "course-mech-practice",
+    planId: "plan-wang-metalwork",
+    sectionId: "sec-wgw-1-2",
+    classId: "cls-mech-2301",
+    teacherId: "t-wang",
+    assignedAt: "2026-03-17",
+    dueAt: "2026-03-21",
+    submissionCount: 26,
+    totalStudents: 28,
+    averageScore: 84.2,
+    maxScore: 100,
+    minScore: 62,
+    scoreBuckets: [
+      { range: "90-100", count: 8 },
+      { range: "80-89", count: 12 },
+      { range: "70-79", count: 6 },
+      { range: "60-69", count: 2 },
+      { range: "<60", count: 0 },
+    ],
+    aiRatings: { excellent: 8, good: 12, pass: 6, fail: 2 },
+    hotWrongPoints: [
+      {
+        name: "俯视读数与主视标注错位",
+        knowledgeNodeId: "kn-mech-049",
+        wrongRate: 0.18,
+        aiCause: "对照图纸时未先锁定基准要素，导致量测点与标注线不对应。",
+      },
+    ],
+    keyStudents: [
+      { studentId: "s-mech2301-02", studentName: "刘静雯", reason: "量测与记录一致 · 可作为示教", score: 96, changeTrend: "稳定" },
+    ],
+    aiInsights: [
+      {
+        id: "ai-wgw-2301",
+        title: "图纸—实物—量具三联对齐良好",
+        summary: "2301 班与制图课 3.2 周并行，能较快把尺寸标注习惯迁移到车间对表。",
+        actionSuggestion: "车削日前再安排 1 次「关键尺寸复核」微测即可。",
+        adjustCourse: {
+          planId: "plan-wang-metalwork",
+          sectionId: "sec-wgw-2-1",
+          label: "2.1 普通车床基本操作",
+        },
+      },
+    ],
+    questionAccuracy: [
+      { questionNo: 1, title: "五处关键尺寸量测与记录", knowledgeNodeId: "kn-mech-049", accuracy: 0.86 },
+      { questionNo: 2, title: "图纸线型与量具接触点自检", knowledgeNodeId: "kn-mech-048", accuracy: 0.82 },
+    ],
+  },
+  {
+    id: "hw-wgw-002",
+    homeworkTitle: "金工实习 · 1.2 游标卡尺与图纸对读（2302 班）",
+    courseId: "course-mech-practice",
+    planId: "plan-wang-metalwork",
+    sectionId: "sec-wgw-1-2",
+    classId: "cls-mech-2302",
+    teacherId: "t-wang",
+    assignedAt: "2026-03-17",
+    dueAt: "2026-03-21",
+    submissionCount: 19,
+    totalStudents: 25,
+    averageScore: 71.8,
+    maxScore: 96,
+    minScore: 48,
+    scoreBuckets: [
+      { range: "90-100", count: 2 },
+      { range: "80-89", count: 5 },
+      { range: "70-79", count: 8 },
+      { range: "60-69", count: 6 },
+      { range: "<60", count: 4 },
+    ],
+    aiRatings: { excellent: 2, good: 5, pass: 12, fail: 4 },
+    hotWrongPoints: [
+      {
+        name: "长宽方向读反",
+        knowledgeNodeId: "kn-mech-049",
+        wrongRate: 0.34,
+        aiCause: "与制图课「宽相等」痛点同源，需在车间白板再画一次 45° 辅助对照。",
+      },
+    ],
+    keyStudents: [
+      { studentId: "s-mech2302-01", studentName: "陈浩宇", reason: "对表偏慢 · 需单独辅导", score: 52, changeTrend: "下降" },
+    ],
+    aiInsights: [
+      {
+        id: "ai-wgw-2302",
+        title: "读图仍是金工前置瓶颈",
+        summary: "约 1/3 学生在找「量哪里」上耗时超过 10 分钟，与 2302 班投影基础画像一致。",
+        actionSuggestion: "与李老师协调：车间讲解前播 3 分钟「尺寸箭头—量具触点」对照短片。",
+        adjustCourse: {
+          planId: "plan-wang-metalwork",
+          sectionId: "sec-wgw-1-2",
+          label: "1.2 游标卡尺与图纸尺寸对读",
+        },
+      },
+    ],
+    questionAccuracy: [
+      { questionNo: 1, title: "五处关键尺寸量测与记录", knowledgeNodeId: "kn-mech-049", accuracy: 0.66 },
+      { questionNo: 2, title: "现场安全与读数复诵", knowledgeNodeId: "kn-mech-048", accuracy: 0.74 },
     ],
   },
 
@@ -522,6 +842,7 @@ const homeworkEvaluationsRaw: HomeworkEvalInput[] = [
     homeworkTitle: "离线仿真 · 简易码垛节拍估算",
     courseId: "course-mech-robotics",
     planId: "plan-mech-robotics",
+    sectionId: "sec-rob-1-2",
     classId: "cls-mech-2303",
     teacherId: "t-zhao",
     assignedAt: "2026-04-03",
@@ -554,16 +875,26 @@ const homeworkEvaluationsRaw: HomeworkEvalInput[] = [
   },
 ];
 
-/** 演示：张伟在 hw-m-007 上保持「未提交」，便于展示作答与提交流程 */
+/** 学习中心「未完成」演示：对上述作业强制指定学生为未提交（与「已提交」演示条目分列，见 learnCenterSession 中 DEMO_SUBMITTED） */
+const HOMEWORK_LEARN_CENTER_PENDING_STUDENTS: Record<string, string[]> = {
+  "hw-m-003": ["s-mech2301-01"],
+  "hw-wgw-001": ["s-mech2301-01"],
+  "hw-m-003-2302": ["s-mech2302-01"],
+  "hw-wgw-002": ["s-mech2302-01"],
+  "hw-m-003-2303": ["s-mech2303-01"],
+  "hw-rob-002": ["s-mech2303-01"],
+  "hw-m-007": ["s-mech2301-01"],
+};
+
 function patchHomeworkEvaluations(list: HomeworkEvalSummary[]): HomeworkEvalSummary[] {
   return list.map((h) => {
-    if (h.id !== "hw-m-007") return h;
+    const pendingIds = HOMEWORK_LEARN_CENTER_PENDING_STUDENTS[h.id];
+    if (!pendingIds?.length) return h;
+    const set = new Set(pendingIds);
     return {
       ...h,
       studentResults: h.studentResults.map((r) =>
-        r.studentId === "s-mech2301-01"
-          ? { studentId: r.studentId, submitted: false }
-          : r,
+        set.has(r.studentId) ? { studentId: r.studentId, submitted: false } : r,
       ),
     };
   });

@@ -566,7 +566,7 @@ export function PageHeader({ title, actions, back }: { title: ReactNode; actions
           ← 返回
         </button>
       )}
-      <div className="flex-1 text-slate-900">{title}</div>
+      <div className="flex-1 min-w-0 text-slate-900">{title}</div>
       <div className="flex items-center gap-2">{actions}</div>
     </div>
   );

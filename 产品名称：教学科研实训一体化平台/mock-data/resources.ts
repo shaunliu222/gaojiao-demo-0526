@@ -184,7 +184,7 @@ export const resources: Resource[] = [
     uploaderTeacherId: "t-li",
     uploadedAt: "2025-10-10T09:00:00+08:00",
     thumbnailUrl: "/thumbs/res-m-041.png",
-    tags: ["示范视频", "焦点"],
+    tags: ["示范视频", "主线"],
   },
   {
     id: "res-m-042",
@@ -198,7 +198,7 @@ export const resources: Resource[] = [
     uploaderTeacherId: "t-li",
     uploadedAt: "2026-03-20T18:30:00+08:00",
     thumbnailUrl: "/thumbs/res-m-042.png",
-    tags: ["讲义", "焦点", "AI生成"],
+    tags: ["讲义", "主线", "AI生成"],
     isAiGenerated: true,
   },
   {

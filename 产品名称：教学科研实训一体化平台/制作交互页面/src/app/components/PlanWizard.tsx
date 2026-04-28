@@ -1708,7 +1708,7 @@ function Step4Graph({
           <div className="leading-tight flex-1">
             <div className="text-slate-900">AI 正从知识图谱抽取教学路径</div>
             <div className="text-slate-500 text-[0.6875rem]">
-              高亮实色节点 = 本计划引用 · 虚线外圈 = 当前章节焦点 · 灰色 = 未引用
+              高亮实色节点 = 本计划引用 · 虚线外圈 = 当前选中章节 · 灰色 = 未引用
             </div>
           </div>
           <AiBadge>引用 {referencedIds.size} / {nodes.length} 节点</AiBadge>
@@ -1880,7 +1880,7 @@ function Step4Graph({
         {/* 章节 ↔ 节点映射 */}
         <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
           <div className="px-4 py-2.5 border-b border-slate-100 text-slate-500 text-[0.75rem]">
-            章节 ↔ 节点映射（点击查看焦点）
+            章节 ↔ 节点映射（点击查看节点）
           </div>
           <div className="max-h-[260px] overflow-auto divide-y divide-slate-100">
             {draftChapters.map((ch) => {

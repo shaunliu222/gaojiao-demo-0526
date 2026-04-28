@@ -192,11 +192,6 @@ export function TrainingLab({
                       <span className={`px-2 py-0.5 rounded-md ${status.tone}`}>
                         {status.label}
                       </span>
-                      {t.tags.includes("焦点") && (
-                        <span className="px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700">
-                          焦点 ★
-                        </span>
-                      )}
                     </div>
                     <div className="text-slate-900 mt-3 flex items-center gap-1.5">
                       <FlaskConical size={14} className="text-emerald-500" />

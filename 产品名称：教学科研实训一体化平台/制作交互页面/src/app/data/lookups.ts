@@ -218,6 +218,57 @@ export function resolveTeachingDesignJumpFromClass(classId: string): {
   };
 }
 
+/**
+ * 协同评价「调整课程」导航目标：始终跳到班级画像对应的「下一堂课」小节，
+ * 与作业/洞察里挂载的章节 id 无关（主线叙事对齐）。
+ */
+export function resolveNextLessonSectionForPlan(
+  planId: string | undefined,
+  classId?: string,
+): { planId: string; sectionId: string } | null {
+  let resolvedPlanId = planId;
+  if (!resolvedPlanId && classId) {
+    const p = currentPlanForClass(classId);
+    resolvedPlanId = p?.id;
+  }
+  if (!resolvedPlanId) return null;
+
+  const plan = planById(resolvedPlanId);
+  if (!plan) return null;
+  const flat = flattenPlanSections(plan);
+  const flatIds = new Set(flat.map((s) => s.sectionId));
+
+  const profile = classId ? classProfileByClassId(classId) : undefined;
+  const progress = profile?.progressSectionId;
+  if (progress && flatIds.has(progress)) {
+    const next = nextSectionId(plan, progress);
+    if (next) return { planId: resolvedPlanId, sectionId: next };
+    return { planId: resolvedPlanId, sectionId: progress };
+  }
+
+  if (resolvedPlanId === "plan-main" && flatIds.has("sec-3-2")) {
+    return { planId: resolvedPlanId, sectionId: "sec-3-2" };
+  }
+
+  const first = flat[0];
+  return first ? { planId: resolvedPlanId, sectionId: first.sectionId } : null;
+}
+
+/** 考试等多班场景：按课程 + 班级列表解析所属计划后的下一堂课 */
+export function resolveNextLessonSectionForCourseClasses(
+  courseId: string,
+  classIds: string[],
+): { planId: string; sectionId: string } | null {
+  const plan = teachingPlans.find(
+    (p) =>
+      p.courseId === courseId &&
+      classIds.some((cid) => p.classIds.includes(cid)),
+  );
+  if (!plan) return null;
+  const classId = classIds.find((cid) => plan.classIds.includes(cid));
+  return resolveNextLessonSectionForPlan(plan.id, classId);
+}
+
 /** 某班级的学生名单 */
 export const studentsByClass = (classId: string) =>
   students.filter((s) => s.classId === classId);

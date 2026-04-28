@@ -528,6 +528,10 @@ export default function App() {
             id={view.id}
             currentTeacherId={teacherId}
             onBack={() => setView({ k: "exam-overview" })}
+            onAdjustCourse={(planId, sectionId) => {
+              setNav("plans");
+              setView({ k: "plan-detail", id: planId, focusSectionId: sectionId });
+            }}
           />
         );
       case "graph":

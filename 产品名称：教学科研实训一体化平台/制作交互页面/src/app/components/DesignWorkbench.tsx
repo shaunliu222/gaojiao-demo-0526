@@ -10,7 +10,6 @@ import {
   Wrench,
   Plug,
   Sparkles,
-  Image as ImageIcon,
   ListChecks,
   PenSquare,
   Presentation,
@@ -443,7 +442,6 @@ function DesignBody({
 
       <aside className="col-span-3 border-l border-slate-200 bg-white overflow-auto p-3">
         <div className="mb-2.5">
-          <div className="text-slate-500 mb-2 text-[11px]">从模板创建 · {tab}</div>
           <div className="grid grid-cols-3 gap-1.5">
             {templates.map((t) => {
               const Icon = t.icon;
@@ -562,7 +560,7 @@ function EmptyDesignState({
         <p className="text-slate-500 leading-relaxed">
           该小节还未生成教学设计。你可以从人设、知识文件、技能工具入手，再让 AI 生成{tabName}初稿。
         </p>
-        <div className="mt-5 flex items-center justify-center gap-2">
+        <div className="mt-5 flex items-center justify-center">
           <button
             type="button"
             onClick={goDemo}
@@ -570,14 +568,6 @@ function EmptyDesignState({
             className="px-4 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 inline-flex items-center gap-1 disabled:opacity-50 disabled:pointer-events-none"
           >
             <Sparkles size={14} /> AI 生成初稿
-          </button>
-          <button
-            type="button"
-            onClick={goDemo}
-            disabled={!onOpenDemo}
-            className="px-4 py-2 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 inline-flex items-center gap-1 disabled:opacity-50 disabled:pointer-events-none"
-          >
-            <ImageIcon size={14} /> 从模板开始
           </button>
         </div>
       </div>

@@ -16,6 +16,13 @@ import type {
   TeachingDesign,
   TeachingPlan,
 } from "@mock";
+import {
+  classProfileByClassId,
+  flattenPlanSections,
+  nextSectionId,
+  planById,
+} from "./lookups";
+import { findResumeSectionId, getSectionProgress, type SectionProgressStatus } from "./studentMock";
 
 export type LearnCenterMode = "free" | "plan" | "handout" | "homework";
 
@@ -66,6 +73,457 @@ export function getStudentPlans(studentId: string): TeachingPlan[] {
       plan.classIds.includes(student.classId) &&
       (plan.status === "in_progress" || plan.status === "draft"),
   );
+}
+
+/** 预习卡片：对齐班级授课进度下一节，或兜底为画像续学 */
+export type LearnCenterPrepCard = {
+  planId: string;
+  planTitle: string;
+  courseLabel: string;
+  /** 预习所用小节（下一堂课或兜底续学） */
+  sectionId: string;
+  sectionTitle: string;
+  chapterTitle: string;
+  source: "class_next" | "fallback_resume";
+  /** 「暂未同步班级授课进度…」 */
+  fallbackNote?: string;
+  /** 已到计划最后一小节，已无「下一堂课」 */
+  noNextLesson?: boolean;
+  /** 与个人续学不一致时填写 */
+  personalResumeSectionId?: string;
+  personalResumeTitle?: string;
+};
+
+export type LearnCenterReviewRow = {
+  planId: string;
+  planTitle: string;
+  courseLabel: string;
+  sectionId: string;
+  sectionTitle: string;
+  chapterTitle: string;
+  suggestedConsolidation: boolean;
+  progressHint?: string;
+};
+
+function sectionProgressHint(
+  studentId: string,
+  planId: string,
+  sectionId: string,
+): string | undefined {
+  const p = getSectionProgress(studentId, planId, sectionId);
+  if (!p) return undefined;
+  const label: Record<SectionProgressStatus, string> = {
+    mastered: "已掌握",
+    in_progress: "进行中",
+    weak: "薄弱",
+    pending: "未开始",
+  };
+  const base = label[p.status] ?? "";
+  return p.note ? `${base} · ${p.note}` : base;
+}
+
+/**
+ * 各门课程独立的预习卡片（班级画像进度仅作用于包含该小节 id 的计划；其余计划按个人续学兜底）。
+ */
+function buildPrepCardForPlan(
+  studentId: string,
+  profile: ReturnType<typeof classProfileByClassId>,
+  plan: TeachingPlan,
+): LearnCenterPrepCard | null {
+  const flatPrimary = flattenPlanSections(plan);
+  const orderedIds = flatPrimary.map((s) => s.sectionId);
+  if (orderedIds.length === 0) return null;
+
+  const personalResumeSectionId =
+    findResumeSectionId(studentId, plan) ?? orderedIds[0];
+  const personalMeta = personalResumeSectionId
+    ? findPlanSection(plan.id, personalResumeSectionId)
+    : { section: undefined, chapterTitle: undefined };
+  const progressSectionRaw = profile?.progressSectionId;
+  const flatIdsSet = new Set(orderedIds);
+  const validProgress = Boolean(
+    progressSectionRaw && flatIdsSet.has(progressSectionRaw),
+  );
+
+  let prep: LearnCenterPrepCard | null = null;
+
+  if (validProgress && progressSectionRaw) {
+    const nextLessonId = nextSectionId(plan, progressSectionRaw);
+    if (nextLessonId) {
+      const meta = findPlanSection(plan.id, nextLessonId);
+      const sec = meta.section!;
+      prep = {
+        planId: plan.id,
+        planTitle: plan.title,
+        courseLabel: courseNameForPlan(plan),
+        sectionId: nextLessonId,
+        sectionTitle: sec.title,
+        chapterTitle: meta.chapterTitle ?? "",
+        source: "class_next",
+        noNextLesson: false,
+      };
+      if (personalResumeSectionId && personalResumeSectionId !== nextLessonId) {
+        prep.personalResumeSectionId = personalResumeSectionId;
+        prep.personalResumeTitle =
+          personalMeta.section?.title ?? personalResumeSectionId;
+      }
+    } else {
+      prep = {
+        planId: plan.id,
+        planTitle: plan.title,
+        courseLabel: courseNameForPlan(plan),
+        sectionId: personalResumeSectionId ?? progressSectionRaw,
+        sectionTitle:
+          personalMeta.section?.title ??
+          findPlanSection(plan.id, progressSectionRaw).section?.title ??
+          "当前小节",
+        chapterTitle:
+          personalMeta.chapterTitle ??
+          findPlanSection(plan.id, progressSectionRaw).chapterTitle ??
+          "",
+        source: "class_next",
+        noNextLesson: true,
+        fallbackNote:
+          "本节已是该课程计划的最后一个小节。可按个人进度查漏补缺，或通过下方复习巩固已学内容。",
+      };
+      if (
+        personalResumeSectionId &&
+        prep.sectionId !== personalResumeSectionId
+      ) {
+        prep.personalResumeSectionId = personalResumeSectionId;
+        prep.personalResumeTitle = personalMeta.section?.title;
+      }
+    }
+  } else {
+    const secId = personalResumeSectionId ?? orderedIds[0];
+    const meta = findPlanSection(plan.id, secId);
+    prep = {
+      planId: plan.id,
+      planTitle: plan.title,
+      courseLabel: courseNameForPlan(plan),
+      sectionId: secId,
+      sectionTitle: meta.section?.title ?? "",
+      chapterTitle: meta.chapterTitle ?? "",
+      source: "fallback_resume",
+    };
+  }
+
+  return prep;
+}
+
+function buildReviewRowsForPlan(
+  studentId: string,
+  profile: ReturnType<typeof classProfileByClassId>,
+  plan: TeachingPlan,
+): LearnCenterReviewRow[] {
+  const orderedIds = flattenPlanSections(plan).map((s) => s.sectionId);
+  if (orderedIds.length === 0) return [];
+
+  const personalResumeSectionId =
+    findResumeSectionId(studentId, plan) ?? orderedIds[0];
+  const progressSectionRaw = profile?.progressSectionId;
+  const flatIdsSet = new Set(orderedIds);
+  const validProgress = Boolean(
+    progressSectionRaw && flatIdsSet.has(progressSectionRaw),
+  );
+
+  const reviewRows: LearnCenterReviewRow[] = [];
+  const reviewIdSet = new Set<string>();
+
+  const pushReviewRow = (
+    args: Omit<LearnCenterReviewRow, "suggestedConsolidation"> & {
+      suggestedConsolidation?: boolean;
+    },
+  ) => {
+    const key = `${plan.id}:${args.sectionId}`;
+    if (reviewIdSet.has(key)) {
+      const i = reviewRows.findIndex(
+        (r) => r.planId === plan.id && r.sectionId === args.sectionId,
+      );
+      if (i >= 0)
+        reviewRows[i] = {
+          ...reviewRows[i]!,
+          suggestedConsolidation:
+            !!reviewRows[i]!.suggestedConsolidation || !!args.suggestedConsolidation,
+        };
+      return;
+    }
+    reviewIdSet.add(key);
+    reviewRows.push({
+      ...args,
+      suggestedConsolidation: args.suggestedConsolidation ?? false,
+    });
+  };
+
+  let progressIdx = -1;
+  if (validProgress && progressSectionRaw) {
+    progressIdx = orderedIds.indexOf(progressSectionRaw);
+  } else if (personalResumeSectionId) {
+    progressIdx = orderedIds.indexOf(personalResumeSectionId);
+  }
+
+  if (progressIdx > 0) {
+    for (let i = 0; i < progressIdx; i++) {
+      const sid = orderedIds[i]!;
+      const meta = findPlanSection(plan.id, sid);
+      const sec = meta.section!;
+      pushReviewRow({
+        planId: plan.id,
+        planTitle: plan.title,
+        courseLabel: courseNameForPlan(plan),
+        sectionId: sid,
+        sectionTitle: sec.title,
+        chapterTitle: meta.chapterTitle ?? "",
+        progressHint: sectionProgressHint(studentId, plan.id, sid),
+        suggestedConsolidation: profile?.designReviewSectionIds?.includes(sid),
+      });
+    }
+  }
+
+  const designReviewIds = profile?.designReviewSectionIds ?? [];
+  for (const sid of designReviewIds) {
+    if (!flatIdsSet.has(sid)) continue;
+    const meta = findPlanSection(plan.id, sid);
+    const sec = meta.section!;
+    pushReviewRow({
+      planId: plan.id,
+      planTitle: plan.title,
+      courseLabel: courseNameForPlan(plan),
+      sectionId: sid,
+      sectionTitle: sec.title,
+      chapterTitle: meta.chapterTitle ?? "",
+      progressHint: sectionProgressHint(studentId, plan.id, sid),
+      suggestedConsolidation: true,
+    });
+  }
+
+  reviewRows.sort(
+    (a, b) => orderedIds.indexOf(a.sectionId) - orderedIds.indexOf(b.sectionId),
+  );
+  return reviewRows;
+}
+
+/**
+ * 学习中心「预习」「复习」：每门进行中课程一套卡片；复习为各课已授小节 ∪ 画像建议巩固（限落在该课计划内的小节）。
+ */
+export function getLearnCenterPrepAndReview(studentId: string): {
+  prepCards: LearnCenterPrepCard[];
+  reviewRows: LearnCenterReviewRow[];
+} {
+  const student = students.find((s) => s.id === studentId);
+  if (!student) return { prepCards: [], reviewRows: [] };
+
+  const classId = student.classId;
+  const studentPlans = getStudentPlans(studentId);
+  const profile = classProfileByClassId(classId);
+  if (!studentPlans.length) return { prepCards: [], reviewRows: [] };
+
+  const prepCards: LearnCenterPrepCard[] = [];
+  const allReview: LearnCenterReviewRow[] = [];
+
+  for (const plan of studentPlans) {
+    const prep = buildPrepCardForPlan(studentId, profile, plan);
+    if (prep) prepCards.push(prep);
+    allReview.push(...buildReviewRowsForPlan(studentId, profile, plan));
+  }
+
+  const planIndex = new Map(studentPlans.map((p, i) => [p.id, i]));
+  const rowOrdinal = (row: LearnCenterReviewRow): [number, number] => {
+    const pi = planIndex.get(row.planId) ?? 99;
+    const planRef = planById(row.planId);
+    const si = planRef
+      ? flattenPlanSections(planRef).findIndex((s) => s.sectionId === row.sectionId)
+      : 0;
+    return [pi, si >= 0 ? si : 0];
+  };
+  allReview.sort((a, b) => {
+    const [pa, sa] = rowOrdinal(a);
+    const [pb, sb] = rowOrdinal(b);
+    return pa - pb || sa - sb;
+  });
+
+  return { prepCards, reviewRows: allReview };
+}
+
+/** 相对当前教学进度的小节索引窗口（节级）：用于学习中心只展示「近期」作业 */
+const HOMEWORK_SECTION_WINDOW_BACK = 1;
+const HOMEWORK_SECTION_WINDOW_FORWARD = 1;
+const HOMEWORK_MAX_PER_PLAN_IN_HUB = 3;
+
+/**
+ * 学习中心作业：与进度窗口并列合并的「演示未交」作业 id（按学生 × 计划）。
+ * 与 mock-data/homeworks 中 HOMEWORK_LEARN_CENTER_PENDING_STUDENTS 一致。
+ */
+export const LEARN_CENTER_DEMO_PENDING_HOMEWORK_BY_STUDENT: Record<
+  string,
+  Record<string, string[]>
+> = {
+  "s-mech2301-01": {
+    "plan-main": ["hw-m-003", "hw-m-007"],
+    "plan-wang-metalwork": ["hw-wgw-001"],
+  },
+  "s-mech2302-01": {
+    "plan-main": ["hw-m-003-2302"],
+    "plan-wang-metalwork": ["hw-wgw-002"],
+  },
+  "s-mech2303-01": {
+    "plan-main": ["hw-m-003-2303"],
+    "plan-mech-robotics": ["hw-rob-002"],
+  },
+};
+
+/** 学习中心作业：与进度窗口并列合并的「演示已交」作业 id（按学生 × 计划），保证右栏有卷面分等假数据 */
+export const LEARN_CENTER_DEMO_SUBMITTED_HOMEWORK_BY_STUDENT: Record<
+  string,
+  Record<string, string[]>
+> = {
+  "s-mech2301-01": {
+    "plan-main": ["hw-m-001"],
+    "plan-wang-metalwork": ["hw-wgw-prep-2301"],
+  },
+  "s-mech2302-01": {
+    "plan-main": ["hw-m-ch2-2302"],
+    "plan-wang-metalwork": ["hw-wgw-prep-2302"],
+  },
+  "s-mech2303-01": {
+    "plan-main": ["hw-m-ch2-2303"],
+    "plan-mech-robotics": ["hw-rob-001"],
+  },
+};
+
+function teachingProgressSectionIndex(
+  studentId: string,
+  plan: TeachingPlan,
+  profile: ReturnType<typeof classProfileByClassId>,
+): number {
+  const flat = flattenPlanSections(plan);
+  const progressRaw = profile?.progressSectionId;
+  if (progressRaw && flat.some((s) => s.sectionId === progressRaw)) {
+    return flat.findIndex((s) => s.sectionId === progressRaw);
+  }
+  const resume = findResumeSectionId(studentId, plan);
+  if (resume) return flat.findIndex((s) => s.sectionId === resume);
+  return 0;
+}
+
+function pickLearnCenterHomeworksInPlanWindow(
+  studentId: string,
+  plan: TeachingPlan,
+  profile: ReturnType<typeof classProfileByClassId>,
+  classId: string,
+): HomeworkEvalSummary[] {
+  const cidx = teachingProgressSectionIndex(studentId, plan, profile);
+  const flat = flattenPlanSections(plan);
+  const pool = homeworkEvaluations.filter(
+    (h) => h.classId === classId && h.planId === plan.id,
+  );
+  return pool
+    .map((h) => {
+      const sid = h.sectionId;
+      const idx =
+        sid != null && sid !== ""
+          ? flat.findIndex((s) => s.sectionId === sid)
+          : -1;
+      return { h, idx: idx >= 0 ? idx : 9999 };
+    })
+    .filter(
+      (x) =>
+        x.idx <= 9998 &&
+        x.idx >= cidx - HOMEWORK_SECTION_WINDOW_BACK &&
+        x.idx <= cidx + HOMEWORK_SECTION_WINDOW_FORWARD,
+    )
+    .sort(
+      (a, b) => b.h.assignedAt.localeCompare(a.h.assignedAt) || b.idx - a.idx,
+    )
+    .slice(0, HOMEWORK_MAX_PER_PLAN_IN_HUB)
+    .map((x) => x.h);
+}
+
+function mergeHomeworkById(
+  base: HomeworkEvalSummary[],
+  extraIds: string[],
+  classId: string,
+  planId: string,
+): HomeworkEvalSummary[] {
+  const map = new Map<string, HomeworkEvalSummary>();
+  for (const h of base) map.set(h.id, h);
+  for (const id of extraIds) {
+    const h = homeworkEvaluations.find((x) => x.id === id);
+    if (h && h.classId === classId && h.planId === planId) map.set(id, h);
+  }
+  return [...map.values()];
+}
+
+/**
+ * 学习中心 · 某一门计划下的作业：左「未完成」/ 右「已提交」。
+ * 在进度窗口之外额外合并演示用未交/已交 id，避免窗口窄或演示未交占满时右栏为空。
+ */
+export function getLearnCenterHomeworkBucketsForPlan(
+  studentId: string,
+  planId: string,
+): { pending: HomeworkEvalSummary[]; submitted: HomeworkEvalSummary[] } {
+  const student = students.find((s) => s.id === studentId);
+  if (!student) return { pending: [], submitted: [] };
+  const plan = teachingPlans.find((p) => p.id === planId);
+  if (!plan || !plan.classIds.includes(student.classId)) {
+    return { pending: [], submitted: [] };
+  }
+
+  const profile = classProfileByClassId(student.classId);
+  const windowList = pickLearnCenterHomeworksInPlanWindow(
+    studentId,
+    plan,
+    profile,
+    student.classId,
+  );
+
+  const demoP =
+    LEARN_CENTER_DEMO_PENDING_HOMEWORK_BY_STUDENT[studentId]?.[planId] ?? [];
+  const demoS =
+    LEARN_CENTER_DEMO_SUBMITTED_HOMEWORK_BY_STUDENT[studentId]?.[planId] ?? [];
+
+  const merged = mergeHomeworkById(
+    windowList,
+    [...demoP, ...demoS],
+    student.classId,
+    planId,
+  );
+
+  const pending: HomeworkEvalSummary[] = [];
+  const submitted: HomeworkEvalSummary[] = [];
+  for (const hw of merged) {
+    const mine = getHomeworkStudentSummary(studentId, hw);
+    if (mine.submitted) submitted.push(hw);
+    else pending.push(hw);
+  }
+
+  pending.sort((a, b) => a.dueAt.localeCompare(b.dueAt));
+  submitted.sort((a, b) => b.assignedAt.localeCompare(a.assignedAt));
+  return { pending, submitted };
+}
+
+/**
+ * 学习中心作业列表：各进行中的课各取若干条后合并（不含演示补并；分栏展示请用 `getLearnCenterHomeworkBucketsForPlan`）。
+ */
+export function getLearnCenterHomeworks(studentId: string): HomeworkEvalSummary[] {
+  const student = students.find((s) => s.id === studentId);
+  if (!student) return [];
+  const profile = classProfileByClassId(student.classId);
+  const studentPlans = getStudentPlans(studentId);
+  const picked: HomeworkEvalSummary[] = [];
+
+  for (const plan of studentPlans) {
+    picked.push(
+      ...pickLearnCenterHomeworksInPlanWindow(
+        studentId,
+        plan,
+        profile,
+        student.classId,
+      ),
+    );
+  }
+
+  return picked.sort((a, b) => b.assignedAt.localeCompare(a.assignedAt));
 }
 
 export function homeworksForClass(classId?: string): HomeworkEvalSummary[] {

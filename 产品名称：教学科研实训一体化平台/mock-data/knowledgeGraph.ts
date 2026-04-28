@@ -56,7 +56,7 @@ const mechNodes: GraphNode[] = [
 
   // ============ 簇 6：组合体（5）============
   { id: "kn-mech-030", professionId: "prof-mech", name: "组合体构成方式", nodeType: "知识点", cluster: "组合体", description: "叠加式、切割式和综合式三种组合体构成方式。" },
-  { id: "kn-mech-031", professionId: "prof-mech", name: "组合体三视图绘制", nodeType: "知识点", cluster: "组合体", description: "分解形体、逐部分绘制三视图、检查线型与过渡线。【主故事线焦点小节】" },
+  { id: "kn-mech-031", professionId: "prof-mech", name: "组合体三视图绘制", nodeType: "知识点", cluster: "组合体", description: "分解形体、逐部分绘制三视图、检查线型与过渡线。" },
   { id: "kn-mech-032", professionId: "prof-mech", name: "组合体尺寸标注", nodeType: "知识点", cluster: "组合体", description: "定形尺寸、定位尺寸和总体尺寸三类尺寸的完整标注方法。" },
   { id: "kn-mech-033", professionId: "prof-mech", name: "看组合体视图", nodeType: "知识点", cluster: "组合体", description: "从三视图还原空间形体的读图方法。" },
   { id: "kn-mech-034", professionId: "prof-mech", name: "组合体形体分析法", nodeType: "知识点", cluster: "组合体", description: "把组合体分解为基本体并分析相互位置关系的分析方法。" },

@@ -2,7 +2,7 @@
  * 学生端补充数据
  *
  * 不修改官方 mock-data/，这里仅作为学生端界面展示层的数据源。
- * 所有数据围绕主线：李建国 · 《机械制图与CAD》 · 机制 2301/2302
+ * 所有数据围绕主线：李建国 · 《机械制图与CAD》 · 机制 2301/2302/2303；金工并行为王海峰；2303 另修赵文静机器人课
  * 包含：
  *   - sectionProgressByStudent：学生在主线教学计划里每个小节的学习进度
  *   - personalPlans：学生自建的精简学习计划（"2 小时快速上手 xxx"这类场景）
@@ -103,6 +103,8 @@ export interface AiPush {
   actionHint: string;
   tone: "cheer" | "warn" | "info";
   reason: string;
+  /** 指定时仅在对应教学计划的学习中心页签下展示；不指定则各页签均展示 */
+  planId?: string;
 }
 
 /** 教师向班级派发的实训任务实例（学生端） */
@@ -145,8 +147,8 @@ function pickStatus(mastery: number, tone: "smart" | "weak"): SectionProgressSta
 // ============ 数据：小节进度 ============
 
 /**
- * 张伟（s-mech2301-01）· 尖子生：主线 plan-main 下大部分已掌握，少数进行中；
- *   相贯线专题 sec-3-4 是"进行中"偏薄弱的点（对应画像里 masteryLevel 72）。
+ * 张伟（s-mech2301-01）· 尖子生：与班级「3.2 组合体周」对齐——此前小节已掌握，
+ *   sec-3-2 为课前预习 / 课前资料进行中；尚未进入 3.3 尺寸标注与 3.4 截交相贯专题。
  */
 const zhangweiPlanMainProgress: SectionProgress[] = [
   { sectionId: "sec-1-1", status: "mastered", masteryScore: 95, lastStudiedAt: "2026-02-23" },
@@ -158,24 +160,13 @@ const zhangweiPlanMainProgress: SectionProgress[] = [
   { sectionId: "sec-3-1", status: "mastered", masteryScore: 88, lastStudiedAt: "2026-03-16" },
   {
     sectionId: "sec-3-2",
-    status: "mastered",
-    masteryScore: 95,
-    lastStudiedAt: "2026-03-18",
-    note: "组合体作业拿到 95 分，AI 已经帮你归档精华笔记。",
-  },
-  {
-    sectionId: "sec-3-3",
     status: "in_progress",
-    masteryScore: 80,
-    lastStudiedAt: "2026-03-23",
+    masteryScore: 90,
+    lastStudiedAt: "2026-03-17",
+    note: "明日课堂主攻组合体三视图：已完成微课预习与讲义导读，课堂实训跟进中。",
   },
-  {
-    sectionId: "sec-3-4",
-    status: "in_progress",
-    masteryScore: 72,
-    lastStudiedAt: "2026-03-25",
-    note: "相贯线特殊情况还有点绕，AI 推荐明天来做 30 分钟专题。",
-  },
+  { sectionId: "sec-3-3", status: "pending", masteryScore: 0 },
+  { sectionId: "sec-3-4", status: "pending", masteryScore: 0 },
   { sectionId: "sec-4-1", status: "pending", masteryScore: 0 },
   { sectionId: "sec-4-2", status: "pending", masteryScore: 0 },
   { sectionId: "sec-4-3", status: "pending", masteryScore: 0 },
@@ -190,8 +181,8 @@ const zhangweiPlanMainProgress: SectionProgress[] = [
 ];
 
 /**
- * 陈浩宇（s-mech2302-01）· 薄弱生：投影阶段薄弱，sec-2-3/2-4 红色警示；
- *   焦点小节 sec-3-2 也是"进行中-偏薄弱"；AI 强烈推荐重学投影。
+ * 陈浩宇（s-mech2302-01）· 薄弱生：投影阶段 weak（sec-2-3/2-4），sec-3-1 仍薄弱；
+ *   班级预习指向 sec-3-2（明日新课），个人续学会优先拉回更早薄弱小节。
  */
 const chenhaoyuPlanMainProgress: SectionProgress[] = [
   { sectionId: "sec-1-1", status: "mastered", masteryScore: 85, lastStudiedAt: "2026-02-23" },
@@ -214,10 +205,9 @@ const chenhaoyuPlanMainProgress: SectionProgress[] = [
   },
   {
     sectionId: "sec-3-2",
-    status: "weak",
-    masteryScore: 40,
-    lastStudiedAt: "2026-03-18",
-    note: "焦点小节暂未跟上，AI 为你定制了基础补救路径。",
+    status: "pending",
+    masteryScore: 0,
+    note: "明日新课：组合体三视图；建议先完成 AI 推送的投影口诀微课再进课堂。",
   },
   { sectionId: "sec-3-3", status: "pending", masteryScore: 0 },
   { sectionId: "sec-3-4", status: "pending", masteryScore: 0 },
@@ -236,15 +226,67 @@ const chenhaoyuPlanMainProgress: SectionProgress[] = [
 
 void pickStatus; // 保留工具函数供后续扩展
 
+/** 金工实习 · 张伟（跟上队伍） */
+const zhangweiWangMetalworkProgress: SectionProgress[] = [
+  { sectionId: "sec-wgw-1-1", status: "mastered", masteryScore: 92, lastStudiedAt: "2026-03-04" },
+  {
+    sectionId: "sec-wgw-1-2",
+    status: "in_progress",
+    masteryScore: 85,
+    lastStudiedAt: "2026-03-18",
+    note: "游标卡尺对表现场与车间师傅演示一致，下周进入车削日前再练一轮。",
+  },
+  { sectionId: "sec-wgw-2-1", status: "pending", masteryScore: 0 },
+  { sectionId: "sec-wgw-2-2", status: "pending", masteryScore: 0 },
+];
+
+/** 金工实习 · 陈浩宇（读图慢，车间跟得吃力） */
+const chenhaoyuWangMetalworkProgress: SectionProgress[] = [
+  {
+    sectionId: "sec-wgw-1-1",
+    status: "in_progress",
+    masteryScore: 58,
+    lastStudiedAt: "2026-03-17",
+    note: "安全规程已过关，劳保穿戴无误；量具部分需要对着图纸多练几次。",
+  },
+  {
+    sectionId: "sec-wgw-1-2",
+    status: "pending",
+    masteryScore: 0,
+    note: "建议先完成李老师制图课上的尺寸识读小测，再进车间对表。",
+  },
+  { sectionId: "sec-wgw-2-1", status: "pending", masteryScore: 0 },
+  { sectionId: "sec-wgw-2-2", status: "pending", masteryScore: 0 },
+];
+
+/** 工业机器人 · 宋佳雯（机制2303） */
+const songjiawenRoboticsProgress: SectionProgress[] = [
+  { sectionId: "sec-rob-1-1", status: "mastered", masteryScore: 90, lastStudiedAt: "2026-03-08" },
+  {
+    sectionId: "sec-rob-1-2",
+    status: "in_progress",
+    masteryScore: 74,
+    lastStudiedAt: "2026-03-16",
+    note: "示教三点搬运轨迹：离线仿真已通过，等待实机席位复练。",
+  },
+];
+
 export const sectionProgressByStudent: Record<
   string,
   Record<string, SectionProgress[]>
 > = {
   "s-mech2301-01": {
     "plan-main": zhangweiPlanMainProgress,
+    "plan-wang-metalwork": zhangweiWangMetalworkProgress,
   },
   "s-mech2302-01": {
     "plan-main": chenhaoyuPlanMainProgress,
+    "plan-wang-metalwork": chenhaoyuWangMetalworkProgress,
+  },
+  "s-mech2303-01": {
+    /** 与 2301 同修制图主线，复用同进度骨架便于演示多课表 */
+    "plan-main": zhangweiPlanMainProgress,
+    "plan-mech-robotics": songjiawenRoboticsProgress,
   },
 };
 
@@ -452,7 +494,7 @@ export const personalPlans: PersonalPlan[] = [
     id: "ppl-ch-peer",
     ownerStudentId: "s-mech2302-01",
     title: "朋辈辅导 · 组合体三视图一对一",
-    goal: "和 2302 班林诗涵（学长朋辈）约 2 次，一起搞定焦点小节 3.2。",
+    goal: "和 2302 班林诗涵（学长朋辈）约 2 次，一起搞定第 3.2 节组合体三视图。",
     durationLabel: "2 × 45 分钟",
     difficulty: "进阶",
     createdAt: "2026-04-08T18:00:00+08:00",
@@ -712,6 +754,7 @@ export const aiPushesByStudent: Record<string, AiPush[]> = {
     {
       id: "push-zw-1",
       studentId: "s-mech2301-01",
+      planId: "plan-main",
       title: "把你上周建的齿轮轴打出来吧",
       summary:
         "你在 SolidWorks 工位做的齿轮轴模型精度 94 分，非常适合用 3D 打印机实物化，用于下周机械设计小组展示。",
@@ -723,6 +766,7 @@ export const aiPushesByStudent: Record<string, AiPush[]> = {
     {
       id: "push-zw-2",
       studentId: "s-mech2301-01",
+      planId: "plan-main",
       title: "相贯线专题 · 还剩 3 道题",
       summary:
         "你的个人学习计划「期中冲刺-截交相贯」已经完成 15%，再投入 12 分钟就能达到「已掌握」。",
@@ -747,6 +791,7 @@ export const aiPushesByStudent: Record<string, AiPush[]> = {
     {
       id: "push-ch-1",
       studentId: "s-mech2302-01",
+      planId: "plan-main",
       title: "先别做组合体 · 请回到投影基础",
       summary:
         "AI 诊断显示你过去 3 次作业的错误根源都在 sec-2-2 投影基础。越往后做越累，不如先补好基础。",
@@ -758,6 +803,7 @@ export const aiPushesByStudent: Record<string, AiPush[]> = {
     {
       id: "push-ch-2",
       studentId: "s-mech2302-01",
+      planId: "plan-main",
       title: "去模型柜摸实物 · 比画图更有效",
       summary:
         "对动觉型学习者（也就是你），先摸到真实物体再看三视图，比直接看图快 3 倍建立空间感。",
@@ -769,6 +815,7 @@ export const aiPushesByStudent: Record<string, AiPush[]> = {
     {
       id: "push-ch-3",
       studentId: "s-mech2302-01",
+      planId: "plan-main",
       title: "已为你匹配朋辈辅导：林诗涵",
       summary:
         "AI 从 2302 班里挑了成绩最高的林诗涵（组合体 95 分）作为你的朋辈辅导伙伴，你们作息时间高度重合。",
@@ -997,21 +1044,20 @@ const chapterKnowledgeMasteryData: Record<string, ChapterKnowledgeMastery[]> = {
       domain: "掌握",
       points: [
         { id: "n-projection-system", name: "投影面体系", mastery: 92, domain: "掌握", practiceCount: 15, wrongCount: 0, lastPracticedAt: "2026-03-04" },
-        { id: "n-three-views", name: "三视图规律", mastery: 94, domain: "掌握", practiceCount: 20, wrongCount: 1, lastPracticedAt: "2026-04-01" },
+        { id: "n-three-views", name: "三视图规律", mastery: 94, domain: "掌握", practiceCount: 20, wrongCount: 1, lastPracticedAt: "2026-03-11" },
         { id: "n-visible-line", name: "可见/不可见轮廓线", mastery: 88, domain: "掌握", practiceCount: 14, wrongCount: 1, lastPracticedAt: "2026-03-11" },
         { id: "n-auxiliary-view", name: "辅助视图", mastery: 85, domain: "掌握", practiceCount: 10, wrongCount: 2, lastPracticedAt: "2026-03-11" },
       ],
     },
     {
       chapterId: "ch-3",
-      chapterName: "第3章 截交线与相贯线",
-      overallMastery: 78,
+      chapterName: "第3章 正投影法与三视图",
+      overallMastery: 83,
       domain: "基本掌握",
       points: [
-        { id: "n-cross-section", name: "截交线（平面体）", mastery: 88, domain: "掌握", practiceCount: 12, wrongCount: 1, lastPracticedAt: "2026-03-18" },
-        { id: "n-cross-section-curve", name: "截交线（曲面体）", mastery: 82, domain: "基本掌握", practiceCount: 9, wrongCount: 2, lastPracticedAt: "2026-03-23" },
-        { id: "n-combination-solid", name: "组合体", mastery: 88, domain: "掌握", practiceCount: 10, wrongCount: 0, lastPracticedAt: "2026-03-18" },
-        { id: "n-intersect-curve", name: "相贯线", mastery: 72, domain: "基本掌握", practiceCount: 8, wrongCount: 3, lastPracticedAt: "2026-03-25" },
+        { id: "n-cross-section", name: "平面立体投影特征", mastery: 86, domain: "掌握", practiceCount: 11, wrongCount: 1, lastPracticedAt: "2026-03-16" },
+        { id: "n-cross-section-curve", name: "回转体投影轮廓", mastery: 84, domain: "基本掌握", practiceCount: 9, wrongCount: 1, lastPracticedAt: "2026-03-16" },
+        { id: "n-combination-solid", name: "组合体形体分析", mastery: 78, domain: "基本掌握", practiceCount: 6, wrongCount: 1, lastPracticedAt: "2026-03-17" },
       ],
     },
     {
@@ -1061,14 +1107,12 @@ const chapterKnowledgeMasteryData: Record<string, ChapterKnowledgeMastery[]> = {
     },
     {
       chapterId: "ch-3",
-      chapterName: "第3章 截交线与相贯线",
-      overallMastery: 55,
+      chapterName: "第3章 正投影法与三视图",
+      overallMastery: 48,
       domain: "待加强",
       points: [
-        { id: "n-cross-section", name: "截交线（平面体）", mastery: 65, domain: "待加强", practiceCount: 7, wrongCount: 3, lastPracticedAt: "2026-03-18" },
-        { id: "n-combination-solid", name: "组合体", mastery: 52, domain: "待加强", practiceCount: 6, wrongCount: 2, lastPracticedAt: "2026-03-20" },
-        { id: "n-cross-section-curve", name: "截交线（曲面体）", mastery: 48, domain: "薄弱", practiceCount: 4, wrongCount: 4, lastPracticedAt: "2026-03-23" },
-        { id: "n-intersect-curve", name: "相贯线", mastery: 35, domain: "薄弱", practiceCount: 3, wrongCount: 5, lastPracticedAt: "2026-03-25" },
+        { id: "n-cross-section", name: "平面立体投影特征", mastery: 52, domain: "待加强", practiceCount: 5, wrongCount: 4, lastPracticedAt: "2026-03-16" },
+        { id: "n-combination-solid", name: "组合体形体分析（尚未开课）", mastery: 44, domain: "薄弱", practiceCount: 3, wrongCount: 4, lastPracticedAt: "2026-03-16" },
       ],
     },
     {

@@ -115,6 +115,9 @@ export function HomeworkWorkbench({
 
   const effectiveSubmitted = task.submitted || submittedDemo;
   const showSubmitFlow = !task.submitted;
+  const headerScore =
+    task.score ??
+    (submittedDemo && studentRow?.totalScore != null ? studentRow.totalScore : undefined);
 
   return (
     <div className="flex flex-col h-full bg-slate-50">
@@ -132,7 +135,13 @@ export function HomeworkWorkbench({
             <div className="text-slate-500 text-[0.75rem] mt-0.5">
               {cls?.name ?? hw.classId} · 截止 {hw.dueAt}
               {effectiveSubmitted
-                ? ` · 已提交${task.score != null ? ` ${task.score}/${task.maxScore}` : submittedDemo ? "（待批阅）" : ""}`
+                ? ` · 已提交${
+                    headerScore != null
+                      ? ` ${headerScore}/${task.maxScore}`
+                      : submittedDemo
+                        ? "（待批阅）"
+                        : ""
+                  }`
                 : " · 未提交"}
             </div>
           </div>
@@ -181,7 +190,10 @@ export function HomeworkWorkbench({
               </div>
             ) : null}
 
-            {effectiveSubmitted && studentRow?.submitted ? (
+            {effectiveSubmitted &&
+            studentRow &&
+            (studentRow.submitted || submittedDemo) &&
+            (studentRow.aiEval || studentRow.teacherEval || studentRow.totalScore != null) ? (
               <div className="shrink-0 mb-3">
                 <ReadonlyEvalNarratives
                   ai={studentRow.aiEval}

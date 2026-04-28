@@ -662,7 +662,6 @@ function NodeDetailPanel({
             <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700">
               {node.cluster}
             </span>
-            {isFocus && <AiBadge>主线焦点</AiBadge>}
           </div>
         </div>
         <button onClick={onClose} className="text-slate-400 hover:text-slate-700">

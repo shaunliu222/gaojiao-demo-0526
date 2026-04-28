@@ -7,8 +7,8 @@ import type { TeachingPlan } from "./types";
  * - plan-history       李建国 · 上届制图 · 机制2201
  * - plan-mech-intro    孙小艳 · 《机械工程专业导论》机制2401
  * - plan-mech-tolerance 王丽华 · 《互换性与技术测量》机制2101
- * - plan-mech-robotics  赵文静 · 《工业机器人技术应用基础》机制2303（草稿）
- * - plan-wang-metalwork 王海峰 · 《金工实习》机制2302（班主任带实习）
+ * - plan-mech-robotics  赵文静 · 《工业机器人技术应用基础》机制2303
+ * - plan-wang-metalwork 王海峰 · 《金工实习》机制2301+2302（与制图课并行）
  */
 /** 王海峰账号演示用教学计划（新建向导提交后跳转目标） */
 export const PLAN_WANG_HAIFENG_MOCK_ID = "plan-wang-metalwork";
@@ -19,15 +19,15 @@ export const teachingPlans: TeachingPlan[] = [
   // ========================================================================
   {
     id: "plan-main",
-    title: "《机械制图与CAD》· 2026春 · 机制2301/2302",
+    title: "《机械制图与CAD》· 2026春 · 机制2301/2302/2303",
     courseId: "course-mech-draw",
     professionId: "prof-mech",
     subjectId: "subj-mech-drawing",
     creatorTeacherId: "t-li",
-    classIds: ["cls-mech-2301", "cls-mech-2302"],
+    classIds: ["cls-mech-2301", "cls-mech-2302", "cls-mech-2303"],
     strategyId: "strat-li-personal",
     strategyBrief:
-      "结合 2301（踏实稳健）+ 2302（两极分化）双班学情，前期夯实投影基础，第3章「正投影法与三视图」是本学期重中之重。投影基础阶段放缓 1 周，额外增加每周一次「3 分钟空间想象挑战」；2302 班额外安排 2 次课后答疑。预计全班期末优良率 75%+，薄弱生不及格率控制在 8% 以内。",
+      "结合 2301（踏实稳健）+ 2302（两极分化）+ 2303（理工动手、与机器人课联动）三班学情，前期夯实投影基础；当前重心已进入第 3 章组合体单元（下一堂主攻 3.2）。投影基础阶段曾放缓约 1 周并保留每周「3 分钟空间想象挑战」；2302 班额外安排课后答疑与分层补救，2303 班每周嵌入手绘与数模对照。预计平行班期末优良率 75%+，薄弱生不及格率控制在 8% 以内。",
     semester: "2026春季",
     startDate: "2026-02-23",
     endDate: "2026-06-19",
@@ -35,7 +35,7 @@ export const teachingPlans: TeachingPlan[] = [
     createdAt: "2026-02-15T10:00:00+08:00",
     updatedAt: "2026-04-16T16:30:00+08:00",
     aiAdvice:
-      "基于 2301 班「空间想象 76 / 综合应用 72」和 2302 班「空间想象 58 / 综合应用 55」双班画像，AI 建议：\n1. 第3章「组合体三视图」建议从 2 课时扩展到 3 课时，每课时配 5 题渐进式练习；\n2. 截交线相贯线内容建议单独设立专题课（2026-03-25），配 30 分钟 SolidWorks 三维切割演示；\n3. 2302 班在第4章剖视图讲解前，先做一次投影基础的小型回顾测验；\n4. 主线班级共同作业保留为书面+CAD 双形式，2302 班额外设「朋辈互讲」环节。",
+      "基于 2301 班「空间想象 76 / 综合应用 72」和 2302 班「空间想象 58 / 综合应用 55」双班画像，AI 建议：\n1. 当前周聚焦 **3.2 组合体三视图**：可从 2 课时扩展到 3 课时，每课时配 5 题渐进式练习；2302 班在开场嵌入短时投影口诀回放。\n2. 截交线相贯线内容建议单独设立专题课（2026-03-25），配 30 分钟 SolidWorks 三维切割演示；\n3. 2302 班在第4章剖视图讲解前，先做一次投影基础的小型回顾测验；\n4. 主线班级共同作业保留为书面+CAD 双形式，2302 班额外设「朋辈互讲」环节。",
     chapters: [
       {
         id: "ch-1",
@@ -54,12 +54,12 @@ export const teachingPlans: TeachingPlan[] = [
           { id: "sec-2-1", title: "2.1 几何作图", plannedDate: "2026-03-02", knowledgeNodeIds: ["kn-mech-007", "kn-mech-008", "kn-mech-009", "kn-mech-010"], objectives: ["掌握六类圆弧连接", "理解平面图形的尺寸与线段分析"], durationMinutes: 90, hasDesign: false },
           { id: "sec-2-2", title: "2.2 投影法与三视图形成", plannedDate: "2026-03-04", knowledgeNodeIds: ["kn-mech-012", "kn-mech-013", "kn-mech-014", "kn-mech-015", "kn-mech-016"], objectives: ["掌握正投影三性质", "理解三视图对应规律"], durationMinutes: 90, hasDesign: false },
           { id: "sec-2-3", title: "2.3 点、线的投影", plannedDate: "2026-03-09", knowledgeNodeIds: ["kn-mech-017", "kn-mech-018", "kn-mech-019", "kn-mech-020"], objectives: ["会画点的三面投影", "能判断两点相对位置"], durationMinutes: 90, hasDesign: false },
-          { id: "sec-2-4", title: "2.4 面及相对位置", plannedDate: "2026-03-11", knowledgeNodeIds: ["kn-mech-021", "kn-mech-022", "kn-mech-023"], objectives: ["掌握三类平面的投影特点", "判断直线/平面相对位置"], durationMinutes: 90, hasDesign: true },
+          { id: "sec-2-4", title: "2.4 面及相对位置", plannedDate: "2026-03-11", knowledgeNodeIds: ["kn-mech-021", "kn-mech-022", "kn-mech-023"], objectives: ["掌握三类平面的投影特点", "判断直线/平面相对位置"], durationMinutes: 90, hasDesign: false },
         ],
       },
       {
         id: "ch-3",
-        title: "第3章 正投影法与三视图【焦点章节】",
+        title: "第3章 正投影法与三视图",
         summary: "立体投影 → 组合体 → 截交相贯，是本课最重要章节。",
         sections: [
           { id: "sec-3-1", title: "3.1 平面立体与回转体投影", plannedDate: "2026-03-16", knowledgeNodeIds: ["kn-mech-024", "kn-mech-025", "kn-mech-026", "kn-mech-027"], objectives: ["熟练绘制棱柱棱锥三视图", "掌握圆柱圆锥圆球的投影特征"], durationMinutes: 90, hasDesign: false },
@@ -239,15 +239,15 @@ export const teachingPlans: TeachingPlan[] = [
   // ========================================================================
   {
     id: "plan-wang-metalwork",
-    title: "《金工实习》· 2026春 · 机制2302",
+    title: "《金工实习》· 2026春 · 机制2301/2302",
     courseId: "course-mech-practice",
     professionId: "prof-mech",
     subjectId: "subj-mech-manu",
     creatorTeacherId: "t-wang",
-    classIds: ["cls-mech-2302"],
+    classIds: ["cls-mech-2301", "cls-mech-2302"],
     strategyId: "strat-preset-balanced",
     strategyBrief:
-      "以「安全入厂 → 量具识读与图纸对表 → 车铣钳基础操作 → 工艺卡与实习报告」串线；强调 2302 班两极分化，量具与读图环节放慢半周，现场演示次数加倍。",
+      "以「安全入厂 → 量具识读与图纸对表 → 车铣钳基础操作 → 工艺卡与实习报告」串线；2301/2302 平行排课，量具与读图环节放慢半周；兼顾 2302 两极分化，现场演示与设计课引用的图纸对表加倍演练。",
     semester: "2026春季",
     startDate: "2026-03-02",
     endDate: "2026-06-10",
@@ -309,26 +309,27 @@ export const teachingPlans: TeachingPlan[] = [
   },
 
   // ========================================================================
-  // 6. 大二 · 工业机器人（草稿）
+  // 6. 大二 · 工业机器人（机制2303 · 进行中）
   // ========================================================================
   {
     id: "plan-mech-robotics",
-    title: "《工业机器人技术应用基础》· 2026春 · 机制2303（草稿）",
+    title: "《工业机器人技术应用基础》· 2026春 · 机制2303",
     courseId: "course-mech-robotics",
     professionId: "prof-mech",
     subjectId: "subj-mech-robot",
     creatorTeacherId: "t-zhao",
     classIds: ["cls-mech-2303"],
     strategyId: "strat-preset-balanced",
-    strategyBrief: "草稿：示教 + 离线仿真双线并进，与制图课 SolidWorks 模块对齐。",
+    strategyBrief:
+      "示教 + 离线仿真双线并进，与李老师《机械制图与CAD》中 SolidWorks 模块周次对齐；每两周一次手绘—数模对照必交。",
     semester: "2026春季",
     startDate: "2026-03-02",
     endDate: "2026-06-19",
-    status: "draft",
+    status: "in_progress",
     createdAt: "2026-02-18T11:00:00+08:00",
     updatedAt: "2026-02-20T10:00:00+08:00",
     aiAdvice:
-      "2303 班仿真维度好、手绘规范弱，草稿定稿前建议写明「每周 1 次手绘—数模对照」的必交作业。",
+      "2303 班仿真维度好、手绘规范弱，务必落实「每两周 1 次手绘—数模对照」与李老师制图课进度联动。",
     chapters: [
       {
         id: "ch-rob-1",

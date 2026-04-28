@@ -218,7 +218,7 @@ export function PlansList({
                   </span>
                   {isFocus && (
                     <span className="text-indigo-600">
-                      {p.id === "plan-main" ? "主线 ★" : "本账号 ★"}
+                      {p.id === "plan-main" ? "主线" : "本账号"}
                     </span>
                   )}
                 </div>
@@ -363,12 +363,11 @@ export function PlanDetail({
               <div key={c.id} className="bg-white rounded-xl border border-slate-200 p-4">
                 <div className="text-slate-900 mb-3 flex items-center gap-2">
                   {c.title}
-                  {c.title.includes("焦点") && <span className="text-indigo-600">【焦点】★</span>}
                 </div>
                 {c.summary && <div className="text-slate-500 mb-2">{c.summary}</div>}
                 <div className="flex items-center gap-2 flex-wrap">
                   {c.sections.map((s, i) => {
-                    const isFocus = s.id === "sec-3-2"; // 主线焦点小节
+                    const isFocus = s.id === "sec-3-2"; // 主线示例小节（样式强调）
                     return (
                       <div key={s.id} className="flex items-center">
                         <button

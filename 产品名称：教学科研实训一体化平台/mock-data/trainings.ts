@@ -62,7 +62,7 @@ export const trainingProjects: TrainingProject[] = [
     environment: "图板、丁字尺、三角板（学生自备）",
     coverUrl: "/covers/train-m-003.jpg",
     ownerTeacherId: "t-li",
-    tags: ["核心实训", "焦点", "主线"],
+    tags: ["核心实训", "主线"],
   },
   {
     id: "train-m-004",

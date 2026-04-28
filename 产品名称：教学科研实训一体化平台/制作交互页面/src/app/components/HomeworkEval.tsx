@@ -26,6 +26,7 @@ import type { HomeworkEvalSummary } from "@mock";
 import {
   classById,
   courseById,
+  resolveNextLessonSectionForPlan,
   teacherById,
   teacherSeesAllScopedContent,
 } from "../data/lookups";
@@ -299,6 +300,7 @@ export function HwDetail({
   const cls = classById(h.classId);
   const course = courseById(h.courseId);
   const teacher = teacherById(h.teacherId);
+  const nextLessonNav = resolveNextLessonSectionForPlan(h.planId, h.classId);
 
   const pie = [
     { n: "优", v: h.aiRatings.excellent, c: "#10b981" },
@@ -505,16 +507,16 @@ export function HwDetail({
                 <div className="mt-2 px-3 py-2 rounded-md bg-indigo-50/60 border border-indigo-100 text-indigo-700 whitespace-pre-line">
                   {a.actionSuggestion}
                 </div>
-                {a.adjustCourse && onAdjustCourse && (
+                {a.adjustCourse && onAdjustCourse && nextLessonNav && (
                   <button
                     type="button"
                     onClick={() =>
-                      onAdjustCourse(a.adjustCourse!.planId, a.adjustCourse!.sectionId)
+                      onAdjustCourse(nextLessonNav.planId, nextLessonNav.sectionId)
                     }
                     className="mt-3 self-start inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-indigo-200 bg-white text-indigo-700 text-sm font-medium hover:bg-indigo-50"
                   >
                     <BookOpen size={14} className="shrink-0" />
-                    调整课程
+                    调整课程（跳转下一堂课）
                     {a.adjustCourse.label && (
                       <span className="text-indigo-500 font-normal">· {a.adjustCourse.label}</span>
                     )}

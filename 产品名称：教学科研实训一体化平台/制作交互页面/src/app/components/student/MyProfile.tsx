@@ -812,7 +812,7 @@ function buildGrowthTips(studentId: string, tier: Tier): GrowthTip[] {
       {
         title: "约朋辈辅导 · 林诗涵",
         detail:
-          "AI 从 2302 班为你匹配了成绩最高的林诗涵，作息完全重合。两次 45 分钟就能搞定焦点小节 3.2。",
+          "AI 从 2302 班为你匹配了成绩最高的林诗涵，作息完全重合。两次 45 分钟就能搞定第 3.2 节组合体三视图。",
         action: "查看匹配",
         target: "plans",
         icon: Users,

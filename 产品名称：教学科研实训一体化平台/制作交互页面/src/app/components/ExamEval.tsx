@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ChevronRight, AlertTriangle, Calendar } from "lucide-react";
+import { ChevronRight, AlertTriangle, Calendar, BookOpen } from "lucide-react";
 import {
   BarChart,
   Bar,
@@ -21,6 +21,7 @@ import type { ExamEvalSummary, StudentEvalNarrative } from "@mock";
 import {
   classById,
   courseById,
+  resolveNextLessonSectionForCourseClasses,
   teacherById,
   teacherSeesAllScopedContent,
 } from "../data/lookups";
@@ -113,10 +114,13 @@ export function ExamDetail({
   id,
   currentTeacherId,
   onBack,
+  onAdjustCourse,
 }: {
   id: string;
   currentTeacherId: string;
   onBack: () => void;
+  /** 跳转到教学计划「教学路径」中的下一堂课小节（与考试知识点章节无关） */
+  onAdjustCourse?: (planId: string, sectionId: string) => void;
 }) {
   const [rangeFilter, setRangeFilter] = useState<string | null>(null);
   const [questionFocus, setQuestionFocus] = useState<Focus>({ k: "none" });
@@ -158,6 +162,7 @@ export function ExamDetail({
 
   const course = courseById(e.courseId);
   const teacher = teacherById(e.teacherId);
+  const examNextNav = resolveNextLessonSectionForCourseClasses(e.courseId, e.classIds);
   const notStarted = e.submittedCount === 0 && e.averageScore === 0;
   const distData = e.scoreBuckets.map((b) => ({
     bin: b.range,
@@ -401,6 +406,21 @@ export function ExamDetail({
               <div className="col-span-3 text-slate-400">暂无洞察</div>
             )}
           </div>
+          {onAdjustCourse && examNextNav && (
+            <div className="flex justify-center mt-4 pt-4 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() =>
+                  onAdjustCourse(examNextNav.planId, examNextNav.sectionId)
+                }
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-indigo-200 bg-white text-indigo-700 text-sm font-medium hover:bg-indigo-50"
+              >
+                <BookOpen size={14} className="shrink-0" />
+                前往下一堂课调整教学计划
+                <ChevronRight size={14} className="opacity-70" />
+              </button>
+            </div>
+          )}
         </div>
       </div>
           )}

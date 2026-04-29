@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import {
   FileText,
   Brain,
@@ -17,6 +17,8 @@ import {
   Timer,
   Code2,
   Headphones,
+  Bot,
+  CheckCircle2,
 } from "lucide-react";
 import { teachingPlans } from "@mock";
 import type {
@@ -39,6 +41,7 @@ const TABS: { key: TabKey; label: string }[] = [
   { key: "讲义", label: "讲义" },
   { key: "课堂", label: "课堂" },
   { key: "作业", label: "作业" },
+  { key: "AI融合", label: "AI融合" },
 ];
 
 /** 按 Tab 划分的创建模板（类似 LLM notebook） */
@@ -71,6 +74,13 @@ const TEMPLATES_BY_TAB: Record<TabKey, TemplateItem[]> = {
     { key: "编程题", label: "编程题", icon: Code2, accent: "text-slate-700 bg-slate-100" },
     { key: "实训任务", label: "实训任务", icon: Wrench, accent: "text-teal-600 bg-teal-50" },
   ],
+  AI融合: [
+    { key: "融入策略", label: "融入策略", icon: Sparkles, accent: "text-violet-600 bg-violet-50" },
+    { key: "讲义建议", label: "讲义建议", icon: FileText, accent: "text-rose-600 bg-rose-50" },
+    { key: "课堂建议", label: "课堂建议", icon: Activity, accent: "text-indigo-600 bg-indigo-50" },
+    { key: "AI实训", label: "AI实训", icon: Bot, accent: "text-cyan-600 bg-cyan-50" },
+    { key: "诚信边界", label: "诚信边界", icon: CheckCircle2, accent: "text-emerald-600 bg-emerald-50" },
+  ],
 };
 
 function iconForOutput(type: DesignOutput["type"]) {
@@ -97,9 +107,76 @@ function iconForOutput(type: DesignOutput["type"]) {
       return FileText;
     case "实训任务":
       return Wrench;
+    case "AI融合建议包":
+      return Sparkles;
+    case "AI实训练习":
+      return Bot;
     default:
       return FileText;
   }
+}
+
+function outputActionLabels(output: DesignOutput, tab: TabKey): string[] {
+  if (tab === "AI融合" && output.type === "AI融合建议包") {
+    return ["预览", "采纳到讲义", "采纳到课堂"];
+  }
+  if (tab === "AI融合" && output.type === "AI实训练习") {
+    return ["预览", "采纳到作业", "发布设置"];
+  }
+  return ["预览", "下载", "发布"];
+}
+
+function acceptTargetFromLabel(label: string): Exclude<TabKey, "AI融合"> | undefined {
+  if (label === "采纳到讲义") return "讲义";
+  if (label === "采纳到课堂") return "课堂";
+  if (label === "采纳到作业") return "作业";
+  return undefined;
+}
+
+/** AI 融合采纳后，气泡指向的主产物（名称不因采纳而改变） */
+function fusionAnchorOutputId(
+  design: TeachingDesign | undefined,
+  target: Exclude<TabKey, "AI融合">,
+): string | undefined {
+  const list = design?.outputs ?? [];
+  if (!list.length) return undefined;
+  if (target === "讲义") {
+    return list.find((o) => o.type === "讲义pdf")?.id ?? list[0]?.id;
+  }
+  if (target === "课堂") {
+    return (
+      list.find((o) => o.type === "PPT")?.id ??
+      list.find((o) => o.type === "教案")?.id ??
+      list[0]?.id
+    );
+  }
+  return (
+    list.find((o) => o.type === "客观题组卷")?.id ??
+    list.find((o) => o.type === "主观题")?.id ??
+    list[0]?.id
+  );
+}
+
+function acceptedNoticeForTarget(target: Exclude<TabKey, "AI融合">, source: DesignOutput) {
+  if (target === "讲义") {
+    return {
+      id: `accepted-${target}-${source.id}-${Date.now()}`,
+      content:
+        "已在当前讲义中增加 1 页「AI 融合教学内容」：包含 AI 辅助识图的适用边界、人工核验步骤和学术诚信提醒。讲义标题保持不变，你可以继续对这页内容做微调。",
+    };
+  }
+  if (target === "课堂") {
+    return {
+      id: `accepted-${target}-${source.id}-${Date.now()}`,
+      content:
+        "已在当前课堂设计中加入 12 分钟「人机协同找错」活动：学生先独立判断，再对比 AI 解释并标注不符合投影规律的部分。课堂产物名称保持不变。",
+    };
+  }
+  return {
+    id: `accepted-${target}-${source.id}-${Date.now()}`,
+    content:
+      "已在当前作业中补充 AI 实训练习要求：学生需提交提示词、AI 输出截图、人工修正说明与 100 字反思；评价重点是核验过程，不是直接答案。",
+  };
 }
 
 function fileSourceLabel(s: "local" | "knowledge_base" | "resource_library" | "internet"): string {
@@ -155,6 +232,14 @@ export function DesignWorkbench({
 
   const [tab, setTab] = useState<TabKey>("讲义");
   const [extraMsgs, setExtraMsgs] = useState<Record<string, LocalMessage[]>>({});
+  const [acceptanceNotices, setAcceptanceNotices] = useState<
+    Partial<
+      Record<
+        Exclude<TabKey, "AI融合">,
+        { id: string; content: string; anchorOutputId?: string }
+      >
+    >
+  >({});
   const [input, setInput] = useState("");
 
   const currentDesign = designs.find((d) => d.tab === tab);
@@ -183,6 +268,24 @@ export function DesignWorkbench({
       return { ...prev, [currentDesign.id]: [...curr, userMsg, aiMsg] };
     });
     setInput("");
+  };
+
+  const acceptFusionOutput = (target: Exclude<TabKey, "AI融合">, source: DesignOutput) => {
+    const targetDesign = designs.find((d) => d.tab === target);
+    const anchorOutputId = fusionAnchorOutputId(targetDesign, target);
+    setAcceptanceNotices((prev) => ({
+      ...prev,
+      [target]: { ...acceptedNoticeForTarget(target, source), anchorOutputId },
+    }));
+    setTab(target);
+  };
+
+  const dismissAcceptanceNotice = (target: Exclude<TabKey, "AI融合">) => {
+    setAcceptanceNotices((prev) => {
+      const next = { ...prev };
+      delete next[target];
+      return next;
+    });
   };
 
   return (
@@ -230,6 +333,15 @@ export function DesignWorkbench({
           input={input}
           onChange={setInput}
           onSend={send}
+          acceptanceNotice={
+            tab === "AI融合" ? undefined : acceptanceNotices[tab as Exclude<TabKey, "AI融合">]
+          }
+          onDismissAcceptanceNotice={
+            tab === "AI融合"
+              ? undefined
+              : () => dismissAcceptanceNotice(tab as Exclude<TabKey, "AI融合">)
+          }
+          onAcceptFusionOutput={acceptFusionOutput}
           learningAdjustSimulateInitialReply={learningAdjust}
         />
       )}
@@ -244,6 +356,9 @@ function DesignBody({
   input,
   onChange,
   onSend,
+  acceptanceNotice,
+  onDismissAcceptanceNotice,
+  onAcceptFusionOutput,
   learningAdjustSimulateInitialReply = false,
 }: {
   tab: TabKey;
@@ -252,6 +367,9 @@ function DesignBody({
   input: string;
   onChange: (v: string) => void;
   onSend: () => void;
+  acceptanceNotice?: { id: string; content: string; anchorOutputId?: string };
+  onDismissAcceptanceNotice?: () => void;
+  onAcceptFusionOutput: (target: Exclude<TabKey, "AI融合">, source: DesignOutput) => void;
   /** 学情入口：先展示首条用户消息，1s 后再展示首条 AI 回复 */
   learningAdjustSimulateInitialReply?: boolean;
 }) {
@@ -326,6 +444,16 @@ function DesignBody({
     learningAdjustSimulateInitialReply &&
     initialLoading &&
     design.outputs.length > visibleOutputs.length;
+
+  const bubbleAnchorOutputId = useMemo(() => {
+    if (!acceptanceNotice?.anchorOutputId || !visibleOutputs.length) {
+      return visibleOutputs[0]?.id;
+    }
+    const hits = visibleOutputs.some((o) => o.id === acceptanceNotice.anchorOutputId);
+    return hits ? acceptanceNotice.anchorOutputId : visibleOutputs[0]?.id;
+  }, [acceptanceNotice?.anchorOutputId, visibleOutputs]);
+
+  const showAcceptanceBubble = Boolean(acceptanceNotice && onDismissAcceptanceNotice && bubbleAnchorOutputId);
 
   const templates = TEMPLATES_BY_TAB[tab];
 
@@ -470,54 +598,71 @@ function DesignBody({
               learningAdjustSimulateInitialReply &&
               initialLoading &&
               design.outputsBeforeInitialAiReply?.some((d) => d.id === o.id);
+            const isBubbleAnchor = showAcceptanceBubble && bubbleAnchorOutputId === o.id;
             return (
               <div
                 key={o.id}
-                className={`border rounded-lg p-2.5 transition ${
-                  draftTone
-                    ? "border-amber-200 bg-amber-50/40 hover:border-amber-300"
-                    : "border-slate-200 hover:border-indigo-300"
-                }`}
+                className={`relative ${isBubbleAnchor ? "z-40" : "z-0"}`}
               >
-                <div className="flex items-center gap-2">
-                  <div className="size-8 rounded-md bg-indigo-50 text-indigo-600 flex items-center justify-center">
-                    <Icon size={14} />
+                <div
+                  className={`border rounded-lg p-2.5 transition ${
+                    draftTone
+                      ? "border-amber-200 bg-amber-50/40 hover:border-amber-300"
+                      : "border-slate-200 hover:border-indigo-300"
+                  } ${
+                    isBubbleAnchor ? "ring-2 ring-indigo-500/70 ring-offset-2 ring-offset-white" : ""
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <div className="size-8 rounded-md bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                      <Icon size={14} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <div className="truncate text-slate-900 text-[12.5px]">{o.title}</div>
+                        {draftTone && (
+                          <span className="shrink-0 text-[0.625rem] px-1 py-px rounded bg-amber-100 text-amber-800 border border-amber-200">
+                            草案
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-slate-500 text-[11px]">
+                        {[o.type, o.sizeLabel, o.durationLabel].filter(Boolean).join(" · ")}
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      <div className="truncate text-slate-900 text-[12.5px]">{o.title}</div>
-                      {draftTone && (
-                        <span className="shrink-0 text-[0.625rem] px-1 py-px rounded bg-amber-100 text-amber-800 border border-amber-200">
-                          草案
-                        </span>
-                      )}
-                    </div>
-                    <div className="text-slate-500 text-[11px]">
-                      {[o.type, o.sizeLabel, o.durationLabel].filter(Boolean).join(" · ")}
-                    </div>
+                  <div className="text-slate-500 mt-1 line-clamp-2 text-[11.5px]">{o.summary}</div>
+                  <div className="flex gap-1 mt-1.5">
+                    {outputActionLabels(o, tab).map((label, index) => {
+                      const acceptTarget = acceptTargetFromLabel(label);
+                      return (
+                        <button
+                          key={label}
+                          type="button"
+                          onClick={() => acceptTarget && onAcceptFusionOutput(acceptTarget, o)}
+                          className={`flex-1 min-w-0 py-0.5 rounded-md border text-[11.5px] ${
+                            index === 0
+                              ? "border-slate-200 hover:bg-slate-50"
+                              : "border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100"
+                          }`}
+                        >
+                          {label}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
-                <div className="text-slate-500 mt-1 line-clamp-2 text-[11.5px]">{o.summary}</div>
-                <div className="flex gap-1 mt-1.5">
-                  <button
-                    type="button"
-                    className="flex-1 min-w-0 py-0.5 rounded-md border border-slate-200 hover:bg-slate-50 text-[11.5px]"
-                  >
-                    预览
-                  </button>
-                  <button
-                    type="button"
-                    className="flex-1 min-w-0 py-0.5 rounded-md border border-slate-200 hover:bg-slate-50 text-[11.5px]"
-                  >
-                    下载
-                  </button>
-                  <button
-                    type="button"
-                    className="flex-1 min-w-0 py-0.5 rounded-md border border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 text-[11.5px]"
-                  >
-                    发布
-                  </button>
-                </div>
+                {isBubbleAnchor && acceptanceNotice && onDismissAcceptanceNotice && (
+                  <div className="absolute left-0 right-0 top-full z-50 mt-1.5 pointer-events-auto drop-shadow-md">
+                    <ComicAcceptBubble
+                      key={`bubble-${acceptanceNotice.id}`}
+                      onDismiss={onDismissAcceptanceNotice}
+                    >
+                      <div className="font-semibold mb-1 text-emerald-950">已调整当前产物</div>
+                      <p className="leading-relaxed text-emerald-900/90">{acceptanceNotice.content}</p>
+                    </ComicAcceptBubble>
+                  </div>
+                )}
               </div>
             );
           })}
@@ -536,6 +681,33 @@ function DesignBody({
           )}
         </div>
       </aside>
+    </div>
+  );
+}
+
+/** 漫画对白：三角指向上方产物卡片；覆盖在下层内容上，点击整块关闭 */
+function ComicAcceptBubble({
+  onDismiss,
+  children,
+}: {
+  onDismiss: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <div className="w-full">
+      <div className="relative flex justify-center pointer-events-none" aria-hidden>
+        <div className="relative h-3 w-5 -mb-[2px] z-10">
+          <div className="absolute left-1/2 top-0 -translate-x-1/2 size-0 border-x-[9px] border-x-transparent border-b-[11px] border-b-emerald-300" />
+          <div className="absolute left-1/2 top-[2px] -translate-x-1/2 size-0 border-x-[8px] border-x-transparent border-b-[10px] border-b-emerald-50" />
+        </div>
+      </div>
+      <button
+        type="button"
+        onClick={onDismiss}
+        className="relative z-0 w-full cursor-pointer rounded-2xl border border-emerald-200/90 bg-emerald-50/95 px-3.5 py-2.5 text-left shadow-lg shadow-slate-900/10 ring-1 ring-emerald-100 backdrop-blur-sm transition hover:bg-emerald-100/95 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2"
+      >
+        {children}
+      </button>
     </div>
   );
 }

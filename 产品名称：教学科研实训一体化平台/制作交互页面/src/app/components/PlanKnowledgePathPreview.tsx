@@ -119,7 +119,7 @@ export function PlanKnowledgePathPreview({
   const title =
     variant === "teacher" ? "教学计划 · 知识路径" : "学习计划 · 知识路径";
   const sub =
-    "节点与学科知识引擎中本专业主图一致；本图展示教师从主图切出的素养、能力、知识点、课程/实训路径。";
+    "节点与专业知识引擎中本专业主图一致；本图展示教师从主图切出的素养、能力、知识点、课程/实训路径。";
 
   if (valid.length === 0) {
     return (

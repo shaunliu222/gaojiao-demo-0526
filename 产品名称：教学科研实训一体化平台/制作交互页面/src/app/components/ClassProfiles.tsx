@@ -37,6 +37,7 @@ import {
 } from "../data/lookups";
 import { PageHeader, AiBadge } from "./Layout";
 import { StudentDetail } from "./StudentProfiles";
+import { SCORE_BIN_BAR_COLORS } from "./scoreDistributionChartStyles";
 
 /** 学情分析中枢默认选中的班级（与 classProfiles 首项一致） */
 export const DEFAULT_LEARNING_CLASS_ID = classProfiles[0]!.classId;
@@ -324,13 +325,6 @@ export function LearningAnalyticsHub({
     </div>
   );
 }
-
-const SCORE_BIN_BAR_COLORS: Record<ScoreBinKey, string> = {
-  "<60": "#f43f5e",
-  "60-69": "#fb923c",
-  "70-84": "#eab308",
-  "≥85": "#10b981",
-};
 
 function fmtShortDate(iso: string) {
   const [y, m, d] = iso.split("-").map(Number);

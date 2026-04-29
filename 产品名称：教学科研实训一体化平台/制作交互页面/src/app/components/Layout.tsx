@@ -453,7 +453,7 @@ export function Layout({
                 />
               </NavSection>
               <NavSection
-                title="学科知识引擎"
+                title="专业知识引擎"
                 icon={Network}
                 iconClassName="bg-indigo-100 text-indigo-700"
               >
@@ -470,7 +470,7 @@ export function Layout({
 
           {role === "college_admin" && (
             <NavSection
-              title="学科知识引擎"
+              title="专业知识引擎"
               icon={Network}
               iconClassName="bg-indigo-100 text-indigo-700"
             >

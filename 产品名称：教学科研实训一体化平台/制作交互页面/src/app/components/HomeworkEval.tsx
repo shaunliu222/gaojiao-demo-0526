@@ -31,6 +31,10 @@ import {
   teacherSeesAllScopedContent,
 } from "../data/lookups";
 import { PageHeader, AiBadge } from "./Layout";
+import {
+  scoreBucketRangeFill,
+  sortScoreBucketsForChart,
+} from "./scoreDistributionChartStyles";
 
 function passRate(h: HomeworkEvalSummary): number {
   const total = h.submissionCount || 1;
@@ -309,14 +313,16 @@ export function HwDetail({
     { n: "不及格", v: h.aiRatings.fail, c: "#f43f5e" },
   ].filter((d) => d.v > 0);
 
-  const distData = h.scoreBuckets.map((b) => ({
+  const distData = sortScoreBucketsForChart(h.scoreBuckets).map((b) => ({
     bin: b.range,
     count: b.count,
     range: b.range,
   }));
+  const cntLt60 = h.scoreBuckets.find((x) => x.range === "<60")?.count ?? 0;
+  const cnt90 = h.scoreBuckets.find((x) => x.range === "90-100")?.count ?? 0;
   const warning =
     h.aiRatings.fail >= 3 ||
-    (h.maxScore - h.minScore >= 40 && h.scoreBuckets[0]?.count >= 3 && h.scoreBuckets[h.scoreBuckets.length - 1]?.count >= 3);
+    (h.maxScore - h.minScore >= 40 && cntLt60 >= 3 && cnt90 >= 3);
   const pr = passRate(h);
 
   const selectedRow = selectedStudentId
@@ -377,24 +383,31 @@ export function HwDetail({
           <Metric label="通过率" value={`${pr}%`} />
           <Metric label="任课教师" value={teacher?.name ?? "—"} />
         </div>
-        <div className="col-span-7 bg-white rounded-xl border border-slate-200 p-5">
-          <div className="text-slate-900 mb-2">分数分布 {course ? `· ${course.name}` : ""}</div>
-          <p className="text-xs text-slate-400 mb-2">点击柱形按分数段筛选右侧名单，再次点击同一分段可取消</p>
-          <div className="h-56">
+        <div className="col-span-7 bg-white rounded-xl border border-slate-200 p-4">
+          <div className="mb-2">
+            <div className="text-slate-500">成绩分布</div>
+            {course && (
+              <div className="text-xs text-slate-400 mt-0.5">{course.name}</div>
+            )}
+          </div>
+          <p className="text-xs text-slate-400 mb-2">
+            点击柱形快速筛选，再次点击同一分段可取消
+          </p>
+          <div className="h-48">
             <ResponsiveContainer>
               <BarChart data={distData}>
                 <CartesianGrid stroke="#f1f5f9" vertical={false} />
                 <XAxis dataKey="bin" tick={{ fontSize: 12, fill: "#64748b" }} />
                 <YAxis tick={{ fontSize: 12, fill: "#64748b" }} />
                 <Tooltip />
-                <Bar dataKey="count" fill="#6366f1" radius={[6, 6, 0, 0]}>
+                <Bar dataKey="count" radius={[6, 6, 0, 0]}>
                   {distData.map((entry, i) => {
                     const r = entry.range;
                     const isSel = rangeFilter === r;
                     return (
                       <Cell
                         key={r + i}
-                        fill="#6366f1"
+                        fill={scoreBucketRangeFill(r)}
                         fillOpacity={rangeFilter && !isSel ? 0.4 : 1}
                         stroke={isSel ? "#4f46e5" : undefined}
                         strokeWidth={isSel ? 2 : 0}

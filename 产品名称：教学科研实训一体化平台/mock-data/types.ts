@@ -438,7 +438,7 @@ export interface TeachingPlan {
 
 // ============ 教学设计 ============
 
-export type DesignTab = "讲义" | "课堂" | "作业";
+export type DesignTab = "讲义" | "课堂" | "作业" | "AI融合";
 
 /** 对话消息 */
 export interface ChatMessage {
@@ -463,7 +463,9 @@ export interface DesignOutput {
     | "客观题组卷"
     | "主观题"
     | "编程题"
-    | "实训任务";
+    | "实训任务"
+    | "AI融合建议包"
+    | "AI实训练习";
   title: string;
   previewUrl?: string;
   sizeLabel?: string; // "3.2 MB"

@@ -356,7 +356,7 @@ export default function App() {
     }
   };
 
-  /** 学科知识引擎内：同时切换模块、侧栏高亮与页面，避免仅 setView 导致侧栏停留在图谱等项 */
+  /** 专业知识引擎内：同时切换模块、侧栏高亮与页面，避免仅 setView 导致侧栏停留在图谱等项 */
   const goEnginePage = useCallback((n: TeacherNavKey, v: View) => {
     setModule("engine");
     setNav(n);

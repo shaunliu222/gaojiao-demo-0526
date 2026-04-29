@@ -26,6 +26,10 @@ import {
   teacherSeesAllScopedContent,
 } from "../data/lookups";
 import { PageHeader, AiBadge } from "./Layout";
+import {
+  scoreBucketRangeFill,
+  sortScoreBucketsForChart,
+} from "./scoreDistributionChartStyles";
 
 function classesLabel(ids: string[]): string {
   return ids.map((id) => classById(id)?.name ?? id).join(" + ");
@@ -164,7 +168,7 @@ export function ExamDetail({
   const teacher = teacherById(e.teacherId);
   const examNextNav = resolveNextLessonSectionForCourseClasses(e.courseId, e.classIds);
   const notStarted = e.submittedCount === 0 && e.averageScore === 0;
-  const distData = e.scoreBuckets.map((b) => ({
+  const distData = sortScoreBucketsForChart(e.scoreBuckets).map((b) => ({
     bin: b.range,
     count: b.count,
     range: b.range,
@@ -245,24 +249,26 @@ export function ExamDetail({
 
         {!notStarted && (
           <>
-            <div className="col-span-7 bg-white rounded-xl border border-slate-200 p-5">
-              <div className="text-slate-900 mb-2">分数分布</div>
-              <p className="text-xs text-slate-400 mb-2">点击柱形按分数段筛选右侧名单，再次点击同一分段可取消</p>
-              <div className="h-56">
+            <div className="col-span-7 bg-white rounded-xl border border-slate-200 p-4">
+              <div className="text-slate-500 mb-2">成绩分布</div>
+              <p className="text-xs text-slate-400 mb-2">
+                点击柱形快速筛选，再次点击同一分段可取消
+              </p>
+              <div className="h-48">
                 <ResponsiveContainer>
                   <BarChart data={distData}>
                     <CartesianGrid stroke="#f1f5f9" vertical={false} />
                     <XAxis dataKey="bin" tick={{ fontSize: 12, fill: "#64748b" }} />
                     <YAxis tick={{ fontSize: 12, fill: "#64748b" }} />
                     <Tooltip />
-                    <Bar dataKey="count" fill="#6366f1" radius={[6, 6, 0, 0]}>
+                    <Bar dataKey="count" radius={[6, 6, 0, 0]}>
                       {distData.map((entry, i) => {
                         const r = entry.range;
                         const isSel = rangeFilter === r;
                         return (
                           <Cell
                             key={r + i}
-                            fill="#6366f1"
+                            fill={scoreBucketRangeFill(r)}
                             fillOpacity={rangeFilter && !isSel ? 0.4 : 1}
                             stroke={isSel ? "#4f46e5" : undefined}
                             strokeWidth={isSel ? 2 : 0}

@@ -14,7 +14,7 @@ export const DEMO_DESIGN_SECTION_ID = "sec-3-2";
  * 数据正文
  * @see DEMO_DESIGN_PLAN_ID / DEMO_DESIGN_SECTION_ID
  *
- * 三个 Tab（讲义/课堂/作业）均有完整产物、对话历史、技能工具引用。
+ * 四个 Tab（讲义/课堂/作业/AI融合）均有完整产物、对话历史、技能工具引用。
  * 其他小节不提供具体设计（hasDesign=false 即可）。
  */
 export const teachingDesigns: TeachingDesign[] = [
@@ -266,6 +266,83 @@ export const teachingDesigns: TeachingDesign[] = [
       },
     ],
     updatedAt: "2026-03-17T14:11:20+08:00",
+  },
+
+  // ========================================================================
+  // 焦点小节 · AI 融合设计
+  // ========================================================================
+  {
+    id: "design-sec-3-2-ai-fusion",
+    planId: DEMO_DESIGN_PLAN_ID,
+    sectionId: DEMO_DESIGN_SECTION_ID,
+    tab: "AI融合",
+    personaId: "persona-preset-facilitator",
+    knowledgeFiles: [
+      { source: "resource_library", refId: "res-m-041", name: "组合体三视图绘制示范 · 轴承座" },
+      { source: "knowledge_base", refId: "kb-engdrawing", name: "工程制图知识库（全文检索）" },
+      { source: "internet", refId: "web-ai-001", name: "职业教育数字素养与 AI 应用案例" },
+    ],
+    skillIds: ["skill-gen-quiz", "skill-gen-h5"],
+    mcpIds: ["mcp-solidworks", "mcp-textbook"],
+    chatHistory: [
+      {
+        id: "msg-ai-001",
+        role: "user",
+        content:
+          "这节「组合体三视图绘制」如何和新时代 AI 结合？我不希望学生只是让 AI 直接给答案，而是要设计成能训练空间想象和判断能力的活动。",
+        createdAt: "2026-03-17T15:20:00+08:00",
+      },
+      {
+        id: "msg-ai-002",
+        role: "assistant",
+        content:
+          "可以把 AI 作为「候选方案生成器」和「错误诊断对象」，而不是答案来源。建议本小节形成 3 个可采纳产物：\n1. 讲义中新增「AI 辅助识图的适用边界」资料页，提醒学生核验投影规律；\n2. 课堂中加入 12 分钟人机协同活动：学生先独立判断，再对比 AI 输出并找出不符合三视图对应关系的地方；\n3. 作业中新增 AI 实训练习：要求学生提交提示词、AI 输出截图、人工修正说明和反思，不以 AI 答案本身计分。",
+        createdAt: "2026-03-17T15:21:10+08:00",
+      },
+      {
+        id: "msg-ai-003",
+        role: "user",
+        content: "很好，把课堂活动和作业里的 AI 实训练习先采纳，讲义资料页暂时保留待确认。",
+        createdAt: "2026-03-17T15:23:00+08:00",
+      },
+      {
+        id: "msg-ai-004",
+        role: "assistant",
+        content:
+          "已整理为可采纳建议：讲义可增加 1 页 AI 融合教学内容；课堂可加入 12 分钟人机协同找错活动；作业可补充 AI 实训练习要求。点击对应采纳按钮后，将回到原有讲义、课堂或作业中进行调整。",
+        createdAt: "2026-03-17T15:23:40+08:00",
+      },
+    ],
+    outputs: [
+      {
+        id: "out-ai-001",
+        type: "AI融合建议包",
+        title: "AI融合建议包 v1 · 组合体三视图",
+        createdAt: "2026-03-17T15:21:10+08:00",
+        summary:
+          "包含讲义修订、课堂人机协同活动、作业 AI 实训练习 3 条建议；课堂与作业建议已采纳，讲义建议待采纳。",
+        tags: ["AI融合", "待采纳:讲义", "已采纳:课堂", "已采纳:作业"],
+      },
+      {
+        id: "out-ai-002",
+        type: "课堂活动",
+        title: "课堂活动建议：人机协同找错",
+        createdAt: "2026-03-17T15:22:20+08:00",
+        summary:
+          "12 分钟课堂活动：学生先独立判断轴承座三视图，再对比 AI 生成解释，标注不符合投影对应关系的部分。",
+        tags: ["AI融合", "课堂建议"],
+      },
+      {
+        id: "out-ai-003",
+        type: "AI实训练习",
+        title: "AI实训练习建议：AI 辅助识图纠错",
+        createdAt: "2026-03-17T15:23:40+08:00",
+        summary:
+          "作为作业子任务发布：提交提示词、AI 输出截图、人工修正说明与 100 字反思，重点评价核验过程而非直接答案。",
+        tags: ["AI融合", "作业建议"],
+      },
+    ],
+    updatedAt: "2026-03-17T15:23:40+08:00",
   },
 
   // ========================================================================

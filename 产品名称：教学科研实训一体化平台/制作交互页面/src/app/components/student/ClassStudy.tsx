@@ -61,11 +61,8 @@ export function ClassStudy({
   const [input, setInput] = useState("");
 
   const selectedResource = useMemo(() => {
-    if (teacherResourceItems.length === 0) return undefined;
-    return (
-      teacherResourceItems.find((item) => item.id === selectedResourceId) ??
-      teacherResourceItems[0]
-    );
+    if (!selectedResourceId || teacherResourceItems.length === 0) return undefined;
+    return teacherResourceItems.find((item) => item.id === selectedResourceId);
   }, [teacherResourceItems, selectedResourceId]);
 
   const resourceExplanation = useMemo(
@@ -81,6 +78,9 @@ export function ClassStudy({
 
   useEffect(() => {
     setChatByResource({});
+    setSelectedResourceId(null);
+    setAsideMode("list");
+    setResourcePageIndex(0);
   }, [planId, sectionId, focus]);
 
   useEffect(() => {
@@ -97,10 +97,11 @@ export function ClassStudy({
       return;
     }
     if (
-      !selectedResourceId ||
+      selectedResourceId &&
       !teacherResourceItems.some((item) => item.id === selectedResourceId)
     ) {
-      setSelectedResourceId(teacherResourceItems[0]!.id);
+      setSelectedResourceId(null);
+      setAsideMode("list");
     }
   }, [teacherResourceItems, selectedResourceId]);
 
@@ -171,7 +172,7 @@ export function ClassStudy({
               <TeacherResourceList
                 fillHeight
                 items={teacherResourceItems}
-                selectedId={selectedResource?.id}
+                selectedId={selectedResourceId ?? undefined}
                 listTitle="本节资料"
                 onSelect={(id) => {
                   setSelectedResourceId(id);
@@ -193,78 +194,82 @@ export function ClassStudy({
                     : 0
                 }
                 onPickPage={(idx) => setResourcePageIndex(idx)}
-                onBackToList={() => setAsideMode("list")}
+                onBackToList={() => {
+                  setAsideMode("list");
+                  setSelectedResourceId(null);
+                  setResourcePageIndex(0);
+                }}
               />
             )}
           </aside>
 
           <main className="col-span-7 min-h-0 h-full flex flex-col min-w-0">
-            {selectedResource && resourceExplanation ? (
-              <div className="flex-1 min-h-0 flex flex-col rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-sm">
-                <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4 flex flex-col">
-                  <div className="flex flex-col gap-4 flex-1 min-h-0 min-w-0">
-                    <div className="shrink-0">
-                      <h3 className="text-slate-900 text-base font-medium">
-                        {resourceExplanation.headline}
-                      </h3>
-                      {selectedResource.metaLabel && (
-                        <div className="text-slate-400 text-[0.75rem] mt-1.5">
-                          {selectedResource.metaLabel}
-                        </div>
-                      )}
-                      {resourceExplanation.focusNodeIds.length > 0 && (
-                        <div className="mt-3">
-                          <div className="text-slate-500 text-[0.75rem] mb-1.5">关联知识点</div>
-                          <div className="flex flex-wrap gap-2">
-                            {resourceExplanation.focusNodeIds.map((nodeId) => {
-                              const n = graphNodeById(nodeId);
-                              if (!n) return null;
-                              const hot = focusHighlightId === nodeId;
-                              return (
-                                <span
-                                  key={nodeId}
-                                  className={`px-2 py-0.5 rounded-md text-[0.75rem] transition ${
-                                    hot
-                                      ? "bg-amber-100 text-amber-900 ring-2 ring-amber-300"
-                                      : "bg-indigo-50 text-indigo-700"
-                                  }`}
-                                >
-                                  {n.name}
-                                </span>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                    {resourceExplanation.contentPages.length > 0 ? (
-                      <div className="flex-1 min-h-0 min-w-0 flex flex-col gap-2">
-                        <div className="text-slate-500 text-[0.75rem] shrink-0">资料内容</div>
-                        <div className="flex-1 min-h-0 min-w-0 flex flex-col">
-                          {(() => {
-                            const n = resourceExplanation.contentPages.length;
-                            const safeIdx = Math.max(0, Math.min(resourcePageIndex, n - 1));
-                            const page = resourceExplanation.contentPages[safeIdx]!;
-                            return (
-                              <ResourceContentView
-                                kind={resourceExplanation.contentKind}
-                                page={page}
-                                pageIndex={safeIdx}
-                                pageTotal={n}
-                                onPrev={() => setResourcePageIndex((i) => Math.max(0, i - 1))}
-                                onNext={() => setResourcePageIndex((i) => Math.min(n - 1, i + 1))}
-                              />
-                            );
-                          })()}
-                        </div>
-                      </div>
-                    ) : null}
-                  </div>
-                </div>
-              </div>
-            ) : (
+            {teacherResourceItems.length === 0 ? (
               <div className="flex-1 rounded-2xl border border-dashed border-slate-200 bg-white flex items-center justify-center text-slate-400 text-sm p-8 min-h-[12rem]">
                 本节暂无「{focus}」教学设计资料，请联系教师或返回选课。
+              </div>
+            ) : !selectedResource || !resourceExplanation ? (
+              <div className="flex-1 min-h-0 rounded-2xl border border-dashed border-slate-200 bg-white flex flex-col items-center justify-center text-center px-8 py-12">
+                <p className="text-slate-600 text-[0.9375rem] font-medium">请选择左侧资料</p>
+              </div>
+            ) : (
+              <div className="flex-1 min-h-0 flex flex-col rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-sm">
+                <div className="shrink-0 px-5 pt-4 pb-3 border-b border-slate-100/90">
+                  <h3 className="text-slate-900 text-base font-medium">
+                    {resourceExplanation.headline}
+                  </h3>
+                  {selectedResource.metaLabel && (
+                    <div className="text-slate-400 text-[0.75rem] mt-1.5">
+                      {selectedResource.metaLabel}
+                    </div>
+                  )}
+                  {resourceExplanation.focusNodeIds.length > 0 && (
+                    <div className="mt-3">
+                      <div className="text-slate-500 text-[0.75rem] mb-1.5">关联知识点</div>
+                      <div className="flex flex-wrap gap-2">
+                        {resourceExplanation.focusNodeIds.map((nodeId) => {
+                          const n = graphNodeById(nodeId);
+                          if (!n) return null;
+                          const hot = focusHighlightId === nodeId;
+                          return (
+                            <span
+                              key={nodeId}
+                              className={`px-2 py-0.5 rounded-md text-[0.75rem] transition ${
+                                hot
+                                  ? "bg-amber-100 text-amber-900 ring-2 ring-amber-300"
+                                  : "bg-indigo-50 text-indigo-700"
+                              }`}
+                            >
+                              {n.name}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+                {resourceExplanation.contentPages.length > 0 ? (
+                  <div className="flex-1 min-h-0 flex flex-col px-5 pb-0">
+                    <div className="text-slate-500 text-[0.75rem] shrink-0 pt-3 pb-2">资料内容</div>
+                    <div className="flex-1 min-h-0 flex flex-col min-w-0 pb-4">
+                      {(() => {
+                        const n = resourceExplanation.contentPages.length;
+                        const safeIdx = Math.max(0, Math.min(resourcePageIndex, n - 1));
+                        const page = resourceExplanation.contentPages[safeIdx]!;
+                        return (
+                          <ResourceContentView
+                            kind={resourceExplanation.contentKind}
+                            page={page}
+                            pageIndex={safeIdx}
+                            pageTotal={n}
+                            onPrev={() => setResourcePageIndex((i) => Math.max(0, i - 1))}
+                            onNext={() => setResourcePageIndex((i) => Math.min(n - 1, i + 1))}
+                          />
+                        );
+                      })()}
+                    </div>
+                  </div>
+                ) : null}
               </div>
             )}
           </main>
@@ -278,7 +283,9 @@ export function ClassStudy({
               emptyHint={
                 teacherResourceItems.length === 0
                   ? "暂无本节资料，请从学习中心选择其他小节。"
-                  : undefined
+                  : !selectedResource
+                    ? "请先在左侧选择一则资料后再提问。"
+                    : undefined
               }
               inputValue={input}
               onInputChange={setInput}

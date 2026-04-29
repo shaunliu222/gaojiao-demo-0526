@@ -1177,7 +1177,7 @@ function buildMockResourceContent(item: LearnCenterResourceItem): {
         pageNo: i + 1,
         kind: "slide",
         title: all > show && i === 0 ? `第 ${i + 1} 页 · ${tpl.title}（节选）` : `第 ${i + 1} 页 · ${tpl.title}`,
-        body: `${tpl.body}\n\n（示意：与「${shortTopic}」内容对应）`,
+        body: tpl.body,
       });
     }
     return { kind: "ppt", pages, totalPagesHint: totalPagesHint ?? all };

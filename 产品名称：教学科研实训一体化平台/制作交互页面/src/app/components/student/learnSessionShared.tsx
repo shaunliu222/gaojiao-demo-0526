@@ -233,85 +233,102 @@ export function ResourceContentView({
 }) {
   const atFirst = pageIndex <= 0;
   const atLast = pageIndex >= pageTotal - 1;
-  const nav = (
-    <div className="flex items-center justify-center gap-2 mt-3">
-      <button
-        type="button"
-        onClick={onPrev}
-        disabled={atFirst}
-        className="inline-flex items-center gap-0.5 rounded-md border border-slate-200 bg-white px-2 py-1 text-[0.75rem] text-slate-600 disabled:opacity-40 disabled:pointer-events-none hover:bg-slate-50"
-      >
-        <ChevronLeft size={14} /> 上一页
-      </button>
-      <span className="text-slate-500 text-[0.75rem]">
-        第 {pageIndex + 1} / {pageTotal} 页
-      </span>
-      <button
-        type="button"
-        onClick={onNext}
-        disabled={atLast}
-        className="inline-flex items-center gap-0.5 rounded-md border border-slate-200 bg-white px-2 py-1 text-[0.75rem] text-slate-600 disabled:opacity-40 disabled:pointer-events-none hover:bg-slate-50"
-      >
-        下一页 <ChevronRight size={14} />
-      </button>
-    </div>
-  );
+  const paginationBar =
+    pageTotal > 1 ? (
+      <div className="shrink-0 border-t border-slate-100 bg-white/98 px-2 py-2.5">
+        <div className="flex items-center justify-center gap-2">
+          <button
+            type="button"
+            onClick={onPrev}
+            disabled={atFirst}
+            className="inline-flex items-center gap-0.5 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-[0.75rem] text-slate-600 disabled:opacity-40 disabled:pointer-events-none hover:bg-slate-50"
+          >
+            <ChevronLeft size={14} /> 上一页
+          </button>
+          <span className="text-slate-500 text-[0.75rem] tabular-nums">
+            第 {pageIndex + 1} / {pageTotal} 页
+          </span>
+          <button
+            type="button"
+            onClick={onNext}
+            disabled={atLast}
+            className="inline-flex items-center gap-0.5 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-[0.75rem] text-slate-600 disabled:opacity-40 disabled:pointer-events-none hover:bg-slate-50"
+          >
+            下一页 <ChevronRight size={14} />
+          </button>
+        </div>
+      </div>
+    ) : null;
+
+  /** 外层占满中部区域，正文可滚动；翻页条固定在卡片底部（多页时出现） */
+  const shellClass = "flex flex-col flex-1 min-h-0 w-full";
 
   if (kind === "ppt") {
     return (
-      <div className="w-full h-full min-h-0 flex flex-col">
-        <div className="w-full flex-1 min-h-[min(52vh,620px)] rounded-xl border border-slate-200 bg-gradient-to-br from-white to-slate-50 shadow-sm flex flex-col p-4 sm:p-6 min-w-0">
-          <div className="text-[0.65rem] text-slate-400 mb-1 shrink-0">幻灯 {page.pageNo}</div>
-          <div className="text-slate-900 font-semibold text-[clamp(0.875rem,1.6vw,1.05rem)] leading-snug line-clamp-2 shrink-0">
-            {page.title.replace(/^第 \d+ 页 · /, "")}
-          </div>
-          <div className="mt-3 flex-1 min-h-0 overflow-y-auto text-slate-600 text-[0.8125rem] sm:text-[0.875rem] leading-relaxed whitespace-pre-line">
-            {page.body}
+      <div className={shellClass}>
+        <div className="flex-1 min-h-0 flex flex-col min-w-0 overflow-hidden px-1">
+          <div className="flex-1 min-h-0 rounded-xl border border-slate-200 bg-gradient-to-br from-white to-slate-50 shadow-sm flex flex-col p-4 sm:p-6 overflow-hidden">
+            <div className="text-[0.65rem] text-slate-400 mb-1 shrink-0">幻灯 {page.pageNo}</div>
+            <div className="text-slate-900 font-semibold text-[clamp(0.875rem,1.6vw,1.05rem)] leading-snug line-clamp-2 shrink-0">
+              {page.title.replace(/^第 \d+ 页 · /, "")}
+            </div>
+            <div className="mt-3 flex-1 min-h-0 overflow-y-auto text-slate-600 text-[0.8125rem] sm:text-[0.875rem] leading-relaxed whitespace-pre-line">
+              {page.body}
+            </div>
           </div>
         </div>
-        {pageTotal > 1 ? <div className="shrink-0">{nav}</div> : null}
+        {paginationBar}
       </div>
     );
   }
 
   if (kind === "document") {
     return (
-      <div>
-        <div className="mx-auto max-w-2xl rounded-lg border border-slate-200 bg-white p-5 shadow-sm min-h-[8rem]">
-          <div className="flex items-baseline justify-between gap-2 border-b border-slate-100 pb-2">
-            <span className="text-slate-900 font-medium text-[0.9rem]">{page.title}</span>
-            <span className="text-slate-400 text-[0.65rem] shrink-0">第 {page.pageNo} 页</span>
+      <div className={shellClass}>
+        <div className="flex-1 min-h-0 overflow-y-auto min-w-0 px-1">
+          <div className="mx-auto max-w-2xl rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+            <div className="flex items-baseline justify-between gap-2 border-b border-slate-100 pb-2">
+              <span className="text-slate-900 font-medium text-[0.9rem]">{page.title}</span>
+              <span className="text-slate-400 text-[0.65rem] shrink-0">第 {page.pageNo} 页</span>
+            </div>
+            <div className="mt-3 text-slate-700 text-[0.8125rem] sm:text-[0.875rem] leading-relaxed whitespace-pre-line pb-2">
+              {page.body}
+            </div>
           </div>
         </div>
-        {pageTotal > 1 ? nav : null}
+        {paginationBar}
       </div>
     );
   }
 
   if (kind === "video") {
     return (
-      <div>
-        <div className="rounded-xl border border-slate-200 bg-slate-900/5 p-4">
-          <div className="text-slate-600 text-[0.75rem] font-medium mb-2">{page.title}</div>
-          <pre className="text-slate-700 text-[0.75rem] leading-relaxed whitespace-pre-wrap font-sans">
-            {page.body}
-          </pre>
+      <div className={shellClass}>
+        <div className="flex-1 min-h-0 overflow-y-auto min-w-0 px-1">
+          <div className="rounded-xl border border-slate-200 bg-slate-900/5 p-4 min-h-[8rem]">
+            <div className="text-slate-600 text-[0.75rem] font-medium mb-2">{page.title}</div>
+            <pre className="text-slate-700 text-[0.75rem] leading-relaxed whitespace-pre-wrap font-sans">
+              {page.body}
+            </pre>
+          </div>
         </div>
-        {pageTotal > 1 ? nav : null}
+        {paginationBar}
       </div>
     );
   }
 
   return (
-    <div>
-      <div className="rounded-xl border border-indigo-100 bg-indigo-50/40 p-4 text-slate-800 min-h-[8rem]">
-        <div className="text-[0.65rem] text-indigo-600/80 mb-1">屏 {page.pageNo}</div>
-        <div className="font-medium text-[0.875rem] mb-2">{page.title}</div>
-        <div className="text-[0.8125rem] leading-relaxed whitespace-pre-line text-slate-700">
-          {page.body}
+    <div className={shellClass}>
+      <div className="flex-1 min-h-0 overflow-y-auto min-w-0 px-1">
+        <div className="rounded-xl border border-indigo-100 bg-indigo-50/40 p-4 text-slate-800 min-h-[8rem]">
+          <div className="text-[0.65rem] text-indigo-600/80 mb-1">屏 {page.pageNo}</div>
+          <div className="font-medium text-[0.875rem] mb-2">{page.title}</div>
+          <div className="text-[0.8125rem] leading-relaxed whitespace-pre-line text-slate-700">
+            {page.body}
+          </div>
         </div>
       </div>
-      {pageTotal > 1 ? nav : null}
+      {paginationBar}
     </div>
   );
 }

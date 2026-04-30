@@ -308,6 +308,8 @@ export function DesignWorkbench({
     const now = new Date().toISOString();
     const fusionConfig = AI_FUSION_BY_TAB[tab];
     const fusionConfirmId = `fusion-confirm-${Date.now()}`;
+    const shouldAutoEnableFusion = !fusionEnabled && /AI|人工智能/i.test(input);
+    const useFusionFlow = fusionEnabled || shouldAutoEnableFusion;
     const userMsg: LocalMessage = {
       id: `local-${Date.now()}`,
       role: "user",
@@ -317,7 +319,7 @@ export function DesignWorkbench({
     const aiMsg: LocalMessage = {
       id: `local-${Date.now() + 1}`,
       role: "assistant",
-      content: fusionEnabled
+      content: useFusionFlow
         ? [
             `你输入的内容：${input.trim()}`,
             fusionConfig.intro,
@@ -328,10 +330,13 @@ export function DesignWorkbench({
         : [`你输入的内容：${input.trim()}`, DEFAULT_REPLY_BY_TAB[tab]].join("\n\n"),
       createdAt: now,
       pending: true,
-      fusionConfirmTab: fusionEnabled ? tab : undefined,
-      fusionConfirmId: fusionEnabled ? fusionConfirmId : undefined,
+      fusionConfirmTab: useFusionFlow ? tab : undefined,
+      fusionConfirmId: useFusionFlow ? fusionConfirmId : undefined,
     };
-    if (fusionEnabled) {
+    if (shouldAutoEnableFusion) {
+      setFusionEnabledByTab((prev) => ({ ...prev, [tab]: true }));
+    }
+    if (useFusionFlow) {
       setPendingFusionByTab((prev) => ({
         ...prev,
         [tab]: { id: fusionConfirmId },
@@ -375,7 +380,7 @@ export function DesignWorkbench({
           {
             id: `fusion-confirmed-${Date.now()}`,
             role: "assistant",
-            content: "已确认，已把上方展示的「学科AI融合」内容写入当前文件。右侧对应文件将持续保留「含AI融合」标记。",
+            content: "已确认，已把上方展示的「学科AI融合」内容写入当前文件。",
             createdAt: now,
           },
         ],

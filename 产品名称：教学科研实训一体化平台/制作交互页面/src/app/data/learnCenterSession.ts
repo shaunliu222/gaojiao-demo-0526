@@ -1502,6 +1502,19 @@ export function buildResourceExplanation(
 
 export type ChatRole = "teacher" | "assistant" | "peer";
 
+function learningStyleHint(style?: string): string {
+  if (!style) return "";
+  return (
+    {
+      视觉型: "我会多用图示/结构分层来讲。",
+      动觉型: "你尽量边想边在纸上划两步草图。",
+      读写型: "我按小标题和条目来写清楚。",
+      听觉型: "我用口语、短句，方便你边读边出声。",
+      混合型: "我换几种讲法，直到你能复述。",
+    }[style] ?? ""
+  );
+}
+
 export function mockResourceReply(
   userText: string,
   role: ChatRole,
@@ -1509,23 +1522,23 @@ export function mockResourceReply(
   options: { style?: string; teacherName: string; peerName: string },
 ): string {
   const topic = item.title;
-  const styleHint = options.style
-    ? ({
-        视觉型: "我会多用图示/结构分层来讲。",
-        动觉型: "你尽量边想边在纸上划两步草图。",
-        读写型: "我按小标题和条目来写清楚。",
-        听觉型: "我用口语、短句，方便你边读边出声。",
-        混合型: "我换几种讲法，直到你能复述。",
-      }[options.style] ?? "")
-    : "";
+  const styleHint = learningStyleHint(options.style);
 
   if (role === "teacher") {
-    return `【${options.teacherName}】就「${topic}」回答你的问题：\n1) 先抓概念：${userText.slice(0, 40)} 的核心是把它放回本节知识链条里看。\n2) 再对照资料：建议回到「${item.summary.slice(0, 32)}…」里对应段落做勾画。\n3) 最后给你一条自检：能不看资料用自己的话讲清定义与作用吗？\n${styleHint}`;
+    return [
+      `这个问题可以放回「${topic}」的知识链条里看。`,
+      `1) 先抓概念：${userText.slice(0, 40)} 的核心是明确它和本节知识目标的关系。`,
+      `2) 再对照资料：建议回到「${item.summary.slice(0, 32)}…」里对应段落做勾画。`,
+      "3) 最后给你一条自检：能不看资料用自己的话讲清定义与作用吗？",
+      styleHint,
+    ]
+      .filter(Boolean)
+      .join("\n");
   }
   if (role === "assistant") {
-    return `【助教】和「${topic}」相关，你可以先确认三件事：\n· 你卡住的步骤是读题、画图，还是校核？\n· 资料里你标了哪些关键词？\n· 你希望我帮你列「下一步最小动作」还是「易错点清单」？\n你刚才问的是：${userText.slice(0, 60)}。`;
+    return `和「${topic}」相关，你可以先确认三件事：\n· 你卡住的步骤是读题、画图，还是校核？\n· 资料里你标了哪些关键词？\n· 你希望我帮你列「下一步最小动作」还是「易错点清单」？\n你刚才问的是：${userText.slice(0, 60)}。`;
   }
-  return `【${options.peerName}】我也在学这份「${topic}」～ 我是这样理解你问的：${userText.slice(0, 40)}。我当时容易混的是形体贴合和线型，你要不要先从你最懵的那一条线开始聊？`;
+  return `我也在学这份「${topic}」～ 我是这样理解你问的：${userText.slice(0, 40)}。我当时容易混的是形体贴合和线型，你要不要先从你最懵的那一条线开始聊？`;
 }
 
 /** 课堂场景：在通用回复上叠加「同步讲解」提示 */
@@ -1537,7 +1550,7 @@ export function mockClassStudyReply(
 ): string {
   const base = mockResourceReply(userText, role, item, options);
   if (role === "teacher") {
-    return `【课堂同步】${base}\n\n（本节以教师课堂设计为主，AI 只做要点复述与追问。）`;
+    return `${base}\n\n本节以教师课堂设计为主，我只做要点复述与追问。`;
   }
   return base;
 }
@@ -1550,15 +1563,15 @@ export function mockHomeworkCoachReply(
 ): string {
   const q = userText.slice(0, 80);
   if (role === "teacher") {
-    return `【${options.teacherName}·作业教练】不直接给完整解答。请先说出你已尝试的步骤；针对「${q}」，建议：① 用一句话重述已知条件；② 选定特征视图；③ 只画下一步辅助线，再停下来自检。`;
+    return `不直接给完整解答。请先说出你已尝试的步骤；针对「${q}」，建议：① 用一句话重述已知条件；② 选定特征视图；③ 只画下一步辅助线，再停下来自检。`;
   }
   if (role === "assistant") {
-    return `【作业助教】你可以先标出题干里的**硬性约束**（可见性、线型、必须交的几张图）。关于「${q}」，需要我帮你拆成「最小下一步」还是「易错点清单」？`;
+    return `你可以先标出题干里的**硬性约束**（可见性、线型、必须交的几张图）。关于「${q}」，需要我帮你拆成「最小下一步」还是「易错点清单」？`;
   }
-  return `【${options.peerName}】我做这题时也卡过～ 关于「${q}」，你更愿意先对答案思路还是先对画图顺序？`;
+  return `我做这题时也卡过～ 关于「${q}」，你更愿意先对答案思路还是先对画图顺序？`;
 }
 
 /** 实训教练：操作向短回复 */
 export function mockTrainingCoachReply(userText: string, options: { peerName: string }): string {
-  return `【实训教练】收到：${userText.slice(0, 60)}。建议先确认：① 图板与图纸固定可靠；② 当前步骤是否满足安全要求；③ 交付物命名是否按小组规范。需要我按步骤 checklist 带你走一遍吗？\n（同伴参考：${options.peerName}）`;
+  return `收到：${userText.slice(0, 60)}。建议先确认：① 图板与图纸固定可靠；② 当前步骤是否满足安全要求；③ 交付物命名是否按小组规范。需要我按步骤 checklist 带你走一遍吗？\n同伴参考：${options.peerName}`;
 }

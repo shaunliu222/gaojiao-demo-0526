@@ -120,6 +120,13 @@ export function TrainingWorkbench({
     setInput("");
   };
 
+  const changeChatRole = (nextRole: ChatRole) => {
+    if (nextRole === chatRole) return;
+    setChatRole(nextRole);
+    setChat([]);
+    setInput("");
+  };
+
   return (
     <div className="flex flex-col h-full bg-slate-50">
       <PageHeader
@@ -211,7 +218,7 @@ export function TrainingWorkbench({
             onInputChange={setInput}
             onSend={sendCoach}
             placeholder="提问… Cmd+Enter"
-            roleSlot={<ShellChatRoleButtons chatRole={chatRole} onRoleChange={setChatRole} />}
+            roleSlot={<ShellChatRoleButtons chatRole={chatRole} onRoleChange={changeChatRole} />}
             belowInput={
               <select
                 value={personaId}

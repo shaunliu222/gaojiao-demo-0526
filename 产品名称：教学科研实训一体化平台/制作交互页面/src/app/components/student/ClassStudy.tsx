@@ -140,6 +140,19 @@ export function ClassStudy({
     setInput("");
   };
 
+  const changeChatRole = (nextRole: ChatRole) => {
+    if (nextRole === chatRole) return;
+    setChatRole(nextRole);
+    setInput("");
+    setFocusHighlightId(null);
+    if (!selectedResourceId) return;
+    setChatByResource((prev) => {
+      const next = { ...prev };
+      delete next[selectedResourceId];
+      return next;
+    });
+  };
+
   const courseLabel = plan ? courseNameForPlan(plan) : "课程";
   const headerTitle = (
     <div className="flex flex-col gap-0.5 min-w-0">
@@ -293,7 +306,7 @@ export function ClassStudy({
               placeholder="课堂同步提问… Cmd+Enter"
               showPaperclip
               roleSlot={
-                <ShellChatRoleButtons chatRole={chatRole} onRoleChange={setChatRole} />
+                <ShellChatRoleButtons chatRole={chatRole} onRoleChange={changeChatRole} />
               }
             />
           </div>

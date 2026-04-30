@@ -93,6 +93,13 @@ export function HomeworkWorkbench({
     setInput("");
   };
 
+  const changeChatRole = (nextRole: ChatRole) => {
+    if (nextRole === chatRole) return;
+    setChatRole(nextRole);
+    setChat([]);
+    setInput("");
+  };
+
   if (!hw || !task) {
     return (
       <div className="p-8 text-center text-slate-500">
@@ -309,7 +316,7 @@ export function HomeworkWorkbench({
               onInputChange={setInput}
               onSend={send}
               placeholder="描述卡住的步骤… Cmd+Enter"
-              roleSlot={<ShellChatRoleButtons chatRole={chatRole} onRoleChange={setChatRole} />}
+              roleSlot={<ShellChatRoleButtons chatRole={chatRole} onRoleChange={changeChatRole} />}
             />
           </div>
         </div>

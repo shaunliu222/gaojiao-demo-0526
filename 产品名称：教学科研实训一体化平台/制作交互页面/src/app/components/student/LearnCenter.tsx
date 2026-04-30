@@ -14,7 +14,6 @@ import {
   findResumeSectionId,
   getPlanProgressSummary,
   getSectionProgress,
-  learnCenterHubNarratives,
   personalPlansByStudent,
 } from "../../data/studentMock";
 import {
@@ -306,10 +305,6 @@ function LearnCenterHub({
               );
             })}
           </div>
-
-        <div className="rounded-lg border border-slate-100/90 bg-white/80 px-3 py-2 text-slate-600 text-[0.72rem] leading-relaxed">
-          {learnCenterHubNarratives[hubSection].headline}
-        </div>
 
         {pushes.length > 0 && (
           <div className="rounded-xl border border-slate-200/80 bg-white px-3 py-2">

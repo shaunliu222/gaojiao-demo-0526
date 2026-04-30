@@ -472,45 +472,6 @@ export function trainingAssignmentForPlanSection(
   );
 }
 
-/** 学习中心各页签：区分「跟教师课堂/讲义」与「错题/计划驱动的个性素材」 */
-export type LearnCenterHubSectionKey =
-  | "prep"
-  | "homework"
-  | "review"
-  | "personal"
-  | "exam";
-
-export const learnCenterHubNarratives: Record<
-  LearnCenterHubSectionKey,
-  { studyAxis: LearnCenterStudyAxis; headline: string }
-> = {
-  prep: {
-    studyAxis: "teacher_class_follow",
-    headline:
-      "预习与课堂：跟随教师在本小节配置的「课堂」「讲义」与互动资源，与班级授课进度一致。",
-  },
-  homework: {
-    studyAxis: "adaptive_remediation",
-    headline:
-      "作业：在教师布置与评分点之上，按你的错题本与薄弱知识点分步辅导；可挂原节讲义切片、变式题与自查表。",
-  },
-  review: {
-    studyAxis: "adaptive_remediation",
-    headline:
-      "复习：对已学小节重做教师讲义与课堂活动；若有相关错题，并入「个性重排」提示与加练。",
-  },
-  personal: {
-    studyAxis: "adaptive_remediation",
-    headline:
-      "自建计划：自选目标或由 AI 从错题生成路线，系统自动挂载对应讲义、题库与实训资料。",
-  },
-  exam: {
-    studyAxis: "adaptive_remediation",
-    headline:
-      "考试：考后薄弱点续学依托卷面与错题，材料来自本节知识链上的讲义、真题范型与再组卷练习。",
-  },
-};
-
 // ============ 数据：个人学习计划 ============
 
 export const personalPlans: PersonalPlan[] = [

@@ -19,6 +19,7 @@ const kindLabel: Record<ResourceType, string> = {
   code: "代码",
   dataset: "数据集",
   quiz: "题库",
+  online_course: "线上课程",
 };
 
 function guessKindFromName(filename: string): ResourceType {

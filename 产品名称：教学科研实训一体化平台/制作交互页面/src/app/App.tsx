@@ -15,6 +15,7 @@ import {
   homeworkById,
   planById,
   resourceById,
+  resolveTeachingDesignJumpFromEvalClasses,
   studentById,
   trainingById,
 } from "./data/lookups";
@@ -53,6 +54,7 @@ import {
   DEMO_DESIGN_PLAN_ID,
   DEMO_DESIGN_SECTION_ID,
   PLAN_WANG_HAIFENG_MOCK_ID,
+  type Resource,
 } from "@mock";
 
 type TeacherView =
@@ -78,9 +80,8 @@ type TeacherView =
       fromDashboard?: boolean;
       /** 从「本节资源」页进入教学设计，返回时回到该页 */
       fromSectionResources?: boolean;
-      /** 从学情分析进入：返回时恢复班级 tab */
-      fromLearningAnalytics?: boolean;
-      returnClassId?: string;
+      /** 从协同评价作业/考试详情进入「教学设计调整」工作台时的返回目标 */
+      evalAdjustReturn?: { source: "hw" | "exam"; detailId: string };
       progressSectionId?: string;
       reviewSectionIds?: string[];
     }
@@ -148,7 +149,7 @@ function resolveClassStudyEntry(
   };
 }
 
-function titleForView(view: View): string {
+function titleForView(view: View, resourceSessionOverlay: Resource[]): string {
   switch (view.k) {
     case "learning-analytics":
       if (view.selectedStudentId) {
@@ -200,7 +201,11 @@ function titleForView(view: View): string {
     case "resource-list":
       return "教学资源库";
     case "resource-detail":
-      return resourceById(view.id)?.title ?? "资源详情";
+      return (
+        resourceSessionOverlay.find((r) => r.id === view.id)?.title ??
+        resourceById(view.id)?.title ??
+        "资源详情"
+      );
     case "training-list":
       return "实训项目库";
     case "training-detail":
@@ -238,8 +243,13 @@ export default function App() {
   const [module, setModule] = useState<ModuleKey>("teach");
   const [nav, setNav] = useState<NavKey>("plans");
   const [view, setView] = useState<View>({ k: "plans-list" });
+  /** 交互页内会话态：从资源库「新增」创建的条目（含线上课程），合并展示并与详情页贯通 */
+  const [resourceSessionOverlay, setResourceSessionOverlay] = useState<Resource[]>([]);
 
-  const pageTitle = useMemo(() => titleForView(view), [view]);
+  const pageTitle = useMemo(
+    () => titleForView(view, resourceSessionOverlay),
+    [view, resourceSessionOverlay],
+  );
 
   useEffect(() => {
     document.title = `${pageTitle} · ${PLATFORM_TITLE}`;
@@ -384,18 +394,6 @@ export default function App() {
               setNav("exam-eval");
               setView({ k: "exam-detail", id });
             }}
-            onJumpToTeachingDesign={(payload) => {
-              setNav("designs");
-              setView({
-                k: "design",
-                planId: payload.planId,
-                sectionId: payload.sectionId,
-                fromLearningAnalytics: true,
-                returnClassId: view.classId,
-                progressSectionId: payload.progressSectionId,
-                reviewSectionIds: payload.reviewSectionIds,
-              });
-            }}
           />
         );
       case "plans-list":
@@ -410,6 +408,9 @@ export default function App() {
               setNav("plans");
               setView({ k: "plan-wizard" });
             }}
+            onGoToGraph={(nodeId) =>
+              goEnginePage("graph", { k: "graph", focusNodeId: nodeId })
+            }
           />
         );
       case "plan-wizard":
@@ -424,9 +425,6 @@ export default function App() {
               const planId =
                 teacherId === "t-wang" ? PLAN_WANG_HAIFENG_MOCK_ID : "plan-main";
               setView({ k: "plan-detail", id: planId });
-            }}
-            onGoToGraph={() => {
-              goEnginePage("graph", { k: "graph" });
             }}
           />
         );
@@ -496,12 +494,15 @@ export default function App() {
         );
       case "design": {
         const designBack = () => {
-          if (view.fromLearningAnalytics && view.returnClassId) {
-            setNav("class-learning");
-            setView({
-              k: "learning-analytics",
-              classId: view.returnClassId,
-            });
+          if (view.evalAdjustReturn) {
+            const { source, detailId } = view.evalAdjustReturn;
+            if (source === "hw") {
+              setNav("hw-eval");
+              setView({ k: "hw-detail", id: detailId });
+            } else {
+              setNav("exam-eval");
+              setView({ k: "exam-detail", id: detailId });
+            }
             return;
           }
           if (view.fromSectionResources) {
@@ -539,8 +540,7 @@ export default function App() {
         };
 
         if (
-          view.fromLearningAnalytics &&
-          view.returnClassId &&
+          view.evalAdjustReturn &&
           view.progressSectionId
         ) {
           return (
@@ -570,7 +570,10 @@ export default function App() {
             onOpen={(id) => setView({ k: "hw-detail", id })}
           />
         );
-      case "hw-detail":
+      case "hw-detail": {
+        const row = homeworkById(view.id);
+        const evalAdj =
+          row && resolveTeachingDesignJumpFromEvalClasses(row.classId);
         return (
           <HwDetail
             id={view.id}
@@ -580,8 +583,24 @@ export default function App() {
               setNav("plans");
               setView({ k: "plan-detail", id: planId, focusSectionId: sectionId });
             }}
+            onOpenTeachingDesignAdjust={
+              evalAdj
+                ? () => {
+                    setNav("designs");
+                    setView({
+                      k: "design",
+                      planId: evalAdj.planId,
+                      sectionId: evalAdj.sectionId,
+                      progressSectionId: evalAdj.progressSectionId,
+                      reviewSectionIds: evalAdj.reviewSectionIds,
+                      evalAdjustReturn: { source: "hw", detailId: view.id },
+                    });
+                  }
+                : undefined
+            }
           />
         );
+      }
       case "exam-overview":
         return (
           <ExamOverview
@@ -589,7 +608,10 @@ export default function App() {
             onOpen={(id) => setView({ k: "exam-detail", id })}
           />
         );
-      case "exam-detail":
+      case "exam-detail": {
+        const row = examById(view.id);
+        const evalAdj =
+          row && resolveTeachingDesignJumpFromEvalClasses(row.classIds);
         return (
           <ExamDetail
             id={view.id}
@@ -599,8 +621,24 @@ export default function App() {
               setNav("plans");
               setView({ k: "plan-detail", id: planId, focusSectionId: sectionId });
             }}
+            onOpenTeachingDesignAdjust={
+              evalAdj
+                ? () => {
+                    setNav("designs");
+                    setView({
+                      k: "design",
+                      planId: evalAdj.planId,
+                      sectionId: evalAdj.sectionId,
+                      progressSectionId: evalAdj.progressSectionId,
+                      reviewSectionIds: evalAdj.reviewSectionIds,
+                      evalAdjustReturn: { source: "exam", detailId: view.id },
+                    });
+                  }
+                : undefined
+            }
           />
         );
+      }
       case "graph":
         return (
           <GraphBrowse
@@ -649,6 +687,10 @@ export default function App() {
         return (
           <ResourceLibrary
             currentTeacherId={teacherId}
+            sessionResources={resourceSessionOverlay}
+            onAddSessionResource={(r) =>
+              setResourceSessionOverlay((prev) => [r, ...prev.filter((x) => x.id !== r.id)])
+            }
             onOpen={(id) =>
               goEnginePage("resources", { k: "resource-detail", id, from: "library" })
             }
@@ -658,6 +700,7 @@ export default function App() {
         return (
           <ResourceDetail
             id={view.id}
+            sessionResources={resourceSessionOverlay}
             currentTeacherId={teacherId}
             onBack={() => {
               if (view.from === "library") {

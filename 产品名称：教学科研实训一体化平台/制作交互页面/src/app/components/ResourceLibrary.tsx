@@ -12,9 +12,11 @@ import {
   Filter,
   Upload,
   Plus,
+  GraduationCap,
+  Link2,
 } from "lucide-react";
-import { resources, professions } from "@mock";
-import type { ResourceType } from "@mock";
+import { resources, professions, moocPlatforms, moocExternalCourses } from "@mock";
+import type { ResourceType, Resource } from "@mock";
 import {
   teacherById,
   professionById,
@@ -29,6 +31,18 @@ import {
   DialogTitle,
 } from "./ui/dialog";
 
+const RESOURCE_TYPE_LABEL: Record<ResourceType, string> = {
+  doc: "文档",
+  ppt: "课件",
+  video: "视频",
+  audio: "音频",
+  image: "图片",
+  code: "代码",
+  dataset: "数据集",
+  quiz: "题库",
+  online_course: "线上课程",
+};
+
 const TYPE_OPTIONS: { value: ResourceType | "all"; label: string }[] = [
   { value: "all", label: "全部类型" },
   { value: "doc", label: "文档" },
@@ -39,6 +53,7 @@ const TYPE_OPTIONS: { value: ResourceType | "all"; label: string }[] = [
   { value: "code", label: "代码" },
   { value: "dataset", label: "数据集" },
   { value: "quiz", label: "题库" },
+  { value: "online_course", label: "线上课程" },
 ];
 
 const ADD_TYPE_OPTIONS: { value: ResourceType; label: string }[] = [
@@ -54,24 +69,43 @@ const ADD_TYPE_OPTIONS: { value: ResourceType; label: string }[] = [
 
 export function ResourceLibrary({
   currentTeacherId,
+  sessionResources,
+  onAddSessionResource,
   onOpen,
 }: {
   currentTeacherId: string;
+  sessionResources: Resource[];
+  onAddSessionResource: (r: Resource) => void;
   onOpen: (id: string) => void;
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [addTitle, setAddTitle] = useState("");
   const [addType, setAddType] = useState<ResourceType>("doc");
+  const [linkOpen, setLinkOpen] = useState(false);
+  const [linkTitle, setLinkTitle] = useState("");
   const [statusHint, setStatusHint] = useState<string | null>(null);
   const [typeFilter, setTypeFilter] = useState<ResourceType | "all">("all");
   const [profFilter, setProfFilter] = useState<string>("all");
   const [aiOnly, setAiOnly] = useState<boolean>(false);
   const [q, setQ] = useState<string>("");
 
+  const [moocPlatformId, setMoocPlatformId] = useState<string>("all");
+  const [selectedMoocCourseId, setSelectedMoocCourseId] = useState<string | null>(null);
+
+  const moocCoursesFiltered = useMemo(() => {
+    if (moocPlatformId === "all") return moocExternalCourses;
+    return moocExternalCourses.filter((c) => c.platformId === moocPlatformId);
+  }, [moocPlatformId]);
+
+  const allResources = useMemo(
+    () => [...sessionResources, ...resources],
+    [sessionResources],
+  );
+
   const list = useMemo(() => {
     const seesAll = teacherSeesAllScopedContent(currentTeacherId);
-    return resources.filter((r) => {
+    return allResources.filter((r) => {
       if (!seesAll && r.uploaderTeacherId !== currentTeacherId) return false;
       if (typeFilter !== "all" && r.type !== typeFilter) return false;
       if (profFilter !== "all" && r.professionId !== profFilter) return false;
@@ -88,17 +122,17 @@ export function ResourceLibrary({
       }
       return true;
     });
-  }, [typeFilter, profFilter, aiOnly, q, currentTeacherId]);
+  }, [typeFilter, profFilter, aiOnly, q, currentTeacherId, allResources]);
 
   const typeStats = useMemo(() => {
     const seesAll = teacherSeesAllScopedContent(currentTeacherId);
     const out: Record<string, number> = {};
-    for (const r of resources) {
+    for (const r of allResources) {
       if (!seesAll && r.uploaderTeacherId !== currentTeacherId) continue;
       out[r.type] = (out[r.type] ?? 0) + 1;
     }
     return out;
-  }, [currentTeacherId]);
+  }, [currentTeacherId, allResources]);
 
   return (
     <div>
@@ -167,13 +201,146 @@ export function ResourceLibrary({
               onClick={() => {
                 const name = addTitle.trim() || "未命名资源";
                 setStatusHint(
-                  `已登记「${name}」（${ADD_TYPE_OPTIONS.find((x) => x.value === addType)?.label ?? addType}）`,
+                  `已登记「${name}」（${RESOURCE_TYPE_LABEL[addType] ?? addType}）`,
                 );
                 setAddOpen(false);
               }}
               className="px-3 py-1.5 rounded-md bg-indigo-600 text-white hover:bg-indigo-700"
             >
               确定
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={linkOpen}
+        onOpenChange={(o) => {
+          setLinkOpen(o);
+          if (o) {
+            setLinkTitle("");
+            setMoocPlatformId("all");
+            setSelectedMoocCourseId(null);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-lg max-h-[min(90vh,840px)]">
+          <DialogHeader>
+            <DialogTitle>关联慕课</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-1">
+            <div>
+              <label className="text-sm text-slate-600">资源名称</label>
+              <input
+                value={linkTitle}
+                onChange={(e) => setLinkTitle(e.target.value)}
+                placeholder="可留空，将默认使用所选慕课课程标题"
+                className="mt-1 w-full rounded-md border border-slate-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-indigo-200"
+              />
+            </div>
+            <div>
+              <label className="text-sm text-slate-600">筛选平台</label>
+              <select
+                value={moocPlatformId}
+                onChange={(e) => {
+                  setMoocPlatformId(e.target.value);
+                  setSelectedMoocCourseId(null);
+                }}
+                className="mt-1 w-full rounded-md border border-slate-200 px-3 py-2 text-sm bg-white outline-none focus:ring-2 focus:ring-indigo-200"
+              >
+                <option value="all">全部平台</option>
+                {moocPlatforms.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <div className="text-sm text-slate-600 mb-1">可选课程</div>
+              <div className="max-h-56 overflow-y-auto rounded-md border border-slate-200 divide-y divide-slate-100">
+                {moocCoursesFiltered.length === 0 ? (
+                  <div className="p-3 text-sm text-slate-400">当前筛选下暂无课程</div>
+                ) : (
+                  moocCoursesFiltered.map((c) => {
+                    const plat = moocPlatforms.find((p) => p.id === c.platformId);
+                    const checked = selectedMoocCourseId === c.id;
+                    return (
+                      <label
+                        key={c.id}
+                        className={`flex gap-3 p-2.5 cursor-pointer text-left hover:bg-slate-50 ${
+                          checked ? "bg-indigo-50/80" : ""
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="mooc-pick-link"
+                          className="mt-1"
+                          checked={checked}
+                          onChange={() => setSelectedMoocCourseId(c.id)}
+                        />
+                        <span className="min-w-0 flex-1">
+                          <span className="text-sm text-slate-900 block font-medium leading-snug">
+                            {c.title}
+                          </span>
+                          <span className="text-xs text-slate-500 mt-0.5 block">
+                            {plat?.name ?? c.platformId} · {c.provider}
+                          </span>
+                          <span className="text-xs text-slate-400 mt-1 block line-clamp-2">
+                            {c.summary}
+                          </span>
+                        </span>
+                      </label>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <button
+              type="button"
+              onClick={() => setLinkOpen(false)}
+              className="px-3 py-1.5 rounded-md border border-slate-200 text-slate-600 hover:bg-slate-50"
+            >
+              取消
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (!selectedMoocCourseId) {
+                  setStatusHint("请先在上表选择一门慕课平台的课程。");
+                  return;
+                }
+                const item = moocExternalCourses.find((c) => c.id === selectedMoocCourseId);
+                const plat = moocPlatforms.find((p) => p.id === item?.platformId);
+                if (!item || !plat) return;
+                const title = linkTitle.trim() || item.title;
+                const newR: Resource = {
+                  id: `res-session-${Date.now()}`,
+                  title,
+                  type: "online_course",
+                  professionId: profFilter !== "all" ? profFilter : "prof-mech",
+                  courseIds: [],
+                  trainingIds: [],
+                  description: item.summary,
+                  uploaderTeacherId: currentTeacherId,
+                  uploadedAt: new Date().toISOString(),
+                  tags: ["慕课", plat.name, item.provider],
+                  moocLink: {
+                    platformId: plat.id,
+                    platformName: plat.name,
+                    externalCourseId: item.id,
+                    externalTitle: item.title,
+                    courseUrl: item.courseUrl,
+                  },
+                };
+                onAddSessionResource(newR);
+                setStatusHint(`已创建线上课程资源「${title}」，已关联 ${plat.name}。`);
+                setLinkOpen(false);
+              }}
+              className="px-3 py-1.5 rounded-md bg-indigo-600 text-white hover:bg-indigo-700"
+            >
+              创建线上课程
             </button>
           </DialogFooter>
         </DialogContent>
@@ -189,6 +356,19 @@ export function ResourceLibrary({
             >
               <Upload size={14} />
               上传
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setLinkTitle("");
+                setMoocPlatformId("all");
+                setSelectedMoocCourseId(null);
+                setLinkOpen(true);
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-indigo-200 text-indigo-800 bg-white hover:bg-indigo-50"
+            >
+              <Link2 size={14} />
+              关联
             </button>
             <button
               type="button"
@@ -306,8 +486,8 @@ export function ResourceLibrary({
               >
                 <div className="h-28 relative bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center">
                   <ResIcon type={r.type} size={32} />
-                  <span className="absolute top-2 left-2 px-2 py-0.5 rounded-md bg-white/80 backdrop-blur text-slate-700 uppercase">
-                    {r.type}
+                  <span className="absolute top-2 left-2 px-2 py-0.5 rounded-md bg-white/80 backdrop-blur text-slate-700">
+                    {RESOURCE_TYPE_LABEL[r.type]}
                   </span>
                   {r.isAiGenerated && (
                     <span className="absolute top-2 right-2">
@@ -322,7 +502,12 @@ export function ResourceLibrary({
                   </div>
                   <div className="mt-2 flex items-center gap-2 text-slate-400">
                     {r.duration && <span>{r.duration}</span>}
-                    {r.sizeMb != null && <span>{r.sizeMb} MB</span>}
+                    {r.sizeMb != null && r.sizeMb > 0 && <span>{r.sizeMb} MB</span>}
+                    {r.type === "online_course" && r.moocLink && (
+                      <span className="truncate max-w-[10rem]" title={r.moocLink.platformName}>
+                        {r.moocLink.platformName}
+                      </span>
+                    )}
                     <span className="ml-auto">{r.uploadedAt.slice(0, 10)}</span>
                   </div>
                   {r.tags.length > 0 && (
@@ -366,6 +551,8 @@ function ResIcon({ type, size = 14 }: { type: ResourceType; size?: number }) {
       return <Database size={size} className="text-emerald-500" />;
     case "quiz":
       return <ListChecks size={size} className="text-amber-500" />;
+    case "online_course":
+      return <GraduationCap size={size} className="text-indigo-600" />;
     case "ppt":
       return <FileText size={size} className="text-orange-500" />;
     default:

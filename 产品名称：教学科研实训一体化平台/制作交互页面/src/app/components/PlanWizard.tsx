@@ -1,15 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
   ArrowDown,
   ArrowUp,
   Check,
-  ChevronDown,
-  ChevronRight,
   Clock,
   Layers,
   Loader2,
-  Network,
   Plus,
   Sparkles,
   Trash2,
@@ -26,8 +23,6 @@ import {
   classes,
   classProfiles,
   courses,
-  edgesByProfession,
-  nodesByProfession,
   professions,
   subjects,
   teachingPlans,
@@ -36,7 +31,6 @@ import {
 import type {
   ClassProfile,
   Course,
-  GraphNode,
   PlanChapter,
   TeachingStrategy,
 } from "@mock";
@@ -44,20 +38,9 @@ import {
   classById,
   classProfileByClassId,
   professionById,
-  subjectById,
   teacherById,
 } from "../data/lookups";
-import {
-  clusterColor,
-  colorOfCluster,
-  colorOfGraphNodeLayer,
-} from "../data/graphLayout";
 import { AiBadge, PageHeader } from "./Layout";
-import {
-  GraphNodeShapeWizard,
-  KnowledgeGraphCanvas,
-  truncateGraphLabel,
-} from "./knowledgeGraph";
 
 /** 向导状态中，单个班级画像的本地编辑副本（若未编辑则为 undefined） */
 interface ClassProfileOverride {
@@ -74,7 +57,7 @@ interface StrategyOverride {
   strategyBrief: string;
 }
 
-// Step4 → Step5 过渡动画的任务清单（纯展示）
+// 生成过程 · AI 假动画任务清单
 // 5 步合计约 3s，每步约 0.5–0.65s，带轻微时长抖动。
 const GENERATION_TASKS: Array<{
   title: string;
@@ -82,8 +65,8 @@ const GENERATION_TASKS: Array<{
   durationMs: number;
 }> = [
   {
-    title: "解析知识图谱引用节点",
-    detail: "匹配主图中的能力 / 知识点 / 课程与实训节点",
+    title: "解析课程大纲与教学目标",
+    detail: "对齐课程描述、学时安排与核心能力要求",
     durationMs: 600,
   },
   {
@@ -98,7 +81,7 @@ const GENERATION_TASKS: Array<{
   },
   {
     title: "生成章节与小节骨架",
-    detail: "产出章节、小节和每节图谱路径初稿",
+    detail: "产出章节、小节标题与建议课时时长",
     durationMs: 610,
   },
   {
@@ -108,13 +91,13 @@ const GENERATION_TASKS: Array<{
   },
 ];
 
-/** 向导本地骨架（Step5 可编辑） */
+/** 向导本地骨架（预览步可编辑） */
 interface DraftSection {
   id: string;
   title: string;
   plannedDate: string;
   durationMinutes: number;
-  /** 本小节引用的图谱节点 id（用于 Step4 图谱溯源高亮） */
+  /** 本小节关联知识点 id（预留，界面不展示） */
   knowledgeNodeIds: string[];
   /** AI 基于学情对此小节的调整说明（用于展示紫色徽标），可为空 */
   aiAdjustment?: string;
@@ -130,11 +113,9 @@ interface DraftChapter {
 export function PlanWizard({
   onCancel,
   onSubmit,
-  onGoToGraph,
 }: {
   onCancel: () => void;
   onSubmit: () => void;
-  onGoToGraph: () => void;
 }) {
   // ==================== 基础选择（Step1） ====================
   const [professionId, setProfessionId] = useState<string>("prof-mech");
@@ -162,10 +143,10 @@ export function PlanWizard({
   const [draftChapters, setDraftChapters] = useState<DraftChapter[] | null>(null);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
-  // ==================== 步骤切换 ====================
-  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
+  // ==================== 步骤切换（1 计划设置 · 2 预览并生成）====================
+  const [step, setStep] = useState<1 | 2>(1);
 
-  // Step4 → Step5 的 AI 生成假动画
+  // 进入预览步前的 AI 生成假动画
   const [generating, setGenerating] = useState(false);
   const [genProgress, setGenProgress] = useState(0); // 0-100
   const [genTaskIdx, setGenTaskIdx] = useState(0);
@@ -177,19 +158,9 @@ export function PlanWizard({
     };
   }, []);
 
-  const profession = useMemo(() => professionById(professionId), [professionId]);
-  const subject = useMemo(() => subjectById(subjectId), [subjectId]);
   const course = useMemo(
     () => courses.find((c) => c.id === courseId),
     [courseId],
-  );
-
-  const selectedProfiles = useMemo(
-    () =>
-      selectedClassIds
-        .map((id) => classProfileByClassId(id))
-        .filter((x): x is ClassProfile => !!x),
-    [selectedClassIds],
   );
 
   /** 取画像（考虑本地编辑覆盖） */
@@ -224,7 +195,7 @@ export function PlanWizard({
     };
   }, [strategyOverride, baseStrategy, strategyId, selectedClassIds]);
 
-  // 进入 Step4 时初始化骨架
+  // 进入预览步时初始化骨架
   const ensureDraftBuilt = () => {
     if (draftChapters) return;
     const base = buildSkeletonFromCourse(courseId, selectedClassIds);
@@ -233,24 +204,20 @@ export function PlanWizard({
 
   const canNext = (): boolean => {
     if (step === 1) {
-      return !!course && !!profession?.hasKnowledgeGraph;
+      return !!course && selectedClassIds.length > 0 && !!strategyId;
     }
-    if (step === 2) return selectedClassIds.length > 0;
-    if (step === 3) return !!strategyId;
     return true;
   };
 
   const goNext = () => {
-    if (step === 3) {
-      // 教学策略 → 预览并生成：先构造骨架，再走 AI 生成假动画
+    if (step === 1) {
       ensureDraftBuilt();
       runGenerateAnimation();
       return;
     }
-    if (step < 4) setStep((s) => (s + 1) as 1 | 2 | 3 | 4);
   };
   const goPrev = () => {
-    if (step > 1) setStep((s) => (s - 1) as 1 | 2 | 3 | 4);
+    if (step > 1) setStep((s) => (s - 1) as 1 | 2);
   };
 
   const runGenerateAnimation = () => {
@@ -294,7 +261,7 @@ export function PlanWizard({
       setGenerating(false);
       setGenProgress(100);
       setGenTaskIdx(taskCount);
-      setStep(4);
+      setStep(2);
     }, totalMs + tailMs);
     genTimersRef.current.push(done);
   };
@@ -316,70 +283,77 @@ export function PlanWizard({
       <Stepper step={step} onJump={(s) => setStep(s)} />
       <div className="p-6">
         {step === 1 && (
-          <Step1Scope
-            professionId={professionId}
-            subjectId={subjectId}
-            courseId={courseId}
-            onChangeProfession={(id) => {
-              setProfessionId(id);
-              const firstSubj = subjects.find((s) => s.professionId === id);
-              setSubjectId(firstSubj?.id ?? "");
-              const firstCourse = courses.find(
-                (c) => c.professionId === id && c.subjectId === firstSubj?.id,
-              );
-              setCourseId(firstCourse?.id ?? "");
-              setSelectedClassIds([]);
-            }}
-            onChangeSubject={(id) => {
-              setSubjectId(id);
-              const firstCourse = courses.find(
-                (c) => c.subjectId === id && c.professionId === professionId,
-              );
-              setCourseId(firstCourse?.id ?? "");
-            }}
-            onChangeCourse={(id) => setCourseId(id)}
-            onGoToGraph={onGoToGraph}
-          />
+          <div className="space-y-10">
+            <section className="space-y-3">
+              <div className="text-slate-900 font-medium">基础信息</div>
+              <Step1Scope
+                professionId={professionId}
+                subjectId={subjectId}
+                courseId={courseId}
+                onChangeProfession={(id) => {
+                  setProfessionId(id);
+                  const firstSubj = subjects.find((s) => s.professionId === id);
+                  setSubjectId(firstSubj?.id ?? "");
+                  const firstCourse = courses.find(
+                    (c) => c.professionId === id && c.subjectId === firstSubj?.id,
+                  );
+                  setCourseId(firstCourse?.id ?? "");
+                  setSelectedClassIds([]);
+                }}
+                onChangeSubject={(id) => {
+                  setSubjectId(id);
+                  const firstCourse = courses.find(
+                    (c) => c.subjectId === id && c.professionId === professionId,
+                  );
+                  setCourseId(firstCourse?.id ?? "");
+                }}
+                onChangeCourse={(id) => setCourseId(id)}
+              />
+            </section>
+            <section className="space-y-3">
+              <div className="text-slate-900 font-medium">班级与学情</div>
+              <Step2
+                professionId={professionId}
+                selectedClassIds={selectedClassIds}
+                onToggleClass={(id) =>
+                  setSelectedClassIds((prev) =>
+                    prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+                  )
+                }
+                profileOverrides={profileOverrides}
+                setProfileOverrides={setProfileOverrides}
+                editingProfileId={editingProfileId}
+                setEditingProfileId={setEditingProfileId}
+                getEffectiveProfile={getEffectiveProfile}
+              />
+            </section>
+            <section className="space-y-3">
+              <div className="text-slate-900 font-medium">教学策略</div>
+              <Step3
+                strategyId={strategyId}
+                onSelectStrategy={(id) => {
+                  setStrategyId(id);
+                  setStrategyOverride(null);
+                }}
+                selectedClassIds={selectedClassIds}
+                effective={effectiveStrategy}
+                onEdit={(patch) =>
+                  setStrategyOverride((prev) => ({
+                    ...effectiveStrategy,
+                    ...prev,
+                    ...patch,
+                  }))
+                }
+              />
+            </section>
+          </div>
         )}
         {step === 2 && (
-          <Step2
-            professionId={professionId}
-            selectedClassIds={selectedClassIds}
-            onToggleClass={(id) =>
-              setSelectedClassIds((prev) =>
-                prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
-              )
-            }
-            profileOverrides={profileOverrides}
-            setProfileOverrides={setProfileOverrides}
-            editingProfileId={editingProfileId}
-            setEditingProfileId={setEditingProfileId}
-            getEffectiveProfile={getEffectiveProfile}
-          />
-        )}
-        {step === 3 && (
-          <Step3
-            strategyId={strategyId}
-            onSelectStrategy={(id) => {
-              setStrategyId(id);
-              setStrategyOverride(null);
-            }}
-            selectedClassIds={selectedClassIds}
-            effective={effectiveStrategy}
-            onEdit={(patch) =>
-              setStrategyOverride((prev) => ({ ...effectiveStrategy, ...prev, ...patch }))
-            }
-          />
-        )}
-        {step === 4 && (
           <Step5
             draftChapters={draftChapters ?? []}
             setDraftChapters={setDraftChapters}
             collapsed={collapsed}
             setCollapsed={setCollapsed}
-            course={course}
-            professionId={professionId}
-            selectedClassIds={selectedClassIds}
           />
         )}
       </div>
@@ -411,14 +385,12 @@ function Stepper({
   step,
   onJump,
 }: {
-  step: 1 | 2 | 3 | 4;
-  onJump: (s: 1 | 2 | 3 | 4) => void;
+  step: 1 | 2;
+  onJump: (s: 1 | 2) => void;
 }) {
-  const items: Array<{ k: 1 | 2 | 3 | 4; label: string }> = [
-    { k: 1, label: "选择教学范围" },
-    { k: 2, label: "班级 · 学情" },
-    { k: 3, label: "教学策略" },
-    { k: 4, label: "预览并生成" },
+  const items: Array<{ k: 1 | 2; label: string }> = [
+    { k: 1, label: "计划设置" },
+    { k: 2, label: "预览并生成" },
   ];
   return (
     <div className="px-6 py-4 bg-white border-b border-slate-200">
@@ -477,7 +449,7 @@ function WizardFooter({
   onNext,
   onSubmit,
 }: {
-  step: 1 | 2 | 3 | 4;
+  step: 1 | 2;
   canNext: boolean;
   onPrev: () => void;
   onNext: () => void;
@@ -485,7 +457,7 @@ function WizardFooter({
 }) {
   return (
     <div className="sticky bottom-0 bg-white border-t border-slate-200 px-6 py-3 flex items-center justify-between">
-      <div className="text-slate-400">Step {step} / 4</div>
+      <div className="text-slate-400">Step {step} / 2</div>
       <div className="flex items-center gap-2">
         {step > 1 && (
           <button
@@ -495,7 +467,7 @@ function WizardFooter({
             上一步
           </button>
         )}
-        {step < 4 ? (
+        {step < 2 ? (
           <button
             disabled={!canNext}
             onClick={onNext}
@@ -505,15 +477,7 @@ function WizardFooter({
                 : "bg-slate-100 text-slate-400 cursor-not-allowed"
             }`}
           >
-            {step === 3 ? (
-              <>
-                <Sparkles size={14} /> 生成教学计划
-              </>
-            ) : (
-              <>
-                下一步 <ChevronRight size={14} />
-              </>
-            )}
+            <Sparkles size={14} /> 生成教学计划
           </button>
         ) : (
           <>
@@ -537,7 +501,7 @@ function WizardFooter({
 }
 
 // ==========================================================================
-// Step4 → Step5 · AI 生成骨架的假动画覆盖层
+// AI 生成骨架的假动画覆盖层
 // ==========================================================================
 
 function GenerationOverlay({
@@ -553,16 +517,6 @@ function GenerationOverlay({
   draftChapters: DraftChapter[];
   selectedClassIds: string[];
 }) {
-  const referencedNodeCount = useMemo(() => {
-    const set = new Set<string>();
-    for (const ch of draftChapters) {
-      for (const sec of ch.sections) {
-        for (const id of sec.knowledgeNodeIds) set.add(id);
-      }
-    }
-    return set.size;
-  }, [draftChapters]);
-
   const sectionCount = useMemo(
     () => draftChapters.reduce((acc, ch) => acc + ch.sections.length, 0),
     [draftChapters],
@@ -590,11 +544,9 @@ function GenerationOverlay({
                 <DotLoader />
               </div>
               <div className="text-slate-500 text-[0.6875rem] mt-0.5">
-                依据《{course?.name ?? "课程"}》· 引用{" "}
-                <span className="text-indigo-600">{referencedNodeCount}</span>{" "}
-                个图谱节点 · 结合{" "}
+                依据《{course?.name ?? "课程"}》· 结合{" "}
                 <span className="text-indigo-600">{selectedClassIds.length}</span>{" "}
-                个班级学情
+                个班级学情生成教学安排
               </div>
             </div>
           </div>
@@ -695,10 +647,8 @@ function DotLoader() {
 }
 
 // ==========================================================================
-// Step 1 · 选择教学范围（知识图谱 + 专业 / 学科 / 课程）
+// 计划设置 · 专业 / 学科 / 课程 + 课程预览
 // ==========================================================================
-
-const SCOPE_GRAPH_H = 360;
 
 function Step1Scope({
   professionId,
@@ -707,7 +657,6 @@ function Step1Scope({
   onChangeProfession,
   onChangeSubject,
   onChangeCourse,
-  onGoToGraph,
 }: {
   professionId: string;
   subjectId: string;
@@ -715,10 +664,8 @@ function Step1Scope({
   onChangeProfession: (id: string) => void;
   onChangeSubject: (id: string) => void;
   onChangeCourse: (id: string) => void;
-  onGoToGraph: () => void;
 }) {
   const profession = professionById(professionId);
-  const hasGraph = profession?.hasKnowledgeGraph ?? false;
   const course = courses.find((c) => c.id === courseId);
   const teacher = course ? teacherById(course.ownerTeacherId) : undefined;
   const relatedSubjects = subjects.filter((s) => s.professionId === professionId);
@@ -726,308 +673,11 @@ function Step1Scope({
     (c) => c.professionId === professionId && c.subjectId === subjectId,
   );
 
-  const nodes = nodesByProfession[professionId] ?? [];
-  const edges = edgesByProfession[professionId] ?? [];
-  const courseNodeSet = useMemo(
-    () => new Set(course ? [course.id, ...course.knowledgeNodeIds] : []),
-    [course],
-  );
-
-  const [hiddenClusters, setHiddenClusters] = useState<Set<string>>(
-    () => new Set(),
-  );
-  const graphRef = useRef<HTMLDivElement>(null);
-  const [graphViewport, setGraphViewport] = useState({ w: 600, h: SCOPE_GRAPH_H });
-
-  useEffect(() => {
-    setHiddenClusters(new Set());
-  }, [professionId]);
-
-  useEffect(() => {
-    const el = graphRef.current;
-    if (!el) return;
-    const ro = new ResizeObserver((entries) => {
-      for (const e of entries) {
-        if (e.contentRect.width > 2 && e.contentRect.height > 2) {
-          setGraphViewport({
-            w: Math.round(e.contentRect.width),
-            h: Math.round(e.contentRect.height),
-          });
-        }
-      }
-    });
-    ro.observe(el);
-    setGraphViewport({
-      w: Math.round(el.clientWidth || 600),
-      h: Math.round(el.clientHeight || SCOPE_GRAPH_H),
-    });
-    return () => ro.disconnect();
-  }, [professionId, nodes.length]);
-
-  const visibleNodes = useMemo(
-    () => nodes.filter((n) => !hiddenClusters.has(n.cluster)),
-    [nodes, hiddenClusters],
-  );
-  const visibleNodeIds = useMemo(
-    () => new Set(visibleNodes.map((n) => n.id)),
-    [visibleNodes],
-  );
-  const visibleEdges = useMemo(
-    () => edges.filter((e) => visibleNodeIds.has(e.from) && visibleNodeIds.has(e.to)),
-    [edges, visibleNodeIds],
-  );
-
-  const clustersInGraph = useMemo(() => {
-    const s = new Set<string>();
-    for (const n of nodes) s.add(n.cluster);
-    return Array.from(s);
-  }, [nodes]);
-
-  const toggleCluster = useCallback((name: string) => {
-    setHiddenClusters((prev) => {
-      const next = new Set(prev);
-      if (next.has(name)) next.delete(name);
-      else next.add(name);
-      return next;
-    });
-  }, []);
-
-  const showAllClusters = useCallback(() => setHiddenClusters(new Set()), []);
-
-  // 节点分类统计（课程挂载）
-  const mountedTypeStats = useMemo(() => {
-    let knowledge = 0;
-    let ability = 0;
-    let activity = 0;
-    for (const n of nodes) {
-      if (courseNodeSet.has(n.id)) {
-        if (n.layer === "knowledge") knowledge += 1;
-        else if (n.layer === "ability") ability += 1;
-        else if (n.layer === "courseOrTraining") activity += 1;
-      }
-    }
-    return { knowledge, ability, activity };
-  }, [nodes, courseNodeSet]);
-
   return (
     <div className="space-y-4">
-      {/* ── 上部：知识图谱 ── */}
-      <div className="grid grid-cols-12 gap-4">
-        {/* 图谱画布区 */}
-        <div
-          className="col-span-8 flex flex-col overflow-hidden bg-white rounded-xl border border-slate-200"
-          style={{ height: SCOPE_GRAPH_H + 96 }}
-        >
-          <div className="shrink-0 px-4 py-3 border-b border-slate-100 flex items-center gap-2">
-            <div className="size-8 rounded-md bg-indigo-50 text-indigo-600 flex items-center justify-center">
-              <Network size={16} />
-            </div>
-            <div className="leading-tight flex-1">
-              <div className="text-slate-900">知识图谱 · AI 规划教学路径</div>
-              <div className="text-slate-500 text-[0.6875rem]">
-                高亮节点 = 课程推荐路径 · 灰色 = 暂不纳入本课程范围
-              </div>
-            </div>
-            {hasGraph && course && (
-              <AiBadge>
-                推荐路径 {courseNodeSet.size} / {nodes.length} 节点
-              </AiBadge>
-            )}
-          </div>
-
-          {/* 簇图例 */}
-          {nodes.length > 0 && (
-            <div className="shrink-0 border-b border-slate-100 px-3 py-2">
-              <div className="text-[0.625rem] text-slate-400 mb-1">
-                点击图例可显示 / 隐藏该知识簇
-              </div>
-              <div className="flex flex-wrap items-center gap-1.5 max-h-16 overflow-y-auto pr-0.5">
-                {hiddenClusters.size > 0 && (
-                  <button
-                    type="button"
-                    onClick={showAllClusters}
-                    className="shrink-0 text-[0.6875rem] text-indigo-600 hover:text-indigo-800"
-                  >
-                    全部显示
-                  </button>
-                )}
-                {clustersInGraph.map((k) => {
-                  const off = hiddenClusters.has(k);
-                  return (
-                    <button
-                      key={k}
-                      type="button"
-                      onClick={() => toggleCluster(k)}
-                      title={off ? "点击在图中显示" : "点击在图中隐藏"}
-                      className={`flex items-center gap-1 rounded-full border px-2 py-0.5 text-[0.6875rem] transition ${
-                        off
-                          ? "border-slate-200 bg-slate-50/90 line-through opacity-50"
-                          : "border-slate-200 bg-slate-50/90 hover:border-indigo-300"
-                      }`}
-                    >
-                      <span
-                        className="size-2 shrink-0 rounded-full"
-                        style={{
-                          background: clusterColor[k] ?? colorOfCluster(k),
-                          opacity: off ? 0.4 : 1,
-                        }}
-                      />
-                      <span className="text-slate-600">{k}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* 图谱主体 */}
-          <div ref={graphRef} className="relative min-h-0 flex-1 w-full">
-            {!hasGraph ? (
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-slate-400">
-                <Network size={32} className="opacity-30" />
-                <span>该专业尚未建设知识图谱</span>
-              </div>
-            ) : nodes.length === 0 ? (
-              <div className="absolute inset-0 flex items-center justify-center text-slate-400">
-                暂无图谱数据
-              </div>
-            ) : visibleNodes.length === 0 ? (
-              <div className="absolute inset-0 flex items-center justify-center text-slate-400 text-sm">
-                当前已隐藏全部分簇，请点图例或「全部显示」
-              </div>
-            ) : (
-              <KnowledgeGraphCanvas
-                nodes={visibleNodes}
-                edges={visibleEdges}
-                width={graphViewport.w}
-                height={graphViewport.h}
-                renderEdge={(e, a, b) => {
-                  const bothMounted =
-                    courseNodeSet.has(e.from) && courseNodeSet.has(e.to);
-                  return (
-                    <line
-                      x1={a.x} y1={a.y} x2={b.x} y2={b.y}
-                      stroke={bothMounted ? "#c7d2fe" : "#e2e8f0"}
-                      strokeWidth={bothMounted ? 1.25 : 0.8}
-                    />
-                  );
-                }}
-                renderNode={({ node, x, y }) => {
-                  const mounted = courseNodeSet.has(node.id);
-                  const color = colorOfGraphNodeLayer(node);
-                  return (
-                    <g style={{ pointerEvents: "none" }}>
-                      <GraphNodeShapeWizard
-                        type={node.nodeType}
-                        x={x} y={y}
-                        color={mounted ? color : "#e2e8f0"}
-                        muted={!mounted}
-                      />
-                      {mounted && (
-                        <text
-                          x={x} y={y + 22}
-                          textAnchor="middle" fontSize={10} fill="#334155"
-                        >
-                          {truncateGraphLabel(node.name, 6)}
-                        </text>
-                      )}
-                    </g>
-                  );
-                }}
-              />
-            )}
-          </div>
-        </div>
-
-        {/* 右侧：图谱摘要 + 课程信息 */}
-        <div className="col-span-4 flex flex-col gap-3">
-          {/* 挂载节点类型统计 */}
-          {hasGraph && course && courseNodeSet.size > 0 && (
-            <div className="bg-white rounded-xl border border-slate-200 p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <AiBadge>AI 路径摘要</AiBadge>
-              </div>
-              <p className="text-slate-700 leading-relaxed">
-                已从《{course.name}》的{" "}
-                <span className="text-indigo-700">{courseNodeSet.size}</span>{" "}
-                个挂载节点中识别教学路径，AI 将据此生成章节骨架。
-              </p>
-              <div className="mt-3 flex items-center gap-3 text-[0.6875rem] text-slate-500">
-                <span className="inline-flex items-center gap-1">
-                  <span className="size-2.5 rounded-full bg-indigo-500" />
-                  知识点 {mountedTypeStats.knowledge}
-                </span>
-                <span className="inline-flex items-center gap-1">
-                  <span className="size-2.5 rounded-full bg-emerald-500" />
-                  能力 {mountedTypeStats.ability}
-                </span>
-                <span className="inline-flex items-center gap-1">
-                  <span className="size-2.5 rounded-full bg-amber-500" />
-                  课程/实训 {mountedTypeStats.activity}
-                </span>
-              </div>
-            </div>
-          )}
-
-          {/* 课程信息卡片 */}
-          {course && hasGraph ? (
-            <div className="bg-white rounded-xl border border-slate-200 overflow-hidden flex-1">
-              <div className="h-24 bg-gradient-to-br from-indigo-500 via-indigo-400 to-violet-400 flex items-end p-4">
-                <div className="text-white">
-                  <div className="opacity-80 text-[0.6875rem]">{profession?.college}</div>
-                  <div className="text-lg">《{course.name}》</div>
-                </div>
-              </div>
-              <div className="p-4 space-y-2">
-                <div className="text-slate-700 leading-relaxed text-[0.8125rem]">
-                  {course.description}
-                </div>
-                <div className="grid grid-cols-2 gap-2 pt-1">
-                  <InfoCell k="学时" v={`${course.totalHours} 学时`} />
-                  <InfoCell k="学分" v={`${course.credit} 学分`} />
-                  <InfoCell k="推荐图谱节点" v={`${course.knowledgeNodeIds.length} 个`} />
-                  <InfoCell k="负责教师" v={teacher?.name ?? "—"} />
-                </div>
-                <div className="flex flex-wrap gap-1.5 pt-1">
-                  {course.tags.map((t) => (
-                    <span key={t} className="px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 text-[0.6875rem]">
-                      {t}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </div>
-          ) : !hasGraph ? (
-            <div className="bg-amber-50 border border-amber-200 text-amber-800 rounded-xl p-4">
-              <div className="flex items-center gap-2 mb-1">
-                <AlertTriangle size={16} /> 该专业尚未建设知识图谱
-              </div>
-              <p className="text-amber-700 leading-relaxed">
-                建立教学计划需要对应专业的知识图谱作为基础。请先去图谱页建设或导入
-                {profession?.name ?? ""}专业的知识图谱。
-              </p>
-              <button
-                onClick={onGoToGraph}
-                className="mt-3 px-3 py-1.5 rounded-md bg-amber-600 text-white hover:bg-amber-700"
-              >
-                立即建设图谱
-              </button>
-            </div>
-          ) : (
-            <div className="bg-slate-50 border border-dashed border-slate-300 rounded-xl flex-1 flex items-center justify-center text-slate-400">
-              请先选择有效的专业 / 学科 / 课程
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* ── 下部：基础信息（专业 · 学科 · 课程） ── */}
       <div className="bg-white rounded-xl border border-slate-200 p-5">
-        <div className="flex items-center gap-2 mb-4">
-          <span className="text-slate-700 font-medium">基础信息</span>
-          <span className="text-slate-400 text-[0.6875rem] px-2 py-0.5 rounded-md bg-slate-100">
-            专业 · 学科 · 课程
-          </span>
+        <div className="text-slate-400 text-[0.6875rem] mb-4">
+          专业 · 学科 · 课程
         </div>
         <div className="grid grid-cols-3 gap-4">
           <div>
@@ -1040,7 +690,6 @@ function Step1Scope({
               {professions.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.college} · {p.name}
-                  {!p.hasKnowledgeGraph ? "（未建图谱）" : ""}
                 </option>
               ))}
             </select>
@@ -1075,6 +724,39 @@ function Step1Scope({
           </div>
         </div>
       </div>
+
+      {course ? (
+        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+          <div className="h-24 bg-gradient-to-br from-indigo-500 via-indigo-400 to-violet-400 flex items-end p-4">
+            <div className="text-white">
+              <div className="opacity-80 text-[0.6875rem]">{profession?.college}</div>
+              <div className="text-lg">《{course.name}》</div>
+            </div>
+          </div>
+          <div className="p-4 space-y-2">
+            <div className="text-slate-700 leading-relaxed text-[0.8125rem]">
+              {course.description}
+            </div>
+            <div className="grid grid-cols-2 gap-2 pt-1">
+              <InfoCell k="学时" v={`${course.totalHours} 学时`} />
+              <InfoCell k="学分" v={`${course.credit} 学分`} />
+              <InfoCell k="关联知识点" v={`${course.knowledgeNodeIds.length} 个`} />
+              <InfoCell k="负责教师" v={teacher?.name ?? "—"} />
+            </div>
+            <div className="flex flex-wrap gap-1.5 pt-1">
+              {course.tags.map((t) => (
+                <span key={t} className="px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 text-[0.6875rem]">
+                  {t}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="bg-slate-50 border border-dashed border-slate-300 rounded-xl p-8 flex items-center justify-center text-slate-400 text-sm">
+          请选择专业、学科与课程
+        </div>
+      )}
     </div>
   );
 }
@@ -1551,506 +1233,6 @@ function EditableBlock({
 }
 
 // ==========================================================================
-// Step 4 · 图谱溯源（展示 AI 从知识图谱抽取的教学路径）
-// ==========================================================================
-
-const WIZARD_GRAPH_W = 760;
-const WIZARD_GRAPH_H = 460;
-
-function Step4Graph({
-  course,
-  professionId,
-  draftChapters,
-  setDraftChapters,
-  selectedClassIds,
-}: {
-  course: Course | undefined;
-  professionId: string;
-  draftChapters: DraftChapter[];
-  setDraftChapters: React.Dispatch<React.SetStateAction<DraftChapter[] | null>>;
-  selectedClassIds: string[];
-}) {
-  const [selectedChapterId, setSelectedChapterId] = useState<string | null>(
-    draftChapters[0]?.id ?? null,
-  );
-  const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
-  const [hiddenClusters, setHiddenClusters] = useState<Set<string>>(
-    () => new Set(),
-  );
-
-  const nodes = nodesByProfession[professionId] ?? [];
-  const edges = edgesByProfession[professionId] ?? [];
-
-  useEffect(() => {
-    setHiddenClusters(new Set());
-  }, [professionId]);
-
-  const visibleNodes = useMemo(
-    () => nodes.filter((n) => !hiddenClusters.has(n.cluster)),
-    [nodes, hiddenClusters],
-  );
-  const visibleNodeIds = useMemo(
-    () => new Set(visibleNodes.map((n) => n.id)),
-    [visibleNodes],
-  );
-  const visibleEdges = useMemo(
-    () =>
-      edges.filter(
-        (e) => visibleNodeIds.has(e.from) && visibleNodeIds.has(e.to),
-      ),
-    [edges, visibleNodeIds],
-  );
-
-  const toggleCluster = useCallback((name: string) => {
-    setHiddenClusters((prev) => {
-      const next = new Set(prev);
-      if (next.has(name)) next.delete(name);
-      else next.add(name);
-      return next;
-    });
-  }, []);
-
-  const showAllClusters = useCallback(() => {
-    setHiddenClusters(new Set());
-  }, []);
-
-  const wizardGraphRef = useRef<HTMLDivElement>(null);
-  const [graphViewport, setGraphViewport] = useState({
-    w: WIZARD_GRAPH_W,
-    h: 400,
-  });
-
-  useEffect(() => {
-    const el = wizardGraphRef.current;
-    if (!el) return;
-    const apply = (w: number, h: number) => {
-      if (w < 2 || h < 2) return;
-      setGraphViewport({ w: Math.round(w), h: Math.round(h) });
-    };
-    const ro = new ResizeObserver((entries) => {
-      for (const e of entries) apply(e.contentRect.width, e.contentRect.height);
-    });
-    ro.observe(el);
-    apply(el.clientWidth, el.clientHeight);
-    return () => ro.disconnect();
-  }, [professionId, nodes.length]);
-
-  // 本计划引用的全部节点
-  const referencedIds = useMemo(() => {
-    const set = new Set<string>();
-    for (const ch of draftChapters) {
-      for (const sec of ch.sections) {
-        for (const id of sec.knowledgeNodeIds) set.add(id);
-      }
-    }
-    return set;
-  }, [draftChapters]);
-
-  // 当前选中章节焦点节点
-  const focusIds = useMemo(() => {
-    const set = new Set<string>();
-    if (!selectedChapterId) return set;
-    const ch = draftChapters.find((x) => x.id === selectedChapterId);
-    if (!ch) return set;
-    for (const sec of ch.sections) {
-      for (const id of sec.knowledgeNodeIds) set.add(id);
-    }
-    return set;
-  }, [selectedChapterId, draftChapters]);
-
-  const courseNodeSet = useMemo(() => {
-    if (!course) return new Set<string>();
-    return new Set([course.id, ...course.knowledgeNodeIds]);
-  }, [course]);
-
-  // 簇覆盖度
-  const clusterStats = useMemo(() => {
-    const all = new Map<string, number>();
-    const cited = new Map<string, number>();
-    for (const n of nodes) {
-      all.set(n.cluster, (all.get(n.cluster) ?? 0) + 1);
-      if (referencedIds.has(n.id)) {
-        cited.set(n.cluster, (cited.get(n.cluster) ?? 0) + 1);
-      }
-    }
-    const rows: Array<{ cluster: string; cited: number; total: number }> = [];
-    for (const [c, total] of all.entries()) {
-      rows.push({ cluster: c, cited: cited.get(c) ?? 0, total });
-    }
-    rows.sort((a, b) => b.cited - a.cited);
-    return rows;
-  }, [nodes, referencedIds]);
-
-  // 节点分类统计
-  const typeStats = useMemo(() => {
-    let ability = 0;
-    let knowledge = 0;
-    let activity = 0;
-    for (const n of nodes) {
-      if (referencedIds.has(n.id)) {
-        if (n.layer === "knowledge") knowledge += 1;
-        else if (n.layer === "ability") ability += 1;
-        else if (n.layer === "courseOrTraining") activity += 1;
-      }
-    }
-    return { ability, knowledge, activity };
-  }, [nodes, referencedIds]);
-
-  // 高亮 chip 时联动
-  const onHoverChip = (id: string | null) => setHoveredNodeId(id);
-
-  const toggleNodeInSelectedChapter = useCallback(
-    (node: GraphNode) => {
-      if (!selectedChapterId) return;
-      setDraftChapters((prev) => {
-        if (!prev) return prev;
-        return prev.map((ch) => {
-          if (ch.id !== selectedChapterId) return ch;
-          const exists = ch.sections.some((sec) =>
-            sec.knowledgeNodeIds.includes(node.id),
-          );
-          const sections = ch.sections.map((sec, idx) => {
-            if (exists) {
-              return {
-                ...sec,
-                knowledgeNodeIds: sec.knowledgeNodeIds.filter((id) => id !== node.id),
-              };
-            }
-            if (idx === 0) {
-              return {
-                ...sec,
-                knowledgeNodeIds: [...sec.knowledgeNodeIds, node.id],
-              };
-            }
-            return sec;
-          });
-          return { ...ch, sections };
-        });
-      });
-    },
-    [selectedChapterId, setDraftChapters],
-  );
-
-  const clustersInGraph = useMemo(() => {
-    const set = new Set<string>();
-    for (const n of nodes) set.add(n.cluster);
-    return Array.from(set);
-  }, [nodes]);
-
-  return (
-    <div className="grid grid-cols-12 gap-4">
-      {/* 左侧图谱 */}
-      <div
-        className="col-span-8 flex flex-col overflow-hidden bg-white rounded-xl border border-slate-200"
-        style={{ height: WIZARD_GRAPH_H + 72 }}
-      >
-        <div className="shrink-0 px-4 py-3 border-b border-slate-100 flex items-center gap-2">
-          <div className="size-8 rounded-md bg-indigo-50 text-indigo-600 flex items-center justify-center">
-            <Network size={16} />
-          </div>
-          <div className="leading-tight flex-1">
-            <div className="text-slate-900">AI 正从知识图谱抽取教学路径</div>
-            <div className="text-slate-500 text-[0.6875rem]">
-              高亮实色节点 = 本计划引用 · 虚线外圈 = 当前选中章节 · 点击节点可加入/移出当前章节
-            </div>
-          </div>
-          <AiBadge>引用 {referencedIds.size} / {nodes.length} 节点</AiBadge>
-        </div>
-        {nodes.length > 0 && (
-          <div className="shrink-0 border-b border-slate-100 px-3 py-2">
-            <div className="text-[0.625rem] text-slate-400 mb-1">
-              点击图例可显示/隐藏该知识簇
-            </div>
-            <div className="flex max-h-20 flex-wrap items-center gap-1.5 overflow-y-auto pr-0.5">
-              {hiddenClusters.size > 0 && (
-                <button
-                  type="button"
-                  onClick={showAllClusters}
-                  className="shrink-0 text-[0.6875rem] text-indigo-600 hover:text-indigo-800"
-                >
-                  全部显示
-                </button>
-              )}
-              {clustersInGraph.map((k) => {
-                const off = hiddenClusters.has(k);
-                return (
-                  <button
-                    key={k}
-                    type="button"
-                    onClick={() => toggleCluster(k)}
-                    title={off ? "点击在图中显示" : "点击在图中隐藏"}
-                    className={`flex items-center gap-1 rounded-full border px-2 py-0.5 text-left text-[0.6875rem] transition
-                      ${
-                        off
-                          ? "border-slate-200 bg-slate-50/90 line-through opacity-50"
-                          : "border-slate-200 bg-slate-50/90 hover:border-indigo-300"
-                      }`}
-                  >
-                    <span
-                      className="size-2 shrink-0 rounded-full"
-                      style={{
-                        background: clusterColor[k] ?? colorOfCluster(k),
-                        opacity: off ? 0.4 : 1,
-                      }}
-                    />
-                    <span className="text-slate-600">{k}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
-        <div
-          ref={wizardGraphRef}
-          className="relative min-h-0 flex-1 w-full"
-        >
-          {nodes.length === 0 ? (
-            <div className="absolute inset-0 flex items-center justify-center text-slate-400">
-              该专业尚未建设知识图谱
-            </div>
-          ) : visibleNodes.length === 0 ? (
-            <div className="absolute inset-0 flex items-center justify-center text-slate-400 text-sm">
-              当前已隐藏全部分簇，请点图例或「全部显示」
-            </div>
-          ) : (
-            <KnowledgeGraphCanvas
-                nodes={visibleNodes}
-                edges={visibleEdges}
-                width={graphViewport.w}
-                height={graphViewport.h}
-                focusNodeId={hoveredNodeId}
-                onNodeClick={toggleNodeInSelectedChapter}
-                renderEdge={(e, a, b) => {
-                  const bothCited =
-                    referencedIds.has(e.from) && referencedIds.has(e.to);
-                  return (
-                    <line
-                      x1={a.x}
-                      y1={a.y}
-                      x2={b.x}
-                      y2={b.y}
-                      stroke={bothCited ? "#c7d2fe" : "#e2e8f0"}
-                      strokeWidth={bothCited ? 1.25 : 0.8}
-                    />
-                  );
-                }}
-                renderNode={({ node, x, y }) => {
-                  const cited = referencedIds.has(node.id);
-                  const isFocus = focusIds.has(node.id);
-                  const isHovered = hoveredNodeId === node.id;
-                  const isCourseMounted = courseNodeSet.has(node.id);
-                  const color = colorOfGraphNodeLayer(node);
-                  return (
-                    <g>
-                      {isFocus && (
-                        <circle
-                          cx={x}
-                          cy={y}
-                          r={20}
-                          fill="none"
-                          stroke="#6366f1"
-                          strokeDasharray="3 3"
-                        />
-                      )}
-                      {isHovered && (
-                        <circle
-                          cx={x}
-                          cy={y}
-                          r={24}
-                          fill="none"
-                          stroke="#1e293b"
-                          strokeWidth={1.2}
-                        />
-                      )}
-                      <GraphNodeShapeWizard
-                        type={node.nodeType}
-                        x={x}
-                        y={y}
-                        color={cited ? color : "#e2e8f0"}
-                        muted={!cited && !isCourseMounted}
-                      />
-                      {(cited || isHovered) && (
-                        <text
-                          x={x}
-                          y={y + 22}
-                          textAnchor="middle"
-                          fontSize={10}
-                          fill={cited ? "#334155" : "#94a3b8"}
-                        >
-                          {truncateGraphLabel(node.name, 6)}
-                        </text>
-                      )}
-                    </g>
-                  );
-                }}
-              />
-          )}
-        </div>
-      </div>
-
-      {/* 右侧溯源面板 */}
-      <div className="col-span-4 space-y-3">
-        <div className="bg-white rounded-xl border border-slate-200 p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <AiBadge>AI 溯源摘要</AiBadge>
-          </div>
-          <p className="text-slate-700 leading-relaxed">
-            AI 从《{course?.name ?? "课程"}》挂载的{" "}
-            <span className="text-indigo-700">{courseNodeSet.size}</span>{" "}
-            个图谱节点中，结合{" "}
-            <span className="text-indigo-700">{selectedClassIds.length}</span>{" "}
-            个选定班级的学情，抽取出{" "}
-            <span className="text-indigo-700">{referencedIds.size}</span>{" "}
-            个核心节点、构建出{" "}
-            <span className="text-indigo-700">{draftChapters.length}</span>{" "}
-            个章节的教学路径。
-          </p>
-          <div className="mt-3 flex items-center gap-3 text-[0.6875rem] text-slate-500">
-            <span className="inline-flex items-center gap-1">
-              <span className="size-2.5 rounded-full bg-indigo-500" />
-              知识点 {typeStats.knowledge}
-            </span>
-            <span className="inline-flex items-center gap-1">
-              <span className="size-2.5 rounded-full bg-emerald-500" />
-              能力 {typeStats.ability}
-            </span>
-            <span className="inline-flex items-center gap-1">
-              <span className="size-2.5 rounded-full bg-amber-500" />
-              课程/实训 {typeStats.activity}
-            </span>
-          </div>
-        </div>
-
-        {/* 章节 ↔ 节点映射 */}
-        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-          <div className="px-4 py-2.5 border-b border-slate-100 text-slate-500 text-[0.75rem]">
-            章节 ↔ 节点映射（点击查看节点）
-          </div>
-          <div className="max-h-[260px] overflow-auto divide-y divide-slate-100">
-            {draftChapters.map((ch) => {
-              const chNodeIds = new Set<string>();
-              for (const sec of ch.sections) {
-                for (const id of sec.knowledgeNodeIds) chNodeIds.add(id);
-              }
-              const expanded = selectedChapterId === ch.id;
-              return (
-                <div key={ch.id}>
-                  <button
-                    onClick={() =>
-                      setSelectedChapterId(expanded ? null : ch.id)
-                    }
-                    className={`w-full px-4 py-2.5 flex items-center gap-2 text-left transition ${
-                      expanded ? "bg-indigo-50/60" : "hover:bg-slate-50"
-                    }`}
-                  >
-                    {expanded ? (
-                      <ChevronDown size={14} className="text-slate-400" />
-                    ) : (
-                      <ChevronRight size={14} className="text-slate-400" />
-                    )}
-                    <span className="flex-1 text-slate-800 truncate">
-                      {ch.title}
-                    </span>
-                    <span className="text-slate-500 text-[0.6875rem]">
-                      {chNodeIds.size} 节点 / {ch.sections.length} 小节
-                    </span>
-                  </button>
-                  {expanded && (
-                    <div className="px-4 pb-3 space-y-2">
-                      {ch.sections.map((sec) => (
-                        <div
-                          key={sec.id}
-                          className="rounded-lg border border-slate-100 p-2"
-                        >
-                          <div className="text-slate-800 text-[0.75rem] mb-1 truncate">
-                            {sec.title}
-                          </div>
-                          {sec.knowledgeNodeIds.length === 0 ? (
-                            <span className="text-slate-400 text-[0.6875rem]">
-                              暂未挂载节点
-                            </span>
-                          ) : (
-                            <div className="flex flex-wrap gap-1">
-                              {sec.knowledgeNodeIds.map((nid) => {
-                                const n = nodes.find((x) => x.id === nid);
-                                if (!n) return null;
-                                return (
-                                  <button
-                                    key={nid}
-                                    onMouseEnter={() => onHoverChip(nid)}
-                                    onMouseLeave={() => onHoverChip(null)}
-                                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-slate-50 hover:bg-indigo-50 border border-slate-200 text-[0.6875rem] text-slate-700 max-w-full"
-                                  >
-                                    <span
-                                      className="size-1.5 rounded-full shrink-0"
-                                      style={{
-                                        background: colorOfCluster(n.cluster),
-                                      }}
-                                    />
-                                    <span className="truncate">{n.name}</span>
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-            {draftChapters.length === 0 && (
-              <div className="px-4 py-6 text-slate-400 text-center">
-                暂无章节
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* 簇覆盖度 */}
-        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-          <div className="px-4 py-2.5 border-b border-slate-100 text-slate-500 text-[0.75rem]">
-            簇覆盖度（本计划引用 / 簇总节点）
-          </div>
-          <div className="max-h-[220px] overflow-auto px-4 py-2 space-y-2">
-            {clusterStats.length === 0 && (
-              <div className="text-slate-400 text-center py-4">暂无数据</div>
-            )}
-            {clusterStats.map((row) => {
-              const pct = row.total === 0 ? 0 : (row.cited / row.total) * 100;
-              return (
-                <div key={row.cluster} className="flex items-center gap-2">
-                  <span
-                    className="size-2.5 rounded-full shrink-0"
-                    style={{ background: colorOfCluster(row.cluster) }}
-                  />
-                  <span className="text-slate-700 text-[0.75rem] truncate w-20">
-                    {row.cluster}
-                  </span>
-                  <div className="flex-1 h-1.5 rounded-full bg-slate-100 overflow-hidden">
-                    <div
-                      className="h-full rounded-full"
-                      style={{
-                        width: `${pct}%`,
-                        background: colorOfCluster(row.cluster),
-                      }}
-                    />
-                  </div>
-                  <span className="text-slate-500 text-[0.6875rem] w-10 text-right">
-                    {row.cited}/{row.total}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ==========================================================================
 // Step 5 · 骨架预览（可编辑）
 // ==========================================================================
 
@@ -2059,17 +1241,11 @@ function Step5({
   setDraftChapters,
   collapsed,
   setCollapsed,
-  course,
-  professionId,
-  selectedClassIds,
 }: {
   draftChapters: DraftChapter[];
   setDraftChapters: React.Dispatch<React.SetStateAction<DraftChapter[] | null>>;
   collapsed: Record<string, boolean>;
   setCollapsed: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
-  course: Course | undefined;
-  professionId: string;
-  selectedClassIds: string[];
 }) {
   const totalMinutes = draftChapters.reduce(
     (sum, ch) => sum + ch.sections.reduce((s, sec) => s + sec.durationMinutes, 0),
@@ -2137,28 +1313,21 @@ function Step5({
 
   return (
     <div className="space-y-3">
-        <Step4Graph
-          course={course}
-          professionId={professionId}
-          draftChapters={draftChapters}
-          setDraftChapters={setDraftChapters}
-          selectedClassIds={selectedClassIds}
+      <div className="bg-white rounded-xl border border-slate-200 p-4 flex items-center gap-6">
+        <Stat icon={<Layers size={14} />} label="章节" value={`${draftChapters.length}`} />
+        <Stat icon={<Layers size={14} />} label="小节" value={`${totalSections}`} />
+        <Stat icon={<Clock size={14} />} label="学时" value={`${totalHours}`} />
+        <Stat
+          icon={<Sparkles size={14} />}
+          label="AI 调整"
+          value={`${draftChapters
+            .flatMap((c) => c.sections)
+            .filter((s) => !!s.aiAdjustment).length}`}
         />
-        <div className="bg-white rounded-xl border border-slate-200 p-4 flex items-center gap-6">
-          <Stat icon={<Layers size={14} />} label="章节" value={`${draftChapters.length}`} />
-          <Stat icon={<Layers size={14} />} label="小节" value={`${totalSections}`} />
-          <Stat icon={<Clock size={14} />} label="学时" value={`${totalHours}`} />
-          <Stat
-            icon={<Sparkles size={14} />}
-            label="AI 调整"
-            value={`${draftChapters
-              .flatMap((c) => c.sections)
-              .filter((s) => !!s.aiAdjustment).length}`}
-          />
-          <div className="flex-1" />
-          <AiBadge>已根据所选班级学情自动调整</AiBadge>
-        </div>
-        {draftChapters.map((ch, chIdx) => {
+        <div className="flex-1" />
+        <AiBadge>已根据所选班级学情自动调整</AiBadge>
+      </div>
+      {draftChapters.map((ch, chIdx) => {
           const isCollapsed = collapsed[ch.id];
           return (
             <div
@@ -2270,7 +1439,7 @@ function Step5({
               )}
             </div>
           );
-        })}
+      })}
     </div>
   );
 }
@@ -2365,7 +1534,7 @@ function computeStrategyMatch(
   return Math.max(40, Math.min(98, score + jitter));
 }
 
-/** 合成策略简述（Step3 初值、Step4 右侧展示） */
+/** 合成策略简述（策略区初值等） */
 function synthStrategyBrief(strategyId: string, classIds: string[]): string {
   const strategy = teachingStrategies.find((s) => s.id === strategyId);
   const names = classIds

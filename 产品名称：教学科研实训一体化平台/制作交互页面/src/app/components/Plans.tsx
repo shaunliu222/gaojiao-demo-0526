@@ -1,10 +1,11 @@
-import { Plus, Search, Users } from "lucide-react";
+import { Plus, Search, Users, Link2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import {
   teachingPlans,
   teachingStrategies,
   classes,
   PLAN_WANG_HAIFENG_MOCK_ID,
+  l2PlanById,
 } from "@mock";
 import type { TeachingPlan } from "@mock";
 import {
@@ -14,7 +15,6 @@ import {
   teacherSeesAllScopedContent,
 } from "../data/lookups";
 import { PageHeader, StatusTag, AiBadge } from "./Layout";
-import { PlanKnowledgePathPreview } from "./PlanKnowledgePathPreview";
 
 /** 把 mock 的英文 status 映射到 UI 中文标签（复用 Layout 的 StatusTag） */
 const statusLabel: Record<TeachingPlan["status"], "草稿" | "进行中" | "已完成"> = {
@@ -51,10 +51,13 @@ export function PlansList({
   currentTeacherId,
   onOpen,
   onCreate,
+  onGoToGraph,
 }: {
   currentTeacherId: string;
   onOpen: (id: string) => void;
   onCreate: () => void;
+  /** 可选：跳转到图谱并定位节点（用于派生角标点击） */
+  onGoToGraph?: (nodeId: string) => void;
 }) {
   const [searchQ, setSearchQ] = useState("");
   const [filterClassId, setFilterClassId] = useState("");
@@ -222,6 +225,30 @@ export function PlansList({
                     </span>
                   )}
                 </div>
+                {p.derivedFromL2PlanId && (() => {
+                  const l2Plan = l2PlanById[p.derivedFromL2PlanId];
+                  return (
+                    <div
+                      className="mt-2.5 pt-2.5 border-t border-slate-100 flex items-center gap-1.5"
+                      onClick={(e) => {
+                        if (onGoToGraph) {
+                          e.stopPropagation();
+                          onGoToGraph(p.derivedFromL2PlanId!);
+                        }
+                      }}
+                    >
+                      <Link2 size={11} className="text-slate-400 shrink-0" />
+                      <span className="text-[0.6875rem] text-slate-400 truncate">
+                        派生自《{l2Plan?.title ?? p.derivedFromL2PlanId}》标准课程计划
+                      </span>
+                      {onGoToGraph && (
+                        <span className="shrink-0 text-[0.6rem] text-indigo-500 hover:text-indigo-700 underline cursor-pointer">
+                          查看图谱
+                        </span>
+                      )}
+                    </div>
+                  );
+                })()}
               </button>
             );
           })}
@@ -292,7 +319,6 @@ export function PlanDetail({
   const progress = computeProgress(p);
   const status = statusLabel[p.status];
   const strategy = teachingStrategies.find((s) => s.id === p.strategyId);
-  const graphPlanIds = useMemo(() => [p.id], [p.id]);
 
   return (
     <div>
@@ -314,13 +340,6 @@ export function PlanDetail({
           </>
         }
       />
-      <div className="px-6 pt-2">
-        <PlanKnowledgePathPreview
-          planIds={graphPlanIds}
-          variant="teacher"
-          layout="detail"
-        />
-      </div>
       <div className="px-6 pt-4">
         <div className="flex gap-1 border-b border-slate-200">
           {(
@@ -406,7 +425,7 @@ export function PlanDetail({
         {tab === "path" && (
           <div className="space-y-4">
             <div className="text-slate-500">
-              上方迷你图展示本计划从主图中切出的跨层路径；下方点击小节先查看「本节课程资源」，再可选择进入教学设计工作台。
+              点击小节先查看「本节课程资源」，再可选择进入教学设计工作台。
             </div>
             {p.chapters.map((c) => (
               <div key={c.id} className="bg-white rounded-xl border border-slate-200 p-4">

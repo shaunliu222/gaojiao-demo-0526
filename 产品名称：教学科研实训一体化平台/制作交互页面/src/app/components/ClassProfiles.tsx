@@ -4,7 +4,6 @@ import {
   ClipboardX,
   Download,
   FileCheck,
-  PenTool,
   Search,
   Star,
 } from "lucide-react";
@@ -33,7 +32,6 @@ import {
   studentProfileByStudentId,
   homeworksByClass,
   examsByClass,
-  resolveTeachingDesignJumpFromClass,
 } from "../data/lookups";
 import { PageHeader, AiBadge } from "./Layout";
 import { StudentDetail } from "./StudentProfiles";
@@ -221,7 +219,6 @@ export function LearningAnalyticsHub({
   onClearStudent,
   onOpenHomeworkEval,
   onOpenExamEval,
-  onJumpToTeachingDesign,
 }: {
   classId: string;
   /** null = 不限制（主任等）；否则仅展示这些班级的画像 tab */
@@ -232,12 +229,6 @@ export function LearningAnalyticsHub({
   onClearStudent: () => void;
   onOpenHomeworkEval: (homeworkEvalId: string) => void;
   onOpenExamEval: (examEvalId: string) => void;
-  onJumpToTeachingDesign?: (payload: {
-    planId: string;
-    sectionId: string;
-    progressSectionId: string;
-    reviewSectionIds: string[];
-  }) => void;
 }) {
   const [scoreBinFilter, setScoreBinFilter] = useState<ScoreBinKey | null>(null);
   const profileTabs = useMemo(() => {
@@ -309,7 +300,6 @@ export function LearningAnalyticsHub({
               }
               onOpenHomeworkEval={onOpenHomeworkEval}
               onOpenExamEval={onOpenExamEval}
-              onJumpToTeachingDesign={onJumpToTeachingDesign}
             />
           )}
         </div>
@@ -345,7 +335,6 @@ export function ClassProfileDetail({
   onScoreBinFilterChange,
   onOpenHomeworkEval,
   onOpenExamEval,
-  onJumpToTeachingDesign,
 }: {
   id: string;
   variant?: "default" | "hub";
@@ -357,13 +346,6 @@ export function ClassProfileDetail({
   onOpenHomeworkEval?: (homeworkEvalId: string) => void;
   /** 跳转到考试评价详情 */
   onOpenExamEval?: (examEvalId: string) => void;
-  /** 学情 hub：根据画像进度跳转教学设计工作台 */
-  onJumpToTeachingDesign?: (payload: {
-    planId: string;
-    sectionId: string;
-    progressSectionId: string;
-    reviewSectionIds: string[];
-  }) => void;
 }) {
   const recentHomework = useMemo(
     () =>
@@ -381,8 +363,6 @@ export function ClassProfileDetail({
         .slice(0, 4),
     [id],
   );
-
-  const designJump = useMemo(() => resolveTeachingDesignJumpFromClass(id), [id]);
 
   const profile = classProfiles.find((x) => x.classId === id);
   const cls = classes.find((c) => c.id === id);
@@ -421,21 +401,6 @@ export function ClassProfileDetail({
         }
         actions={
           <div className="flex flex-wrap items-center gap-2">
-            {variant === "hub" && onJumpToTeachingDesign && (
-              <button
-                type="button"
-                disabled={!designJump}
-                title={
-                  designJump
-                    ? undefined
-                    : "当前班级画像未配置教学进度，或进度不在本班当前教学计划中"
-                }
-                onClick={() => designJump && onJumpToTeachingDesign(designJump)}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-md bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 disabled:pointer-events-none disabled:cursor-not-allowed"
-              >
-                <PenTool size={14} /> 根据学情调整教学设计
-              </button>
-            )}
             <button
               type="button"
               className="flex items-center gap-1 px-3 py-1.5 rounded-md border border-slate-200 hover:bg-slate-50"

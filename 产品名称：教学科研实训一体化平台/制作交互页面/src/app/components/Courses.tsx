@@ -7,6 +7,7 @@ import {
   FileText,
   Film,
   FlaskConical,
+  GraduationCap,
   Image as ImageIcon,
   ListChecks,
   Music,
@@ -575,6 +576,8 @@ function CourseResIcon({ type }: { type: ResourceType }) {
       return <Database size={14} className={`${common} text-emerald-500`} />;
     case "quiz":
       return <ListChecks size={14} className={`${common} text-amber-500`} />;
+    case "online_course":
+      return <GraduationCap size={14} className={`${common} text-indigo-600`} />;
     case "ppt":
       return <FileText size={14} className={`${common} text-orange-500`} />;
     default:

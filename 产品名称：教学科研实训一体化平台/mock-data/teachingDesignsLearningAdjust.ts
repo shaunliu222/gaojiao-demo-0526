@@ -2,7 +2,7 @@ import type { TeachingDesign } from "./types";
 import { DEMO_DESIGN_PLAN_ID } from "./teachingDesigns";
 
 /**
- * 仅从「学情分析 → 调整教学设计」进入时使用的设计假数据，
+ * 仅从「协同评价 · 作业/考试评价详情 → 调整教学设计」进入时使用的设计假数据，
  * 与常规入口下同一小节的 {@link teachingDesigns} 内容区分，突出学情驱动话术与编排。
  *
  * 当前覆盖：plan-main · sec-3-2（班级画像 progress 为 sec-3-1 → 工作台默认下一堂「组合体三视图」）

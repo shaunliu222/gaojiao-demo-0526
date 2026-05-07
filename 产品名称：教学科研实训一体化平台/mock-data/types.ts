@@ -304,7 +304,20 @@ export type ResourceType =
   | "image"
   | "code"
   | "dataset"
-  | "quiz"; // 题库
+  | "quiz" // 题库
+  | "online_course"; // 线上课程（关联外部慕课平台）
+
+/**
+ * 教学资源中引用的外部慕课课程（教师从其他平台目录中选择后挂载）。
+ * 正文学习在源站完成，本平台仅存引用与导读元数据。
+ */
+export interface MoocCourseLink {
+  platformId: ID;
+  platformName: string;
+  externalCourseId: ID;
+  externalTitle: string;
+  courseUrl: string;
+}
 
 /** 教学资源 */
 export interface Resource {
@@ -323,6 +336,8 @@ export interface Resource {
   tags: string[];
   /** 是否由平台 AI 生成（教学设计产物回写的也在这里标） */
   isAiGenerated?: boolean;
+  /** 当 type 为 online_course 时，关联的外部慕课 */
+  moocLink?: MoocCourseLink;
 }
 
 /**
@@ -434,6 +449,15 @@ export interface TeachingPlan {
   updatedAt: ISODateTime;
   /** 基于班级学情生成的 AI 建议（详细分析） */
   aiAdvice: string;
+  /** 派生自哪份 L2 标准课程计划（三层图谱模型中的 L2 节点 ID） */
+  derivedFromL2PlanId?: ID;
+  /** 相对于标准课程计划的学情微调差异，仅记录被覆盖的字段 */
+  overrides?: Array<{
+    sectionId: ID;
+    field: "plannedDate" | "durationMinutes" | "objectives" | "knowledgeNodeIds";
+    value: unknown;
+    reason?: string;
+  }>;
 }
 
 // ============ 教学设计 ============
@@ -663,4 +687,302 @@ export interface SkillOrMcpItem {
   category: "skill" | "mcp";
   description: string;
   icon?: string;
+}
+
+// ============ 三层知识图谱模型（L1 / L2 / L3） ============
+// L1 产业培养图谱：唯一走 Schema→AI→人工 严格流程
+// L2 标准课程计划集合：直接编辑或导入合成，不走 Schema
+// L3 教学单元图谱：直接编辑，不走 Schema
+// 层间桥均为集合包裹（父节点 ⊃ 子节点 IDs）
+
+export type KGLayer = "L1" | "L2" | "L3";
+
+// -------- 输入材料 --------
+
+export type KGMaterialKind =
+  | "industry_demand"       // 产业需求报告
+  | "talent_scheme"         // 专业人才培养方案（与旧 talent_scheme 对齐）
+  | "core_material"         // 专业核心材料（导引 / 能力指标等）
+  | "job_jd"                // 岗位 JD
+  | "textbook"              // 教材
+  | "case_archive"          // 学校积累案例文档
+  | "industry_outlook"      // 行业形势简报（与旧 industry_outlook 对齐）
+  | "legacy_course_plan_meta"; // 教务系统导出的旧课程计划元信息
+
+/** 统一图谱依据材料（与旧 KnowledgeGraphTrainingPlanDocument 共存，旧类型不删） */
+export interface KGSourceMaterial {
+  id: ID;
+  professionId: ID;
+  kind: KGMaterialKind;
+  /** 主要供哪一层（L1）的 AI 提炼使用；L3 的教材单独列 textbookAnchors */
+  primaryLayer: KGLayer;
+  fileName: string;
+  /** 弹层展示的正文节选 */
+  content: string;
+  uploadedAt: ISODateTime;
+  uploaderId: ID;
+}
+
+// -------- 前端视图状态 --------
+
+export interface KGNodeViewState {
+  nodeId: ID;
+  layer: KGLayer;
+  expanded: boolean;
+  expansionLevel?: "summary" | "full";
+}
+
+export interface KGPageViewState {
+  professionId: ID;
+  layerVisible: Record<KGLayer, boolean>;
+  expandAllLayer?: KGLayer;
+  /** 主线视图：只显示 isSpine/onSpine 的节点和桥 */
+  spineOnly: boolean;
+  focusSubjectId?: ID;
+  nodeStates: KGNodeViewState[];
+}
+
+// -------- L1 产业培养图谱 --------
+
+export type L1NodeTypeCode =
+  | "industry_demand"
+  | "job_competency"
+  | "core_literacy"
+  | "ability"
+  | "training_goal"
+  | "course_standard";
+
+export interface L1SchemaNodeTypeDef {
+  code: L1NodeTypeCode;
+  label: string;
+  color?: string;
+  /** 该类型节点是否可以出现在主线上 */
+  canBeOnSpine?: boolean;
+}
+
+export interface L1SchemaEdgeTypeDef {
+  code: string;
+  label: string;
+  fromTypes: L1NodeTypeCode[];
+  toTypes: L1NodeTypeCode[];
+  isSpineCandidate?: boolean;
+}
+
+/** L1 Schema：教师编写节点类型与边类型，是 L1 建图的前提 */
+export interface L1Schema {
+  id: ID;
+  professionId: ID;
+  name: string;
+  nodeTypes: L1SchemaNodeTypeDef[];
+  edgeTypes: L1SchemaEdgeTypeDef[];
+  /** 推荐上传哪些类型的输入材料 */
+  inputMaterialKinds: KGMaterialKind[];
+  source: "platform_template" | "college" | "department" | "personal";
+  ownerTeacherId?: ID;
+  status: "draft" | "published";
+  updatedAt: ISODateTime;
+}
+
+/** L1 节点 */
+export interface L1Node {
+  id: ID;
+  professionId: ID;
+  schemaTypeCode: L1NodeTypeCode;
+  name: string;
+  description: string;
+  /** 严格三态 */
+  status: GraphNodeStatus; // 复用旧 "ai_draft" | "edited" | "confirmed"
+  locked: boolean;
+  /** 必须可追溯：指向提炼来源材料 */
+  sourceMaterialIds: ID[];
+  /** 学科侧重 */
+  subjectFocus?: Array<{ subjectId: ID; emphasis: "主修" | "辅修" | "拓展" }>;
+  onSpine?: boolean;
+  cluster?: string;
+}
+
+/** L1 边 */
+export interface L1Edge {
+  id: ID;
+  professionId: ID;
+  schemaEdgeCode: string;
+  from: ID;
+  to: ID;
+  relation: string;
+  isSpine?: boolean;
+}
+
+// -------- L2 标准课程计划集合 --------
+
+/** 教务系统导入的课程基础元信息（仅元数据，不含 chapters） */
+export interface LegacyCoursePlanMeta {
+  id: ID;
+  professionId: ID;
+  courseName: string;
+  courseCode?: string;
+  totalHours: number;
+  credit: number;
+  textbooks: Array<{ title: string; author?: string; isbn?: string }>;
+  language: "中文" | "英文" | "双语";
+  semester: string;
+  source: "academic_system" | "manual_upload";
+  importedAt: ISODateTime;
+}
+
+/** L2 标准课程计划（专业级、不绑班级）——每个节点即为一份此结构 */
+export interface L2StandardCoursePlan {
+  id: ID;
+  professionId: ID;
+  courseId: ID;
+  subjectId: ID;
+  title: string;
+  /** 教务基础元信息来源 */
+  importedFromLegacyMetaId?: ID;
+  /** 关联 L1 的上游节点（能力 / 课程标准） */
+  derivedFromL1NodeIds: ID[];
+  /** 专业级培养目标（对接 L1 课程标准描述） */
+  competencyTargets: string[];
+  /** 章节-小节结构，与 TeachingPlan.chapters 同构 */
+  chapters: PlanChapter[];
+  totalHours: number;
+  status: "draft" | "in_progress" | "released";
+  generatedBy: "import" | "ai_synthesis" | "manual";
+  /** AI 合成日志（仅 ai_synthesis 时有） */
+  generationTrace?: {
+    legacyMetaSnapshot: string;
+    appliedL1NodeIds: ID[];
+    diffSummary: string;
+    generatedAt: ISODateTime;
+  };
+  updatedAt: ISODateTime;
+}
+
+// -------- L3 教学单元图谱 --------
+
+export type TeachingActivityMode =
+  | "讲授"
+  | "讨论"
+  | "案例分析"
+  | "项目式"
+  | "翻转课堂"
+  | "情景模拟"
+  | "实训操作"
+  | "AI 协作探究";
+
+export interface TeachingActivity {
+  mode: TeachingActivityMode;
+  description: string;
+  estimatedMinutes?: number;
+  /** 推荐配套的资源 ID（可为空） */
+  sampleResourceIds?: ID[];
+}
+
+export interface TextbookAnchor {
+  textbookId: ID;   // 对应 LegacyCoursePlanMeta.textbooks 的 isbn 或自定义 ID
+  textbookTitle: string;
+  chapter: string;
+  section?: string;
+  pageRange?: string;
+}
+
+export type L3NodeKind = "knowledge_point" | "skill_point" | "literacy_point";
+
+/** L3 节点 */
+export interface L3Node {
+  id: ID;
+  professionId: ID;
+  kind: L3NodeKind;
+  name: string;
+  description: string;
+  /** 每个知识/技能/素养点适合的讲解模式（必填至少 1 条） */
+  teachingActivities: TeachingActivity[];
+  /** 教材锚点（仅 L3，必须与教材关联） */
+  textbookAnchors: TextbookAnchor[];
+  /** 学科内的侧重方向 */
+  subjectFocus?: Array<{ subjectId: ID; emphasis: "主修" | "辅修" | "拓展"; note?: string }>;
+  status: GraphNodeStatus; // 复用旧三态；L3 不强制走严格流程但保留审阅状态
+  cluster?: string;
+}
+
+export type L3EdgeRelation = "先修" | "关联" | "同质" | "支撑";
+
+/** L3 边 */
+export interface L3Edge {
+  id: ID;
+  professionId: ID;
+  from: ID;
+  to: ID;
+  relation: L3EdgeRelation;
+}
+
+// -------- 层间桥（集合包裹） --------
+
+/** L1 → L2：某个 L1 节点（能力/课程标准）包含一组 L2 标准课程计划 */
+export interface L1ToL2Bridge {
+  id: ID;
+  professionId: ID;
+  l1NodeId: ID;
+  l2PlanIds: ID[];
+  note?: string;
+}
+
+/** L2 → L3：某份 L2 计划（或其某个小节）包含一组 L3 节点 */
+export interface L2ToL3Bridge {
+  id: ID;
+  professionId: ID;
+  container:
+    | { kind: "plan"; l2PlanId: ID }
+    | { kind: "section"; l2PlanId: ID; sectionId: ID };
+  l3NodeIds: ID[];
+  note?: string;
+}
+
+// -------- 案例 → 产业课题 --------
+
+/** 学校积累的原始案例 */
+export interface SchoolCase {
+  id: ID;
+  professionId: ID;
+  title: string;
+  description: string;
+  /** 来源（教师姓名 / 项目 / 竞赛等） */
+  origin: string;
+  rawTags: string[];
+  importedAt: ISODateTime;
+}
+
+/** 由校内案例转化而来的产业课题资产（可挂回 L2 某个计划的案例素材库） */
+export interface IndustryProjectAsset {
+  id: ID;
+  professionId: ID;
+  title: string;
+  fromCaseIds: ID[];
+  industryContext: string;
+  problemStatement: string;
+  deliverables: string[];
+  /** 关联的图谱节点（可跨三层） */
+  linkedNodes: Array<{ nodeId: ID; layer: KGLayer; reason: string }>;
+  status: "draft" | "review" | "released";
+}
+
+// -------- 岗位驱动的教学计划生成 --------
+
+/** 岗位 JD → 三层路径 → 教学计划骨架 */
+export interface JobToPlanBlueprint {
+  id: ID;
+  professionId: ID;
+  jobTitle: string;
+  jobJDMaterialId: ID;
+  pathway: {
+    L1NodeIds: ID[];
+    L2PlanIds: ID[];
+    L3NodeIds: ID[];
+  };
+  /** AI 推荐的教学计划章节骨架（供 1.2 向导第 4 步预填） */
+  recommendedChapters: Array<{
+    title: string;
+    sectionTitles: string[];
+    coveredL3NodeIds: ID[];
+  }>;
+  generatedAt: ISODateTime;
 }

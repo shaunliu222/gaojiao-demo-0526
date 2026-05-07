@@ -35,6 +35,8 @@ export {
 } from "./knowledgeGraphTrainingPlanDocs";
 export { courses } from "./courses";
 export { resources } from "./resources";
+export { moocPlatforms, moocExternalCourses } from "./moocExternalCourses";
+export type { MoocPlatform, MoocExternalCourseItem } from "./moocExternalCourses";
 export { planSectionResourcesSeed } from "./planSectionResources";
 export { trainingProjects } from "./trainings";
 
@@ -59,3 +61,51 @@ export {
 } from "./teachingDesignsLearningAdjust";
 export { homeworkEvaluations } from "./homeworks";
 export { examEvaluations } from "./exams";
+
+// ---- 三层知识图谱模型（L1 / L2 / L3） ----
+export { l1Schemas, l1SchemaMech } from "./kgL1Schema";
+export {
+  l1Nodes,
+  l1Edges,
+  l1NodesByProfession,
+  l1EdgesByProfession,
+  l1NodeById,
+} from "./kgL1";
+export {
+  legacyCoursePlanMetas,
+  legacyCoursePlanMetaById,
+} from "./kgLegacyCoursePlans";
+export {
+  l2StandardCoursePlans,
+  l2PlanById,
+} from "./kgL2";
+export {
+  l3Nodes,
+  l3Edges,
+  l3NodeById,
+} from "./kgL3";
+export {
+  l1ToL2Bridges,
+  l2ToL3Bridges,
+  l2ToL3BridgesByPlan,
+  l2ToL3BridgesBySection,
+} from "./kgBridges";
+export {
+  kgSourceMaterials,
+  kgSourceMaterialById,
+} from "./kgMaterials";
+export {
+  L1_SCHEMA_NODE_TYPE_CHAIN_DESC,
+  L1_WIZARD_STREAM_STAGES,
+  L1_WIZARD_STREAM_FIXED_LOGS,
+} from "./kgL1WizardDemo";
+export {
+  schoolCases,
+  industryProjectAssets,
+  schoolCaseById,
+  industryProjectAssetById,
+} from "./kgCases";
+export {
+  jobToPlanBlueprints,
+  jobBlueprintById,
+} from "./kgJobBlueprints";

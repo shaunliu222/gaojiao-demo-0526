@@ -19,7 +19,6 @@ import {
 import { teachingPlans } from "@mock";
 import type { TeachingPlan } from "@mock";
 import { PageHeader, AiBadge } from "../Layout";
-import { PlanKnowledgePathPreview } from "../PlanKnowledgePathPreview";
 import {
   classById,
   studentById,
@@ -464,7 +463,6 @@ function CoursePlanDetail({
 }) {
   const plan = teachingPlans.find((p) => p.id === planId);
   const [showAdjustTip, setShowAdjustTip] = useState(false);
-  const graphPlanIds = useMemo(() => [planId], [planId]);
 
   if (!plan) {
     return (
@@ -519,14 +517,6 @@ function CoursePlanDetail({
           </button>
         </div>
       )}
-
-      <div className="px-6 pt-2">
-        <PlanKnowledgePathPreview
-          planIds={graphPlanIds}
-          variant="student"
-          layout="detail"
-        />
-      </div>
 
       <div className="px-6 pt-4">
         <div className="grid grid-cols-4 gap-3">

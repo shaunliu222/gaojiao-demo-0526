@@ -199,10 +199,10 @@ export function nextSectionId(plan: TeachingPlan, sectionId: string): string | u
 }
 
 /**
- * 学情 → 教学设计跳转：默认打开「进度小节的下一节」工作台；巩固小节 id 来自画像。
- * 进度 id 不在当前班级计划内时返回 null。
+ * 班级画像 →「教学设计调整」工作台跳转解析（进度下一节 + 巩固小节）。
+ * 协同评价详情通过 {@link resolveTeachingDesignJumpFromEvalClasses} 复用此逻辑。
  */
-/** 教学设计工作台数据源：常规入口用 designsBySection；学情入口优先用学情专用假数据 */
+/** 教学设计工作台数据源：常规入口用 designsBySection；评价驱动的调整入口优先用 teachingDesignsLearningAdjust */
 export function designsForWorkbenchSection(
   planId: string,
   sectionId: string,
@@ -239,6 +239,26 @@ export function resolveTeachingDesignJumpFromClass(classId: string): {
     progressSectionId: profile.progressSectionId,
     reviewSectionIds,
   };
+}
+
+/**
+ * 作业/考试评价详情 →「教学设计调整」工作台：与 {@link resolveTeachingDesignJumpFromClass} 同源；
+ * 多班考试时依次尝试各班级画像直至解析成功。
+ */
+export function resolveTeachingDesignJumpFromEvalClasses(
+  classIds: string | readonly string[],
+): {
+  planId: string;
+  sectionId: string;
+  progressSectionId: string;
+  reviewSectionIds: string[];
+} | null {
+  const list = typeof classIds === "string" ? [classIds] : [...classIds];
+  for (const cid of list) {
+    const j = resolveTeachingDesignJumpFromClass(cid);
+    if (j) return j;
+  }
+  return null;
 }
 
 /**

@@ -1,4 +1,4 @@
-import type { Resource, ResourceType } from "./types";
+import type { MoocCourseLink, Resource, ResourceType } from "./types";
 
 /**
  * 教学资源数据
@@ -21,6 +21,7 @@ function res(args: {
   sizeMb?: number;
   thumbnailUrl?: string;
   isAiGenerated?: boolean;
+  moocLink?: MoocCourseLink;
 }): Resource {
   return {
     professionId: "prof-mech",
@@ -80,6 +81,25 @@ export const resources: Resource[] = [
     thumbnailUrl: "/thumbs/res-m-004.png",
     tags: ["速查", "图线"],
     sizeMb: 0.8,
+  }),
+  res({
+    id: "res-m-mooc-001",
+    title: "机械制图 · 爱课程名校线上辅学",
+    type: "online_course",
+    courseIds: ["course-mech-draw"],
+    description:
+      "关联中国大学 MOOC 名校公开课，供学生课前预习与拓展；内容在源站学习，本校资源库仅保存引用与说明。",
+    uploaderTeacherId: "t-li",
+    uploadedAt: "2025-10-12T11:00:00+08:00",
+    tags: ["慕课", "爱课程", "拓展"],
+    sizeMb: undefined,
+    moocLink: {
+      platformId: "plt-icourse163",
+      platformName: "中国大学 MOOC（爱课程）",
+      externalCourseId: "mooc-163-draw",
+      externalTitle: "机械制图（西安交通大学）",
+      courseUrl: "https://www.icourse163.org/course/XJTU-1206116804",
+    },
   }),
   res({
     id: "res-m-010",

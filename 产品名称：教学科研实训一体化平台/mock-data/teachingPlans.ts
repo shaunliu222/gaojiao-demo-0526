@@ -26,6 +26,30 @@ export const teachingPlans: TeachingPlan[] = [
     creatorTeacherId: "t-li",
     classIds: ["cls-mech-2301", "cls-mech-2302", "cls-mech-2303"],
     strategyId: "strat-li-personal",
+    /** 派生自 L2 标准课程计划 */
+    derivedFromL2PlanId: "l2-plan-mech-draw",
+    /**
+     * 相对于标准计划的学情微调：
+     * 3.2 节延长为 135→180 分钟，原因：2302 班空间想象薄弱，增加朋辈互讲环节
+     * 7.2 节目标新增 AI 协作探究，原因：2303 班与机器人课联动，拓展 AI 工具意识
+     */
+    overrides: [
+      {
+        sectionId: "sec-3-2",
+        field: "durationMinutes",
+        value: 180,
+        reason: "2302 班空间想象弱，增加组合体朋辈互讲环节，需额外 45 分钟",
+      },
+      {
+        sectionId: "sec-7-2",
+        field: "objectives",
+        value: [
+          "完成特征—装配—工程图链路",
+          "探索 AI 辅助 CAD 脚本生成（2303 班联动拓展）",
+        ],
+        reason: "2303 班与工业机器人课程联动，补充 AI 协作探究目标",
+      },
+    ],
     strategyBrief:
       "结合 2301（踏实稳健）+ 2302（两极分化）+ 2303（理工动手、与机器人课联动）三班学情，前期夯实投影基础；当前重心已进入第 3 章组合体单元（下一堂主攻 3.2）。投影基础阶段曾放缓约 1 周并保留每周「3 分钟空间想象挑战」；2302 班额外安排课后答疑与分层补救，2303 班每周嵌入手绘与数模对照。预计平行班期末优良率 75%+，薄弱生不及格率控制在 8% 以内。",
     semester: "2026春季",
@@ -204,6 +228,7 @@ export const teachingPlans: TeachingPlan[] = [
     creatorTeacherId: "t-wanglh",
     classIds: ["cls-mech-2101"],
     strategyId: "strat-preset-balanced",
+    derivedFromL2PlanId: "l2-plan-mech-tolerance",
     strategyBrief:
       "对接毕业设计：以「零件图 → 公差链 → 检测方案 → 工艺反馈」闭环组织教学，每周 1 次测量实验课。",
     semester: "2026春季",
@@ -246,6 +271,15 @@ export const teachingPlans: TeachingPlan[] = [
     creatorTeacherId: "t-wang",
     classIds: ["cls-mech-2301", "cls-mech-2302"],
     strategyId: "strat-preset-balanced",
+    derivedFromL2PlanId: "l2-plan-mech-practice",
+    overrides: [
+      {
+        sectionId: "sec-wgw-1-2",
+        field: "durationMinutes",
+        value: 120,
+        reason: "2302 班空间想象弱，游标卡尺图纸对读环节延长 30 分钟，加强图纸—实物—量具三联对照",
+      },
+    ],
     strategyBrief:
       "以「安全入厂 → 量具识读与图纸对表 → 车铣钳基础操作 → 工艺卡与实习报告」串线；2301/2302 平行排课，量具与读图环节放慢半周；兼顾 2302 两极分化，现场演示与设计课引用的图纸对表加倍演练。",
     semester: "2026春季",

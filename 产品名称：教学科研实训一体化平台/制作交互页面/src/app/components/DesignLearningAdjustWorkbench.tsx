@@ -7,7 +7,7 @@ import {
 import { DesignWorkbench } from "./DesignWorkbench";
 
 /**
- * 仅从「学情分析 → 根据学情调整教学设计」进入：顶部学情说明 + 学情专用设计假数据工作台。
+ * 仅从「协同评价 · 作业/考试评价详情 → 根据评价调整教学设计」进入：顶部评价语境说明 + 评价驱动专用设计假数据工作台。
  * 常规「教学设计」菜单/计划详情入口请使用 {@link DesignWorkbench}（learningAdjust=false）。
  */
 export function DesignLearningAdjustWorkbench({
@@ -59,7 +59,7 @@ export function DesignLearningAdjustWorkbench({
     <div className="flex flex-col h-full min-h-0">
       {learningBanner && (
         <div className="shrink-0 mx-4 mt-2 mb-1 px-3 py-2 rounded-lg border border-violet-200 bg-violet-50/80 text-violet-900 text-[12px] leading-relaxed">
-          <span className="font-medium text-violet-800">学情提示：</span>
+          <span className="font-medium text-violet-800">评价提示：</span>
           班级当前进度：<strong>{learningBanner.progTitle}</strong>
           {learningBanner.currentTitle && (
             <>

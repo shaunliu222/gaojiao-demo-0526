@@ -496,7 +496,7 @@ export const l2StandardCoursePlans: L2StandardCoursePlan[] = [
     professionId: PROF,
     courseId: "course-mech-draw",
     subjectId: "subj-mech-drawing",
-    title: "《机械制图与CAD》· 标准课程计划",
+    title: "机械制图与CAD",
     importedFromLegacyMetaId: "legacy-mech-draw-2025",
     derivedFromL1NodeIds: ["l1-std-001", "l1-std-002", "l1-ab-001", "l1-ab-002"],
     competencyTargets: [
@@ -522,7 +522,7 @@ export const l2StandardCoursePlans: L2StandardCoursePlan[] = [
     professionId: PROF,
     courseId: "course-mech-design",
     subjectId: "subj-mech-design",
-    title: "《机械设计基础》· 标准课程计划",
+    title: "机械设计基础",
     importedFromLegacyMetaId: "legacy-mech-design-2025",
     derivedFromL1NodeIds: ["l1-std-001", "l1-ab-001"],
     competencyTargets: [
@@ -540,7 +540,7 @@ export const l2StandardCoursePlans: L2StandardCoursePlan[] = [
     professionId: PROF,
     courseId: "course-mech-practice",
     subjectId: "subj-mech-manu",
-    title: "《金工实习》· 标准课程计划",
+    title: "金工实习",
     importedFromLegacyMetaId: "legacy-mech-practice-2025",
     derivedFromL1NodeIds: ["l1-std-003", "l1-ab-003"],
     competencyTargets: [
@@ -558,7 +558,7 @@ export const l2StandardCoursePlans: L2StandardCoursePlan[] = [
     professionId: PROF,
     courseId: "course-mech-tolerance",
     subjectId: "subj-mech-tolerance",
-    title: "《互换性与技术测量》· 标准课程计划",
+    title: "互换性与技术测量",
     importedFromLegacyMetaId: "legacy-mech-tolerance-2025",
     derivedFromL1NodeIds: ["l1-jc-003", "l1-ab-003"],
     competencyTargets: [
@@ -576,7 +576,7 @@ export const l2StandardCoursePlans: L2StandardCoursePlan[] = [
     professionId: PROF,
     courseId: "course-mech-robotics",
     subjectId: "subj-mech-robot",
-    title: "《工业机器人技术应用基础》· 标准课程计划",
+    title: "工业机器人技术应用基础",
     importedFromLegacyMetaId: "legacy-mech-robotics-2025",
     derivedFromL1NodeIds: ["l1-demand-001", "l1-jc-002"],
     competencyTargets: [
@@ -585,7 +585,7 @@ export const l2StandardCoursePlans: L2StandardCoursePlan[] = [
     ],
     chapters: roboticsChapters,
     totalHours: 48,
-    status: "in_progress",
+    status: "released",
     generatedBy: "import",
     updatedAt: "2026-01-19T11:00:00+08:00",
   },

@@ -354,7 +354,6 @@ function L3Canvas({
 // ============================================================
 const l2StatusLabel: Record<L2StandardCoursePlan["status"], string> = {
   draft: "草稿",
-  in_progress: "进行中",
   released: "已发布",
 };
 
@@ -376,14 +375,12 @@ function L2Cards({ plans }: { plans: L2StandardCoursePlan[] }) {
                   <ClipboardList size={16} className="text-violet-500 shrink-0 mt-0.5" />
                   <div className="min-w-0 flex-1">
                     <div className="text-sm font-medium text-slate-900 leading-tight line-clamp-2">
-                      《{plan.title}》
+                      {plan.title}
                     </div>
                     <div className="mt-1.5 flex flex-wrap gap-1">
                       <span className={`text-[0.625rem] px-1.5 py-0.5 rounded font-medium ${
                         plan.status === "released"
                           ? "bg-emerald-50 text-emerald-700"
-                          : plan.status === "in_progress"
-                          ? "bg-blue-50 text-blue-700"
                           : "bg-slate-100 text-slate-600"
                       }`}>
                         {l2StatusLabel[plan.status]}
@@ -446,8 +443,10 @@ const MATERIAL_KIND_CN: Record<string, string> = {
   talent_scheme: "培养方案",
   core_material: "核心材料",
   job_jd: "岗位 JD",
+  lab_ue_coop_project: "实验室校企合作项目",
   textbook: "教材",
   case_archive: "案例",
+  industry_case: "产业案例",
   industry_outlook: "形势简报",
   legacy_course_plan_meta: "旧课程元数据",
 };
@@ -675,7 +674,7 @@ function ProfessionalGraphWizard({
           <div className="mx-auto flex min-h-0 w-full max-w-[880px] flex-1 flex-col px-4 sm:px-6">
             <h3 className="text-base font-semibold text-slate-900">上传资料</h3>
             <p className="mt-1 text-sm text-slate-600">
-              从资料库勾选或拖拽上传产业形势、人才培养方案、岗位说明等与培养规格相关的文档。
+              从资料库勾选或拖拽上传产业案例文档：企业现场问题、产线情境、工程变更与质量处置等真实材料。
             </p>
             <div className="mt-4 rounded-xl border border-dashed border-slate-200 bg-slate-50/50 p-6 text-center">
               <Upload className="mx-auto size-8 text-slate-400" strokeWidth={1.5} />
@@ -864,7 +863,10 @@ export function GraphBrowse({
   const l1MaterialsForWorkflow = useMemo(
     () =>
       kgSourceMaterials.filter(
-        (m) => m.professionId === profId && m.primaryLayer === "L1",
+        (m) =>
+          m.professionId === profId &&
+          m.primaryLayer === "L1" &&
+          m.kind === "industry_case",
       ),
     [profId],
   );

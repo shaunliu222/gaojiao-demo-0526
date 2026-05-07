@@ -112,12 +112,8 @@ export const l1SchemaMech: L1Schema = {
     },
   ],
 
-  inputMaterialKinds: [
-    "industry_demand",
-    "talent_scheme",
-    "core_material",
-    "job_jd",
-  ],
+  /** 演示阶段：图谱构建优先依据「产业案例」；培养方案/JD 等材料仍保留在数据中供节点溯源 */
+  inputMaterialKinds: ["industry_case"],
 };
 
 export const l1Schemas: L1Schema[] = [l1SchemaMech];

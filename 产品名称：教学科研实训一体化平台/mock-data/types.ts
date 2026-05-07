@@ -704,8 +704,10 @@ export type KGMaterialKind =
   | "talent_scheme"         // 专业人才培养方案（与旧 talent_scheme 对齐）
   | "core_material"         // 专业核心材料（导引 / 能力指标等）
   | "job_jd"                // 岗位 JD
+  | "lab_ue_coop_project"   // 实验室校企合作项目（任务书/课题清单等）
   | "textbook"              // 教材
   | "case_archive"          // 学校积累案例文档
+  | "industry_case"         // 产业案例（企业现场/产线真实情境）
   | "industry_outlook"      // 行业形势简报（与旧 industry_outlook 对齐）
   | "legacy_course_plan_meta"; // 教务系统导出的旧课程计划元信息
 
@@ -845,7 +847,7 @@ export interface L2StandardCoursePlan {
   /** 章节-小节结构，与 TeachingPlan.chapters 同构 */
   chapters: PlanChapter[];
   totalHours: number;
-  status: "draft" | "in_progress" | "released";
+  status: "draft" | "released";
   generatedBy: "import" | "ai_synthesis" | "manual";
   /** AI 合成日志（仅 ai_synthesis 时有） */
   generationTrace?: {

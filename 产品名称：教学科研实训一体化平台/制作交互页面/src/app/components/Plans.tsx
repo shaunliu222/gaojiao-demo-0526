@@ -239,7 +239,7 @@ export function PlansList({
                     >
                       <Link2 size={11} className="text-slate-400 shrink-0" />
                       <span className="text-[0.6875rem] text-slate-400 truncate">
-                        派生自《{l2Plan?.title ?? p.derivedFromL2PlanId}》标准课程计划
+                        派生自 {l2Plan?.title ?? p.derivedFromL2PlanId}
                       </span>
                       {onGoToGraph && (
                         <span className="shrink-0 text-[0.6rem] text-indigo-500 hover:text-indigo-700 underline cursor-pointer">

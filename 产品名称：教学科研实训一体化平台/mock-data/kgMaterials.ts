@@ -3,8 +3,8 @@ import type { KGSourceMaterial } from "./types";
 /**
  * 图谱依据材料（KGSourceMaterial）
  *
- * 复用现有 knowledgeGraphTrainingPlanDocs.ts 的培养方案 + 岗位路径内容，
- * 并补充 4 条新材料：产业需求报告、两份岗位 JD、教材条目
+ * 含培养方案、JD、产业报告等多类条目，供 L1 节点 sourceMaterialIds 溯源；
+ * 「创建专业培养图谱」向导当前仅展示 kind === industry_case 的条目（见 Graph.tsx 过滤）。
  */
 export const kgSourceMaterials: KGSourceMaterial[] = [
   // ---- 培养方案（对接旧 kg-tpdoc-mech-2023） ----
@@ -131,6 +131,123 @@ export const kgSourceMaterials: KGSourceMaterial[] = [
 3. 了解检测量具（游标卡尺、千分尺、三坐标）的使用原理
 4. 具备良好的问题分析能力，能独立完成工序异常记录`,
     uploadedAt: "2026-01-10T10:15:00+08:00",
+    uploaderId: "t-li",
+  },
+
+  // ---- 实验室校企合作项目（供「创建专业培养图谱」向导勾选） ----
+  {
+    id: "kgmat-lab-xx-ue-coop-2026",
+    professionId: "prof-mech",
+    kind: "lab_ue_coop_project",
+    primaryLayer: "L1",
+    fileName: "xx实验室校企合作项目（联合培养任务书与实训课题清单·2026）.pdf",
+    content: `xx 实验室 × 某装备制造集团 · 校企合作项目书（摘录）
+
+一、合作目标
+共建「智能制造与工艺数字化」联合培养通道：企业将现场工艺评审、工装变更与数字化图样协同中的真实问题，以学期课题形式进入实验室教学；学校负责课题分解、安全规范与过程考核，企业导师参与开题与阶段答辩。
+
+二、面向岗位能力（企业侧诉求）
+1. 能读懂并维护带版本号的装配与零件工程图，理解关键尺寸链在装配现场的处置逻辑。
+2. 能编制或修订典型机加/装配工序卡，填写现场异常与返工记录，具备基本质量意识。
+3. 了解 PLM/图文档协同流程，能在团队规范下完成图样检审意见闭环。
+
+三、2026 年度实训课题（示例）
+课题 A：减速器输出轴组件图纸变更影响分析（公差与工艺联动）
+课题 B：产线换型过程中的工装快速复装检核表设计
+课题 C：客户临时变更条件下的 BOM 与 ECN 追溯演练
+
+四、组织与学时
+每学期安排 1～2 个综合周；企业导师不少于 2 次现场或线上参与；安全教育与保密约定按双方协议执行。`,
+    uploadedAt: "2026-01-12T14:30:00+08:00",
+    uploaderId: "t-li",
+  },
+
+  // ---- 产业案例（向导默认勾选列表） ----
+  {
+    id: "kgmat-indcase-001",
+    professionId: "prof-mech",
+    kind: "industry_case",
+    primaryLayer: "L1",
+    fileName: "某重工集团-主轴箱装配图现场变更与尺寸链处置纪要.pdf",
+    content: `摘录 · 装配车间技术复盘（脱敏）
+
+背景：批量装配中发现主轴箱与床身结合面垫片规格与最新版装配图不一致，现场暂停节拍 3 小时。
+处置：工艺员召集设计、质检联合核对装配图版本与 PLM 签审记录；对结合面关键尺寸链进行封闭环复核，确认垫片厚度公差带调整方案并补发 ECN。
+能力侧要点：工程图版本意识、装配尺寸链、跨部门协同签审。`,
+    uploadedAt: "2026-01-13T09:00:00+08:00",
+    uploaderId: "t-li",
+  },
+  {
+    id: "kgmat-indcase-002",
+    professionId: "prof-mech",
+    kind: "industry_case",
+    primaryLayer: "L1",
+    fileName: "某新能源汽车部件厂-压铸壳体气孔缺陷与工艺参数回溯案例.pdf",
+    content: `质量 8D 报告（节选）
+
+问题：铝压铸电机壳体批量出现局部气孔，客户端装入产线前 X 光抽检不合格率超限。
+分析：回溯压铸参数、模具冷却通道与浇注系统平衡；对比首件与批量过程的模温曲线差异。
+结论：局部冷却不均 + 排气槽堵塞导致卷气；修订压射曲线并增加模温监测点位。
+关联素养：工艺规程意识、数据溯源、现场问题结构化表达。`,
+    uploadedAt: "2026-01-13T09:20:00+08:00",
+    uploaderId: "t-li",
+  },
+  {
+    id: "kgmat-indcase-003",
+    professionId: "prof-mech",
+    kind: "industry_case",
+    primaryLayer: "L1",
+    fileName: "某汽车零部件 Tier1-焊装产线换型工装重复定位偏差案例.pdf",
+    content: `产线换型复盘纪要
+
+现象：侧围焊装夹具换型后首件三坐标超差，重复定位销与理论销孔中心偏差 0.12 mm。
+排查：检具磨损、销孔同轴度、夹紧顺序导致的弹性变形叠加。
+改进：调整夹紧顺序、更换定位销并增加换型 Check List；换型后强制首件全尺寸扫描。
+对应能力：工装与夹具认知、检具与测量、标准化作业。`,
+    uploadedAt: "2026-01-13T10:00:00+08:00",
+    uploaderId: "t-li",
+  },
+  {
+    id: "kgmat-indcase-004",
+    professionId: "prof-mech",
+    kind: "industry_case",
+    primaryLayer: "L1",
+    fileName: "某风电齿轮箱厂-行星级齿轮修形图纸与加工兑现争议案例.pdf",
+    content: `技术协议摘录 · 供需双方往来函
+
+争议点：修形曲线在二维图纸上的标注方式与供应商 CAM 导入结果不一致，导致齿面波纹度未达标。
+共识：统一采用主模型 MBD 剖面 + 关键截面检测报告；二维图仅作法规性补充。
+启示：数字化图样协同、公差与测量对接、供应商技术评审 closure。`,
+    uploadedAt: "2026-01-13T10:40:00+08:00",
+    uploaderId: "t-li",
+  },
+  {
+    id: "kgmat-indcase-005",
+    professionId: "prof-mech",
+    kind: "industry_case",
+    primaryLayer: "L1",
+    fileName: "某工程机械企业-液压阀体清洁度与工序卡遗漏导致的索赔案例.pdf",
+    content: `售后失效分析（节选）
+
+售后反馈：装载机多路阀卡滞，拆解发现阀芯沟槽残留磨粒。
+根因：清洗工序卡未规定超声波参数与颗粒度抽检频次；上一道珩磨工序变更未同步更新清洗节拍。
+整改：串联清洗-IQC 颗粒度抽检-MES 锁机；工序卡增加「变更联动」勾选项。
+关键词：工序规程、FMEA 思维、质量追溯。`,
+    uploadedAt: "2026-01-13T11:00:00+08:00",
+    uploaderId: "t-li",
+  },
+  {
+    id: "kgmat-indcase-006",
+    professionId: "prof-mech",
+    kind: "industry_case",
+    primaryLayer: "L1",
+    fileName: "省智能工厂试点-离散装配车间数字化诊断访谈实录（机械类岗位）.docx",
+    content: `诊断访谈汇编（脱敏）
+
+被访岗位：装配班长、工艺工程师、质量工程师、设备维护技师。
+共性诉求：① MES 与 PLM 图样版本不一致导致错装风险；② 新人对 GB 线型与粗糙度标注误读率高；③ 机器人站维护需要基础示教与锁的能量隔离规范。
+面向培养：图纸识读、数字化协同、现场安全与维护基本规范。`,
+    uploadedAt: "2026-01-14T09:30:00+08:00",
     uploaderId: "t-li",
   },
 ];

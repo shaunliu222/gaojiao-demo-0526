@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ChevronRight, AlertTriangle, Calendar, BookOpen, PenTool } from "lucide-react";
+import { ChevronRight, AlertTriangle, Calendar, BookOpen } from "lucide-react";
 import {
   BarChart,
   Bar,
@@ -119,15 +119,12 @@ export function ExamDetail({
   currentTeacherId,
   onBack,
   onAdjustCourse,
-  onOpenTeachingDesignAdjust,
 }: {
   id: string;
   currentTeacherId: string;
   onBack: () => void;
   /** 跳转到教学计划「教学路径」中的下一堂课小节（与考试知识点章节无关） */
   onAdjustCourse?: (planId: string, sectionId: string) => void;
-  /** 打开「评价驱动的教学设计调整」工作台 */
-  onOpenTeachingDesignAdjust?: () => void;
 }) {
   const [rangeFilter, setRangeFilter] = useState<string | null>(null);
   const [questionFocus, setQuestionFocus] = useState<Focus>({ k: "none" });
@@ -198,17 +195,6 @@ export function ExamDetail({
         <PageHeader
           back={onBack}
           title={<span>{e.examTitle} · {classesLabel(e.classIds)}</span>}
-          actions={
-            onOpenTeachingDesignAdjust ? (
-              <button
-                type="button"
-                onClick={onOpenTeachingDesignAdjust}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-md bg-indigo-600 text-white text-sm hover:bg-indigo-700 shrink-0"
-              >
-                <PenTool size={14} /> 根据评价调整教学设计
-              </button>
-            ) : null
-          }
         />
         {notStarted ? (
           <div className="mx-6 mt-4 px-4 py-3 rounded-lg bg-amber-50 border border-amber-200 text-amber-700">

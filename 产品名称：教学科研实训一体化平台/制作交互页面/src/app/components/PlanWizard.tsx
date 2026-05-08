@@ -1738,7 +1738,7 @@ function fallbackSkeleton(): DraftChapter[] {
       sections: [
         {
           id: "draft-sec-3-1",
-          title: "3.1 综合实训",
+          title: "3.1 综合实践",
           plannedDate: "2026-03-11",
           durationMinutes: 135,
           knowledgeNodeIds: [],

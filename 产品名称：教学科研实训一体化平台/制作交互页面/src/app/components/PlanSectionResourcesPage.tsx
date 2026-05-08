@@ -1,8 +1,20 @@
-import { useCallback, useMemo, useRef, useState } from "react";
-import { FileUp, FolderOpen, PenTool, Sparkles, Upload } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  BarChart3,
+  FileUp,
+  FolderOpen,
+  GraduationCap,
+  PenTool,
+  Sparkles,
+  Upload,
+  Users,
+} from "lucide-react";
 import type { PlanSectionResourceItem, ResourceType } from "@mock";
 import { planSectionResourcesSeed } from "@mock";
 import {
+  classById,
+  classIdsByCourse,
+  classProfileByClassId,
   courseById,
   planById,
   teacherById,
@@ -49,6 +61,8 @@ export function PlanSectionResourcesPage({
   onBack,
   onOpenTeachingDesign,
   onOpenResourceLibrary,
+  onOpenLearningAnalytics,
+  onOpenTeachingDesignForClass,
 }: {
   planId: string;
   sectionId: string;
@@ -56,12 +70,34 @@ export function PlanSectionResourcesPage({
   onBack: () => void;
   onOpenTeachingDesign: () => void;
   onOpenResourceLibrary?: (resourceId: string) => void;
+  onOpenLearningAnalytics?: (classId: string) => void;
+  onOpenTeachingDesignForClass?: (classId: string) => void;
 }) {
   const plan = planById(planId);
   const seed = useMemo(() => planSectionResourcesSeed(planId, sectionId), [planId, sectionId]);
   const [rows, setRows] = useState<PlanSectionResourceItem[]>(() => seed);
 
   const fileRef = useRef<HTMLInputElement>(null);
+
+  const classIdOptions = useMemo(() => {
+    if (!plan) return [];
+    const set = new Set(classIdsByCourse(plan.courseId));
+    for (const cid of plan.classIds) set.add(cid);
+    return Array.from(set);
+  }, [plan]);
+
+  const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
+
+  useEffect(() => {
+    setSelectedClassId(null);
+  }, [planId]);
+
+  const effectiveClassId = useMemo(() => {
+    if (selectedClassId && classIdOptions.includes(selectedClassId)) return selectedClassId;
+    return plan?.classIds.find((id) => classIdOptions.includes(id)) ?? classIdOptions[0] ?? "";
+  }, [selectedClassId, classIdOptions, plan?.classIds]);
+
+  const classProfile = effectiveClassId ? classProfileByClassId(effectiveClassId) : undefined;
 
   const { sectionTitle, chapterTitle } = useMemo(
     () => findSectionLabels(planId, sectionId),
@@ -195,6 +231,122 @@ export function PlanSectionResourcesPage({
             </button>
           </div>
         </div>
+
+        {classIdOptions.length > 0 ? (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 text-slate-900 font-medium text-sm">
+              <Users size={16} className="text-indigo-600 shrink-0" />
+              <span>本课程授课班级</span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {classIdOptions.map((cid) => {
+                const name = classById(cid)?.name ?? cid;
+                const active = cid === effectiveClassId;
+                return (
+                  <button
+                    key={cid}
+                    type="button"
+                    onClick={() => setSelectedClassId(cid)}
+                    className={`px-3 py-1.5 rounded-full text-[12.5px] font-medium border transition ${
+                      active
+                        ? "bg-indigo-600 text-white border-indigo-600"
+                        : "bg-white text-slate-700 border-slate-200 hover:border-indigo-300"
+                    }`}
+                  >
+                    {name}
+                  </button>
+                );
+              })}
+            </div>
+
+            {effectiveClassId && (
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => onOpenLearningAnalytics?.(effectiveClassId)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    onOpenLearningAnalytics?.(effectiveClassId);
+                  }
+                }}
+                className="rounded-xl border border-slate-200 bg-gradient-to-br from-slate-50/90 to-indigo-50/40 p-4 cursor-pointer text-left outline-none hover:border-indigo-200 hover:bg-indigo-50/30 focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-2 transition"
+              >
+                <div className="flex items-start justify-between gap-3 flex-wrap">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="size-9 rounded-lg bg-white border border-slate-200 flex items-center justify-center text-indigo-600 shrink-0">
+                      <BarChart3 size={18} />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-slate-900 font-medium text-sm flex items-center gap-2 flex-wrap">
+                        班级学情简要
+                        <span className="text-slate-400 font-normal text-[11px]">
+                          · {classById(effectiveClassId)?.name ?? effectiveClassId}
+                        </span>
+                      </div>
+                      {classProfile ? (
+                        <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px]">
+                          <span className="px-1.5 py-px rounded-md bg-violet-100 text-violet-800 border border-violet-200">
+                            {classProfile.styleTag}
+                          </span>
+                          <span className="text-slate-500">
+                            均分 {classProfile.scoreDistribution.averageScore} · 标准差{" "}
+                            {classProfile.scoreDistribution.stdDev}
+                          </span>
+                          {classProfile.scoreDistribution.stdDev >= 14 ? (
+                            <span className="text-amber-700">两极分化预警</span>
+                          ) : null}
+                        </div>
+                      ) : (
+                        <div className="mt-1 text-slate-500 text-[11px]">暂无班级画像数据</div>
+                      )}
+                    </div>
+                  </div>
+                  {onOpenLearningAnalytics && (
+                    <span className="text-indigo-600 text-[11px] shrink-0">点击查看完整学情 →</span>
+                  )}
+                </div>
+                {classProfile && (
+                  <>
+                    <div className="mt-3 flex flex-wrap gap-1">
+                      {classProfile.strengths.slice(0, 3).map((t) => (
+                        <span
+                          key={`s-${t}`}
+                          className="text-[10.5px] px-1.5 py-px rounded bg-emerald-50 text-emerald-800 border border-emerald-100"
+                        >
+                          {t}
+                        </span>
+                      ))}
+                      {classProfile.weaknesses.slice(0, 3).map((t) => (
+                        <span
+                          key={`w-${t}`}
+                          className="text-[10.5px] px-1.5 py-px rounded bg-amber-50 text-amber-900 border border-amber-100"
+                        >
+                          {t}
+                        </span>
+                      ))}
+                    </div>
+                    <p className="mt-2 text-slate-600 text-[12px] leading-relaxed line-clamp-2">
+                      {classProfile.aiSummary}
+                    </p>
+                  </>
+                )}
+                {onOpenTeachingDesignForClass && (
+                  <div className="mt-3 flex flex-wrap gap-2" onClick={(e) => e.stopPropagation()}>
+                    <button
+                      type="button"
+                      onClick={() => onOpenTeachingDesignForClass(effectiveClassId)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-violet-600 text-white text-[12px] hover:bg-violet-700"
+                    >
+                      <GraduationCap size={14} />
+                      为该班生成适配教学设计
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        ) : null}
 
         <div>
           <div className="flex items-center gap-2 mb-3">

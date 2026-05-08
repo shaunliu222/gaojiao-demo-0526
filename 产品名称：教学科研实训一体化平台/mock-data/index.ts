@@ -34,6 +34,7 @@ export {
   knowledgeGraphTrainingPlanDocumentById,
 } from "./knowledgeGraphTrainingPlanDocs";
 export { courses } from "./courses";
+export { suggestedNewCourses } from "./suggestedNewCourses";
 export { resources } from "./resources";
 export { moocPlatforms, moocExternalCourses } from "./moocExternalCourses";
 export type { MoocPlatform, MoocExternalCourseItem } from "./moocExternalCourses";
@@ -41,7 +42,7 @@ export { planSectionResourcesSeed } from "./planSectionResources";
 export { trainingProjects } from "./trainings";
 
 // 教学闭环
-export { personas, skillAndMcpItems } from "./personas";
+export { personas } from "./personas";
 export { teachingStrategies } from "./strategies";
 export { teachingPlans, PLAN_WANG_HAIFENG_MOCK_ID } from "./teachingPlans";
 export {

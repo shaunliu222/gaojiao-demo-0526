@@ -1,21 +1,21 @@
 import { ReactNode, useEffect, useRef, useState } from "react";
 import {
   BookOpen,
+  Building2,
   ClipboardList,
   ClipboardCheck,
   PenTool,
   ClipboardX,
   FileCheck,
+  UserCog,
   Users,
   Network,
   Library,
-  FlaskConical,
   ChevronDown,
   ChevronRight,
   BookMarked,
   GraduationCap,
   Sparkles,
-  Cpu,
   Check,
   AlertTriangle,
 } from "lucide-react";
@@ -35,15 +35,14 @@ export type TeacherNavKey =
   | "hw-eval"
   | "exam-eval"
   | "class-learning"
+  | "personnel"
   | "graph"
   | "courses"
-  | "resources"
-  | "trainings";
+  | "resources";
 
 export type StudentNavKey =
   | "my-plans"
   | "learn-center"
-  | "training-lab"
   | "my-profile";
 
 export type NavKey = TeacherNavKey | StudentNavKey;
@@ -94,13 +93,11 @@ const engineMenu: MenuNode[] = [
   { kind: "item", key: "graph", label: "知识图谱", icon: Network },
   { kind: "item", key: "courses", label: "课程中心", icon: BookOpen },
   { kind: "item", key: "resources", label: "教学资源库", icon: Library },
-  { kind: "item", key: "trainings", label: "实训项目库", icon: FlaskConical },
 ];
 
 const studentMenu: MenuNode[] = [
   { kind: "item", key: "my-plans", label: "学习计划", icon: BookMarked },
   { kind: "item", key: "learn-center", label: "学习中心", icon: Sparkles },
-  { kind: "item", key: "training-lab", label: "实训中心", icon: Cpu },
   { kind: "item", key: "my-profile", label: "学情分析", icon: GraduationCap },
 ];
 
@@ -469,19 +466,34 @@ export function Layout({
           )}
 
           {role === "college_admin" && (
-            <NavSection
-              title="专业知识引擎"
-              icon={Network}
-              iconClassName="bg-indigo-100 text-indigo-700"
-            >
-              <SidebarMenuList
-                nodes={engineMenu}
-                nav={nav}
-                onPick={setNav}
-                collapsedGroups={collapsedGroups}
-                onToggleGroup={toggleGroup}
-              />
-            </NavSection>
+            <div className="flex flex-col gap-4">
+              <NavSection
+                title="学院管理"
+                icon={Building2}
+                iconClassName="bg-slate-800 text-white"
+              >
+                <SidebarMenuList
+                  nodes={[{ kind: "item", key: "personnel", label: "人员管理", icon: UserCog }]}
+                  nav={nav}
+                  onPick={setNav}
+                  collapsedGroups={collapsedGroups}
+                  onToggleGroup={toggleGroup}
+                />
+              </NavSection>
+              <NavSection
+                title="专业知识引擎"
+                icon={Network}
+                iconClassName="bg-indigo-100 text-indigo-700"
+              >
+                <SidebarMenuList
+                  nodes={engineMenu}
+                  nav={nav}
+                  onPick={setNav}
+                  collapsedGroups={collapsedGroups}
+                  onToggleGroup={toggleGroup}
+                />
+              </NavSection>
+            </div>
           )}
 
           {role === "student" && (

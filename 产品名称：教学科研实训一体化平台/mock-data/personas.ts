@@ -1,4 +1,4 @@
-import type { Persona, SkillOrMcpItem } from "./types";
+import type { Persona } from "./types";
 
 /**
  * AI 人设数据
@@ -99,24 +99,4 @@ export const personas: Persona[] = [
     scene: "课堂",
     avatar: "/personas/zhao-custom-1.png",
   },
-];
-
-/**
- * 技能工具（Skills）和 MCP 连接（展示用，无实际功能）
- */
-export const skillAndMcpItems: SkillOrMcpItem[] = [
-  // Skills
-  { id: "skill-gen-mindmap", name: "思维导图生成器", category: "skill", description: "将文本自动转为思维导图图片。", icon: "mindmap" },
-  { id: "skill-gen-h5", name: "互动 H5 生成器", category: "skill", description: "根据文本内容生成可交互的 H5 课件。", icon: "h5" },
-  { id: "skill-gen-quiz", name: "题目自动生成器", category: "skill", description: "根据知识点自动出题并带标准答案。", icon: "quiz" },
-  { id: "skill-gen-microvideo", name: "微课视频合成", category: "skill", description: "文本 → 视频（AI 配音+PPT+字幕）。", icon: "video" },
-  { id: "skill-assign-grader", name: "作业自动批改", category: "skill", description: "对客观题/作图题进行 AI 批改与评分。", icon: "check" },
-  { id: "skill-voice-tts", name: "AI 配音", category: "skill", description: "为讲义/课堂内容生成普通话配音。", icon: "voice" },
-
-  // MCP
-  { id: "mcp-autocad", name: "AutoCAD MCP", category: "mcp", description: "读取/生成 AutoCAD DWG 文件。", icon: "autocad" },
-  { id: "mcp-solidworks", name: "SolidWorks MCP", category: "mcp", description: "调用 SolidWorks 进行三维建模操作。", icon: "solidworks" },
-  { id: "mcp-textbook", name: "教材知识库 MCP", category: "mcp", description: "连接校方教材库，抽取相关章节内容。", icon: "book" },
-  { id: "mcp-chinaknow", name: "中国知网 MCP", category: "mcp", description: "检索期刊/学位论文辅助教研。", icon: "cnki" },
-  { id: "mcp-gb-standard", name: "国标与行业标准库 MCP", category: "mcp", description: "检索 GB/ISO 机械制图与公差标准条文。", icon: "book" },
 ];

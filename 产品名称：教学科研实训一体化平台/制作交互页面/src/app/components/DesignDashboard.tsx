@@ -1,6 +1,7 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowRight,
+  BookMarked,
   Clock,
   Flag,
   Layers,
@@ -9,7 +10,7 @@ import {
 } from "lucide-react";
 import { teachingPlans, designsBySection } from "@mock";
 import type { TeachingDesign, TeachingPlan } from "@mock";
-import { classById, courseById, teacherSeesAllScopedContent } from "../data/lookups";
+import { classById, courseById } from "../data/lookups";
 import { PageHeader } from "./Layout";
 
 interface SectionRef {
@@ -57,6 +58,19 @@ function collectAllSections(): SectionRef[] {
   return out;
 }
 
+/** 按教学计划章节顺序得到某课程下章标题的次序（仅统计指定教师创建的计划） */
+function chapterOrderForCourse(courseId: string, creatorTeacherId: string): string[] {
+  const order: string[] = [];
+  for (const plan of teachingPlans) {
+    if (plan.courseId !== courseId) continue;
+    if (plan.creatorTeacherId !== creatorTeacherId) continue;
+    for (const ch of plan.chapters) {
+      if (!order.includes(ch.title)) order.push(ch.title);
+    }
+  }
+  return order;
+}
+
 export function DesignDashboard({
   currentTeacherId,
   onOpenSection,
@@ -66,49 +80,74 @@ export function DesignDashboard({
 }) {
   const all = useMemo(() => {
     const rows = collectAllSections();
-    if (teacherSeesAllScopedContent(currentTeacherId)) return rows;
+    /** 教学设计仅展示本人创建的教学计划，与教研室主任「全站浏览」权限区分 */
     return rows.filter((s) => s.plan.creatorTeacherId === currentTeacherId);
   }, [currentTeacherId]);
 
-  const totalSections = all.length;
-  const designedCount = all.filter((s) => s.hasDesign).length;
-  const focusCount = all.filter((s) => s.isFocus).length;
-  const recentCount = all.filter((s) => {
-    if (!s.latestUpdatedAt) return false;
-    const t = new Date(s.latestUpdatedAt).getTime();
-    const now = new Date("2026-04-16T00:00:00+08:00").getTime();
-    return now - t < 7 * 24 * 3600 * 1000;
-  }).length;
-
-  // Group A · 最近编辑：有真实教学设计记录的按 updatedAt 倒序
-  const recentlyEdited = useMemo(() => {
-    // 先用真实 designsBySection 里有记录的小节
-    const withDesigns = all.filter((s) => s.designs.length > 0);
-    withDesigns.sort((a, b) =>
-      (b.latestUpdatedAt ?? "").localeCompare(a.latestUpdatedAt ?? ""),
-    );
-    // 补齐：hasDesign=true 但暂无完整产物的小节（按日期倒序）
-    const fillers = all
-      .filter((s) => s.hasDesign && s.designs.length === 0)
-      .sort((a, b) => b.plannedDate.localeCompare(a.plannedDate));
-    return [...withDesigns, ...fillers].slice(0, 6);
+  const courseIdsOrdered = useMemo(() => {
+    const set = new Set(all.map((s) => s.plan.courseId));
+    return Array.from(set).sort((a, b) => {
+      const na = courseById(a)?.name ?? a;
+      const nb = courseById(b)?.name ?? b;
+      return na.localeCompare(nb, "zh-CN");
+    });
   }, [all]);
 
-  // Group B · 优先备课小节
-  const focusSections = useMemo(() => {
-    return all
-      .filter((s) => s.isFocus)
-      .sort((a, b) => a.plannedDate.localeCompare(b.plannedDate))
-      .slice(0, 6);
-  }, [all]);
+  const defaultCourseId = useMemo(() => {
+    const focusCourse = all.find((s) => s.isFocus)?.plan.courseId;
+    if (focusCourse && courseIdsOrdered.includes(focusCourse)) return focusCourse;
+    return courseIdsOrdered[0] ?? "";
+  }, [all, courseIdsOrdered]);
 
-  // Group C · 待设计：hasDesign=false 的小节，按日期正序
-  const pendingSections = useMemo(() => {
-    return all
-      .filter((s) => !s.hasDesign)
-      .sort((a, b) => a.plannedDate.localeCompare(b.plannedDate))
-      .slice(0, 9);
-  }, [all]);
+  const [selectedCourseId, setSelectedCourseId] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    setSelectedCourseId(undefined);
+  }, [currentTeacherId]);
+
+  const activeCourseId = selectedCourseId ?? defaultCourseId;
+
+  const filtered = useMemo(
+    () => all.filter((s) => s.plan.courseId === activeCourseId),
+    [all, activeCourseId],
+  );
+
+  const metricsNow = useMemo(() => {
+    const totalSections = filtered.length;
+    const designedCount = filtered.filter((s) => s.hasDesign).length;
+    const focusCount = filtered.filter((s) => s.isFocus).length;
+    const recentCount = filtered.filter((s) => {
+      if (!s.latestUpdatedAt) return false;
+      const t = new Date(s.latestUpdatedAt).getTime();
+      const now = new Date("2026-04-16T00:00:00+08:00").getTime();
+      return now - t < 7 * 24 * 3600 * 1000;
+    }).length;
+    return { totalSections, designedCount, focusCount, recentCount };
+  }, [filtered]);
+
+  const chapterBlocks = useMemo(() => {
+    const m = new Map<string, SectionRef[]>();
+    for (const s of filtered) {
+      const key = s.chapterTitle;
+      const arr = m.get(key) ?? [];
+      arr.push(s);
+      m.set(key, arr);
+    }
+    for (const arr of m.values()) {
+      arr.sort(
+        (a, b) =>
+          a.plannedDate.localeCompare(b.plannedDate) || a.sectionId.localeCompare(b.sectionId),
+      );
+    }
+    const preferred = chapterOrderForCourse(activeCourseId, currentTeacherId);
+    const orphans = [...m.keys()].filter((k) => !preferred.includes(k));
+    orphans.sort((a, b) => a.localeCompare(b, "zh-CN"));
+    const orderedKeys = [...preferred.filter((k) => m.has(k)), ...orphans];
+    return orderedKeys.map((chapterTitle) => ({
+      chapterTitle,
+      sections: m.get(chapterTitle)!,
+    }));
+  }, [filtered, activeCourseId, currentTeacherId]);
 
   return (
     <div>
@@ -121,68 +160,111 @@ export function DesignDashboard({
         }
       />
       <div className="p-6 space-y-5">
-        {/* 顶部指标条 */}
-        <div className="bg-white rounded-xl border border-slate-200 px-5 py-4 grid grid-cols-4 gap-4">
-          <Metric
-            icon={<Layers size={16} />}
-            label="总小节"
-            value={totalSections}
-            tone="slate"
-          />
-          <Metric
-            icon={<Sparkles size={16} />}
-            label="已完成设计"
-            value={designedCount}
-            tone="emerald"
-            suffix={`/ ${totalSections}`}
-          />
-          <Metric
-            icon={<Flag size={16} />}
-            label="优先备课"
-            value={focusCount}
-            tone="indigo"
-          />
-          <Metric
-            icon={<Clock size={16} />}
-            label="近 7 日更新"
-            value={recentCount}
-            tone="violet"
-          />
-        </div>
+        {courseIdsOrdered.length === 0 ? (
+          <div className="bg-slate-50 border border-dashed border-slate-300 rounded-xl py-14 text-center text-slate-500 text-sm">
+            当前账号下暂无可见的教学计划小节。
+          </div>
+        ) : (
+          <>
+            <CourseTabBar
+              courseIds={courseIdsOrdered}
+              activeId={activeCourseId}
+              onSelect={(id) => setSelectedCourseId(id)}
+            />
 
-        {/* Group A · 最近编辑 */}
-        <DashboardGroup
-          title="最近编辑"
-          hint="按更新时间倒序，点击卡片继续之前的设计"
-          accent="indigo"
-          cards={recentlyEdited}
-          emptyHint="暂无最近编辑的教学设计"
-          cta="继续设计"
-          onOpen={onOpenSection}
-        />
+            <div className="bg-white rounded-xl border border-slate-200 px-5 py-4 grid grid-cols-4 gap-4">
+              <Metric
+                icon={<Layers size={16} />}
+                label="总小节"
+                value={metricsNow.totalSections}
+                tone="slate"
+              />
+              <Metric
+                icon={<Sparkles size={16} />}
+                label="已完成设计"
+                value={metricsNow.designedCount}
+                tone="emerald"
+                suffix={`/ ${metricsNow.totalSections}`}
+              />
+              <Metric
+                icon={<Flag size={16} />}
+                label="优先备课"
+                value={metricsNow.focusCount}
+                tone="indigo"
+              />
+              <Metric
+                icon={<Clock size={16} />}
+                label="近 7 日更新"
+                value={metricsNow.recentCount}
+                tone="violet"
+              />
+            </div>
 
-        {/* Group B · 优先备课 */}
-        <DashboardGroup
-          title="优先备课"
-          hint="当前主线优先跟进的小节"
-          accent="violet"
-          cards={focusSections}
-          emptyHint="暂无优先备课小节"
-          cta="进入工作台"
-          onOpen={onOpenSection}
-        />
-
-        {/* Group C · 待设计 */}
-        <DashboardGroup
-          title="待设计"
-          hint="尚未生成教学设计的小节，AI 可以一键生成初稿"
-          accent="amber"
-          cards={pendingSections}
-          emptyHint="所有小节都已完成设计"
-          cta="AI 生成初稿"
-          onOpen={onOpenSection}
-        />
+            <div className="space-y-8">
+              {chapterBlocks.length === 0 ? (
+                <div className="bg-slate-50 border border-dashed border-slate-300 rounded-xl py-10 text-center text-slate-500 text-sm">
+                  该课程下暂无小节。
+                </div>
+              ) : (
+                chapterBlocks.map((block) => (
+                  <div key={block.chapterTitle}>
+                    <div className="flex items-center gap-2 mb-3">
+                      <BookMarked size={15} className="text-indigo-500 shrink-0" />
+                      <span className="text-slate-900 font-medium">{block.chapterTitle}</span>
+                      <span className="text-slate-400 text-[0.6875rem]">
+                        {block.sections.length} 节
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-3">
+                      {block.sections.map((c) => (
+                        <SectionCard
+                          key={`${c.planId}::${c.sectionId}`}
+                          data={c}
+                          cta="进入本节"
+                          onOpen={onOpenSection}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </>
+        )}
       </div>
+    </div>
+  );
+}
+
+function CourseTabBar({
+  courseIds,
+  activeId,
+  onSelect,
+}: {
+  courseIds: string[];
+  activeId: string;
+  onSelect: (courseId: string) => void;
+}) {
+  return (
+    <div className="flex gap-1.5 overflow-x-auto pb-3 border-b border-slate-200 -mx-1 px-1">
+      {courseIds.map((id) => {
+        const name = courseById(id)?.name ?? id;
+        const active = id === activeId;
+        return (
+          <button
+            key={id}
+            type="button"
+            onClick={() => onSelect(id)}
+            className={`shrink-0 px-3 py-2 rounded-lg text-[13px] font-medium transition border ${
+              active
+                ? "bg-indigo-600 text-white border-indigo-600 shadow-sm"
+                : "bg-white text-slate-700 border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/50"
+            }`}
+          >
+            《{name}》
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -224,52 +306,6 @@ function Metric({
           )}
         </div>
       </div>
-    </div>
-  );
-}
-
-function DashboardGroup({
-  title,
-  hint,
-  accent,
-  cards,
-  emptyHint,
-  cta,
-  onOpen,
-}: {
-  title: string;
-  hint: string;
-  accent: "indigo" | "violet" | "amber";
-  cards: SectionRef[];
-  emptyHint: string;
-  cta: string;
-  onOpen: (planId: string, sectionId: string) => void;
-}) {
-  const accentDot: Record<string, string> = {
-    indigo: "bg-indigo-500",
-    violet: "bg-violet-500",
-    amber: "bg-amber-500",
-  };
-  return (
-    <div>
-      <div className="flex items-center gap-2 mb-3">
-        <span className={`size-2.5 rounded-full ${accentDot[accent]}`} />
-        <div className="text-slate-900">{title}</div>
-        <span className="text-slate-400 text-[0.75rem]">· {hint}</span>
-        <div className="flex-1" />
-        <span className="text-slate-400 text-[0.6875rem]">{cards.length}</span>
-      </div>
-      {cards.length === 0 ? (
-        <div className="bg-slate-50 border border-dashed border-slate-300 rounded-xl h-28 flex items-center justify-center text-slate-400">
-          {emptyHint}
-        </div>
-      ) : (
-        <div className="grid grid-cols-3 gap-3">
-          {cards.map((c) => (
-            <SectionCard key={`${c.planId}::${c.sectionId}`} data={c} cta={cta} onOpen={onOpen} />
-          ))}
-        </div>
-      )}
     </div>
   );
 }
@@ -351,4 +387,3 @@ function TabChip({ label, done }: { label: string; done: boolean }) {
     </span>
   );
 }
-

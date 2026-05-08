@@ -293,6 +293,28 @@ export interface Course {
   knowledgeNodeIds: ID[];
   ownerTeacherId: ID;
   tags: string[];
+  /** 图谱差异分析后，AI 对该课程给出的优化建议（学院端课程中心展示） */
+  aiSuggestion?: CourseAiSuggestion;
+}
+
+/**
+ * AI 对已有课程的建议类型：补资料、调课时或两者。
+ * 由图谱差异分析 mock 预置，非运行时计算。
+ */
+export type CourseAiSuggestionKind =
+  | "add_resource"
+  | "adjust_hours"
+  | "add_resource_and_hours";
+
+export interface CourseAiSuggestion {
+  kind: CourseAiSuggestionKind;
+  summary: string;
+  reason: string;
+  /** 当前图谱中尚未被本课有效覆盖的知识点 */
+  uncoveredNodeIds: ID[];
+  suggestedHoursDelta?: number;
+  suggestedResourceTypes?: ResourceType[];
+  generatedAt: ISODateTime;
 }
 
 /** 资源类型 */
@@ -306,6 +328,22 @@ export type ResourceType =
   | "dataset"
   | "quiz" // 题库
   | "online_course"; // 线上课程（关联外部慕课平台）
+
+/**
+ * AI 建议新增的虚拟课程（尚未写入 `courses` 列表，在课程中心以虚拟行展示）。
+ */
+export interface SuggestedNewCourse {
+  id: ID;
+  name: string;
+  professionId: ID;
+  subjectId?: ID;
+  recommendedCredit: number;
+  recommendedHours: number;
+  semester: string;
+  uncoveredNodeIds: ID[];
+  reason: string;
+  generatedAt: ISODateTime;
+}
 
 /**
  * 教学资源中引用的外部慕课课程（教师从其他平台目录中选择后挂载）。
@@ -338,6 +376,11 @@ export interface Resource {
   isAiGenerated?: boolean;
   /** 当 type 为 online_course 时，关联的外部慕课 */
   moocLink?: MoocCourseLink;
+  /**
+   * 可见性：省略视为公共。公共：教师范围内共享；学生自动推荐仅收录公共。
+   * 个人：仅上传者与教研室主任可见，由上传者切换为公共。
+   */
+  visibility?: "public" | "personal";
 }
 
 /**
@@ -512,10 +555,6 @@ export interface TeachingDesign {
     refId: ID;
     name: string;
   }>;
-  /** 选用的技能工具（只展示，无实际功能） */
-  skillIds: ID[];
-  /** MCP 连接（只展示，无实际功能） */
-  mcpIds: ID[];
   chatHistory: ChatMessage[];
   outputs: DesignOutput[];
   /**
@@ -677,17 +716,6 @@ export interface ExamEvalSummary {
 
 /** 写入 studentResults 前考试行数据（无 questionAccuracy 时由生成器跳过逐题列） */
 export type ExamEvalInput = Omit<ExamEvalSummary, "studentResults">;
-
-// ============ 工具类型 ============
-
-/** Skill / MCP 工具项（仅展示用） */
-export interface SkillOrMcpItem {
-  id: ID;
-  name: string;
-  category: "skill" | "mcp";
-  description: string;
-  icon?: string;
-}
 
 // ============ 三层知识图谱模型（L1 / L2 / L3） ============
 // L1 产业培养图谱：唯一走 Schema→AI→人工 严格流程

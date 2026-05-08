@@ -23,9 +23,9 @@ import {
   resourceById,
   teacherById,
   courseById,
-  trainingById,
   graphNodeById,
-  teacherSeesAllScopedContent,
+  teacherCanViewResource,
+  effectiveResourceVisibility,
 } from "../data/lookups";
 import { PageHeader, AiBadge, type Role } from "./Layout";
 import { AssociatedKnowledgeNodes } from "./AssociatedKnowledgeNodes";
@@ -545,10 +545,17 @@ function KnowledgeGraphNodeDetail({
   const chipNavCls =
     "inline-flex max-w-full cursor-pointer items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-left text-xs text-slate-800 hover:border-indigo-300 hover:bg-indigo-50/50";
 
+  const abilityRelatedCt =
+    parsed && parsed.kind === "ability"
+      ? onOpenTraining
+        ? parsed.relatedCt
+        : parsed.relatedCt.filter((n) => n.kind !== "training")
+      : [];
+
   if (!node) {
     return (
       <div className="p-4 text-sm leading-relaxed text-slate-500">
-        点击左侧图谱中的节点，查看核心素养、能力、知识点，以及知识点绑定的课程与实训。
+        点击左侧图谱中的节点，查看核心素养、能力、知识点，以及知识点绑定的课程。
       </div>
     );
   }
@@ -644,12 +651,12 @@ function KnowledgeGraphNodeDetail({
               )}
             </div>
           </Section>
-          <Section title="绑定实训">
-            <div className="flex flex-wrap gap-1.5">
-              {parsed.trainings.map((n) => {
-                const tid = n.refTrainingId ?? n.id;
-                const btn = <span className="truncate">{n.name}</span>;
-                if (onOpenTraining) {
+          {onOpenTraining ? (
+            <Section title="绑定实训">
+              <div className="flex flex-wrap gap-1.5">
+                {parsed.trainings.map((n) => {
+                  const tid = n.refTrainingId ?? n.id;
+                  const btn = <span className="truncate">{n.name}</span>;
                   return (
                     <button
                       key={n.id}
@@ -660,18 +667,13 @@ function KnowledgeGraphNodeDetail({
                       {btn}
                     </button>
                   );
-                }
-                return (
-                  <span key={n.id} className={`${chipNavCls} cursor-default hover:border-slate-200 hover:bg-slate-50`}>
-                    {btn}
-                  </span>
-                );
-              })}
-              {parsed.trainings.length === 0 && (
-                <span className="text-xs text-slate-400">暂无</span>
-              )}
-            </div>
-          </Section>
+                })}
+                {parsed.trainings.length === 0 && (
+                  <span className="text-xs text-slate-400">暂无</span>
+                )}
+              </div>
+            </Section>
+          ) : null}
         </>
       )}
 
@@ -701,9 +703,9 @@ function KnowledgeGraphNodeDetail({
               )}
             </div>
           </Section>
-          <Section title="相关课程 / 实训（经知识点映射）">
+          <Section title="相关课程（经知识点映射）">
             <div className="flex flex-wrap gap-1.5">
-              {parsed.relatedCt.map((n) => {
+              {abilityRelatedCt.map((n) => {
                 const inner = <span className="truncate">{n.name}</span>;
                 if (n.kind === "course" && onOpenCourse) {
                   return (
@@ -735,7 +737,7 @@ function KnowledgeGraphNodeDetail({
                   </span>
                 );
               })}
-              {parsed.relatedCt.length === 0 && (
+              {abilityRelatedCt.length === 0 && (
                 <span className="text-xs text-slate-400">暂无</span>
               )}
             </div>
@@ -849,8 +851,12 @@ export function GraphBrowse({
   const hasMainGraph = professionNodes.length > 0;
 
   useEffect(() => {
-    setL1WizardActive(!hasMainGraph);
-  }, [profId, hasMainGraph]);
+    if (role === "college_admin") {
+      setL1WizardActive(!hasMainGraph);
+    } else {
+      setL1WizardActive(false);
+    }
+  }, [profId, hasMainGraph, role]);
 
   useEffect(() => {
     setSelectedNodeId(null);
@@ -913,7 +919,7 @@ export function GraphBrowse({
                 </option>
               ))}
             </select>
-            {hasL1Data && !l1WizardActive && (
+            {role === "college_admin" && hasL1Data && !l1WizardActive && (
               <button
                 type="button"
                 onClick={() => setL1WizardActive(true)}
@@ -953,7 +959,7 @@ export function GraphBrowse({
               onComplete={() => setL1WizardActive(false)}
             />
           </div>
-          {!hasL1Data && (
+          {role === "college_admin" && !hasL1Data && (
             <p className="mt-3 text-center text-xs text-slate-400">
               可随时通过顶部「创建专业培养图谱」再次进入。
             </p>
@@ -1014,7 +1020,7 @@ export function GraphBrowse({
                     节点详情
                   </div>
                   <p className="mt-1 text-[0.6875rem] text-slate-500">
-                    中心为核心素养与能力，外层为知识点；课程与实训在详情中查看。
+                    中心为核心素养与能力，外层为知识点；关联课程在详情中查看。
                   </p>
                 </div>
                 <KnowledgeGraphNodeDetail
@@ -1043,6 +1049,7 @@ export function ResourceDetail({
   currentTeacherId,
   onBack,
   onOpenKnowledgeInGraph,
+  onUpsertSessionResource,
 }: {
   id: string;
   /** 与资源库页「新增」会话合并，用于展示刚创建的线上课程等 */
@@ -1050,6 +1057,7 @@ export function ResourceDetail({
   currentTeacherId: string;
   onBack: () => void;
   onOpenKnowledgeInGraph: (nodeId: string) => void;
+  onUpsertSessionResource: (r: Resource) => void;
 }) {
   const r = sessionResources.find((x) => x.id === id) ?? resourceById(id);
   if (!r) {
@@ -1061,15 +1069,12 @@ export function ResourceDetail({
     );
   }
 
-  if (
-    !teacherSeesAllScopedContent(currentTeacherId) &&
-    r.uploaderTeacherId !== currentTeacherId
-  ) {
+  if (!teacherCanViewResource(r, currentTeacherId)) {
     return (
       <div>
         <PageHeader back={onBack} title="资源详情" />
         <div className="p-16 text-center text-slate-500">
-          当前账号仅可查看本人上传的资源。
+          当前账号不可查看该资源（个人资源仅上传者及教研室主任可见）。
         </div>
       </div>
     );
@@ -1077,8 +1082,9 @@ export function ResourceDetail({
 
   const uploader = teacherById(r.uploaderTeacherId);
   const courses = r.courseIds.map(courseById).filter(Boolean);
-  const trainings = (r.trainingIds ?? []).map(trainingById).filter(Boolean);
-  const resourceNodeIds = [...r.courseIds, ...(r.trainingIds ?? [])];
+  const resourceNodeIds = [...r.courseIds];
+  const ev = effectiveResourceVisibility(r);
+  const isOwner = r.uploaderTeacherId === currentTeacherId;
 
   const resourceTypeLabel =
     r.type === "online_course"
@@ -1159,20 +1165,52 @@ export function ResourceDetail({
             {r.duration && <Info2 k="时长" v={r.duration} />}
             <Info2 k="上传人" v={uploader?.name ?? r.uploaderTeacherId} />
             <Info2 k="上传时间" v={r.uploadedAt.slice(0, 10)} />
+            <Info2 k="可见性" v={ev === "public" ? "公共（全科组可查）" : "个人"} />
+            {isOwner ? (
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-slate-500">切换</span>
+                <div className="inline-flex shrink-0 rounded-md border border-slate-200 p-0.5">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      ev !== "public" &&
+                      onUpsertSessionResource({ ...r, visibility: "public" })
+                    }
+                    className={`px-2 py-1 rounded text-xs transition ${
+                      ev === "public"
+                        ? "bg-indigo-600 text-white"
+                        : "text-slate-600 hover:bg-slate-50"
+                    }`}
+                  >
+                    公共
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      ev !== "personal" &&
+                      onUpsertSessionResource({ ...r, visibility: "personal" })
+                    }
+                    className={`px-2 py-1 rounded text-xs transition ${
+                      ev === "personal"
+                        ? "bg-indigo-600 text-white"
+                        : "text-slate-600 hover:bg-slate-50"
+                    }`}
+                  >
+                    个人
+                  </button>
+                </div>
+              </div>
+            ) : null}
             <Info2
               k="所属课程"
               v={courses.length > 0 ? courses.map((c) => `《${c!.name}》`).join("、") : "—"}
-            />
-            <Info2
-              k="所属实训"
-              v={trainings.length > 0 ? trainings.map((t) => t!.name).join("、") : "—"}
             />
           </dl>
           <div className="mt-4 border-t border-slate-100 pt-4 max-h-[min(40vh,22rem)] overflow-y-auto pr-0.5">
             <AssociatedKnowledgeNodes
               knowledgeNodeIds={resourceNodeIds}
               onNodeClick={onOpenKnowledgeInGraph}
-              emptyMessage="资源关联的课程/实训节点在专业图谱中未找到，或该专业尚未建图谱。"
+              emptyMessage="资源关联的课程节点在专业图谱中未找到，或该专业尚未建图谱。"
             />
           </div>
           {r.tags.length > 0 && (

@@ -15,7 +15,6 @@ import {
   students,
   courses,
   personas,
-  skillAndMcpItems,
   resources,
   professions,
   subjects,
@@ -37,7 +36,6 @@ import type {
   Student,
   Course,
   Persona,
-  SkillOrMcpItem,
   Resource,
   Profession,
   Subject,
@@ -67,7 +65,6 @@ const teacherById_ = indexBy(teachers);
 const studentById_ = indexBy(students);
 const courseById_ = indexBy(courses);
 const personaById_ = indexBy(personas);
-const skillOrMcpById_ = indexBy(skillAndMcpItems);
 const resourceById_ = indexBy(resources);
 const professionById_ = indexBy(professions);
 const subjectById_ = indexBy(subjects);
@@ -82,7 +79,6 @@ export const teacherById = (id: string): Teacher | undefined => teacherById_[id]
 export const studentById = (id: string): Student | undefined => studentById_[id];
 export const courseById = (id: string): Course | undefined => courseById_[id];
 export const personaById = (id: string): Persona | undefined => personaById_[id];
-export const skillOrMcpById = (id: string): SkillOrMcpItem | undefined => skillOrMcpById_[id];
 export const resourceById = (id: string): Resource | undefined => resourceById_[id];
 export const professionById = (id: string): Profession | undefined => professionById_[id];
 export const subjectById = (id: string): Subject | undefined => subjectById_[id];
@@ -118,14 +114,13 @@ export const coursesByNode = (nodeId: string): Course[] => {
   return courses.filter((c) => c.knowledgeNodeIds.includes(nodeId));
 };
 
-/** 某图谱节点可触达的资源：节点 -> 课程/实训 -> 资源 */
+/** 某图谱节点可触达的资源：节点 -> 课程 -> 资源（不含挂靠在实训上的资料） */
 export const resourcesByNode = (nodeId: string): Resource[] => {
   const courseIds = new Set(coursesByNode(nodeId).map((c) => c.id));
-  const trainingIds = new Set(trainingsByNode(nodeId).map((t) => t.id));
   return resources.filter(
     (r) =>
-      r.courseIds.some((id) => courseIds.has(id)) ||
-      (r.trainingIds ?? []).some((id) => trainingIds.has(id)),
+      (r.trainingIds?.length ?? 0) === 0 &&
+      r.courseIds.some((id) => courseIds.has(id)),
   );
 };
 
@@ -139,13 +134,25 @@ export const trainingsByNode = (nodeId: string): TrainingProject[] => {
   return trainingProjects.filter((t) => t.knowledgeNodeIds.includes(nodeId));
 };
 
-/** 某课程下的全部资源 */
+/** 某课程下的全部资源（不含挂靠在实训项目上的资料条目） */
 export const resourcesByCourse = (courseId: string): Resource[] =>
-  resources.filter((r) => r.courseIds.includes(courseId));
+  resources.filter(
+    (r) => r.courseIds.includes(courseId) && (r.trainingIds?.length ?? 0) === 0,
+  );
 
 /** 某课程下的全部实训项目 */
 export const trainingsByCourse = (courseId: string): TrainingProject[] =>
   trainingProjects.filter((t) => t.courseIds.includes(courseId));
+
+/** 某课程在所有教学计划中出现过的班级 id（去重，用于本节资源等跨计划班级选择） */
+export function classIdsByCourse(courseId: string): string[] {
+  const ids = new Set<string>();
+  for (const p of teachingPlans) {
+    if (p.courseId !== courseId) continue;
+    for (const cid of p.classIds) ids.add(cid);
+  }
+  return Array.from(ids);
+}
 
 /** 某实训下的全部资源 */
 export const resourcesByTraining = (trainingId: string): Resource[] =>
@@ -331,6 +338,30 @@ export const graphNodeById = (id: string): GraphNode | undefined =>
 /** 教研室主任等：可查看本专业全部课程、资源、实训等 */
 export function teacherSeesAllScopedContent(teacherId: string): boolean {
   return teacherById(teacherId)?.isDepartmentLead === true;
+}
+
+/** 资源可见性；未设置视为公共 */
+export function effectiveResourceVisibility(
+  r: Resource,
+): "public" | "personal" {
+  return r.visibility ?? "public";
+}
+
+/** 学生自动推荐、知识图谱兜底等：仅公共 */
+export function isResourcePublicForDiscovery(r: Resource): boolean {
+  return effectiveResourceVisibility(r) === "public";
+}
+
+/** 教师是否可浏览该资源（含主任全量） */
+export function teacherCanViewResource(
+  resource: Resource,
+  teacherId: string,
+): boolean {
+  if (teacherSeesAllScopedContent(teacherId)) return true;
+  return (
+    effectiveResourceVisibility(resource) === "public" ||
+    resource.uploaderTeacherId === teacherId
+  );
 }
 
 /**

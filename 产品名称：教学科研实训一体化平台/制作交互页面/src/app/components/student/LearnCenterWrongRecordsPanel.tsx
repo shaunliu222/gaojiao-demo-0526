@@ -1,15 +1,12 @@
 import { useMemo, useState } from "react";
 import { ChevronDown, ChevronUp, ClipboardList, GraduationCap } from "lucide-react";
 import type { TeachingPlan } from "@mock";
-import { courseNameForPlan, normalizeStudentChapterPointIdsToGraphNodes } from "../../data/learnCenterSession";
+import { normalizeStudentChapterPointIdsToGraphNodes } from "../../data/learnCenterSession";
 import type {
   WrongAnswerRecord,
   WrongAnswerRecordSourceKind,
 } from "../../data/wrongAnswerRecordsMock";
-import {
-  wrongAnswerRecordsByStudentPlan,
-  wrongRecordMonthStats,
-} from "../../data/wrongAnswerRecordsMock";
+import { wrongAnswerRecordsByStudentPlan } from "../../data/wrongAnswerRecordsMock";
 import type { WrongQuestionType } from "../../data/studentMock";
 
 const sourceKindLabel: Record<WrongAnswerRecordSourceKind, string> = {
@@ -62,7 +59,6 @@ export function LearnCenterWrongRecordsPanel({
   onPracticeKnowledge: (planId: string, goalNodeIds: string[]) => void;
   onEnterHomeworkWorkbench: (homeworkId: string) => void;
 }) {
-  const [sourceFilter, setSourceFilter] = useState<WrongAnswerRecordSourceKind | "all">("all");
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const planRows = useMemo(
@@ -70,30 +66,22 @@ export function LearnCenterWrongRecordsPanel({
     [studentId, activePlanId],
   );
 
-  const stats = useMemo(() => wrongRecordMonthStats(planRows), [planRows]);
-
-  const filtered = useMemo(() => {
-    const base =
-      sourceFilter === "all"
-        ? [...planRows]
-        : planRows.filter((r) => r.sourceKind === sourceFilter);
+  const sortedRows = useMemo(() => {
+    const base = [...planRows];
     base.sort(compareOccurredDesc);
     return base;
-  }, [planRows, sourceFilter]);
+  }, [planRows]);
 
   const grouped = useMemo(() => {
     const map = new Map<string, WrongAnswerRecord[]>();
-    for (const r of filtered) {
+    for (const r of sortedRows) {
       const dk = dateKey(r.occurredAt);
       const bucket = map.get(dk);
       if (bucket) bucket.push(r);
       else map.set(dk, [r]);
     }
     return [...map.entries()].sort((a, b) => (a[0] < b[0] ? 1 : -1));
-  }, [filtered]);
-
-  const activePlan = plans.find((p) => p.id === activePlanId);
-  const courseLabel = activePlan ? courseNameForPlan(activePlan) : "";
+  }, [sortedRows]);
 
   if (!activePlanId || plans.length === 0) {
     return (
@@ -103,60 +91,11 @@ export function LearnCenterWrongRecordsPanel({
     );
   }
 
-  const filterTabs: Array<{ key: WrongAnswerRecordSourceKind | "all"; label: string }> = [
-    { key: "all", label: "全部" },
-    { key: "homework", label: "作业" },
-    { key: "exam", label: "考试" },
-    { key: "class_quiz", label: "随堂测验" },
-    { key: "practice", label: "自主练" },
-  ];
-
   return (
     <div className="space-y-3">
-      <div className="rounded-xl border border-slate-200/90 bg-white px-3 py-2.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[0.75rem] text-slate-600">
-        <span>
-          「{courseLabel}」本题库错题记录：<strong className="text-slate-800">{stats.totalCount}</strong>{" "}
-          条
-        </span>
-        <span className="text-slate-300">|</span>
-        <span>
-          {stats.monthCount > 0 ? (
-            <>
-              本月 <strong className="text-slate-800">{stats.monthCount}</strong> 条
-            </>
-          ) : (
-            <>本月暂无标注日期内的记录（演示数据）</>
-          )}
-        </span>
-        <span className="text-slate-300">|</span>
-        <span>
-          待跟进 <strong className="text-rose-700">{stats.pendingFollowUps}</strong> 条
-        </span>
-      </div>
-
-      <div className="flex flex-wrap gap-1.5">
-        {filterTabs.map((t) => {
-          const active = sourceFilter === t.key;
-          return (
-            <button
-              key={t.key}
-              type="button"
-              onClick={() => setSourceFilter(t.key)}
-              className={`rounded-lg px-2.5 py-1 text-[0.75rem] border transition-colors ${
-                active
-                  ? "bg-indigo-600 text-white border-indigo-600"
-                  : "bg-white text-slate-600 border-slate-200 hover:border-indigo-200 hover:bg-indigo-50/50"
-              }`}
-            >
-              {t.label}
-            </button>
-          );
-        })}
-      </div>
-
-      {filtered.length === 0 ? (
+      {sortedRows.length === 0 ? (
         <div className="rounded-xl border border-dashed border-slate-200 bg-white p-8 text-center text-slate-400 text-sm">
-          {planRows.length === 0 ? "本题库暂无错题记录" : "当前来源筛选下没有记录"}
+          本题库暂无错题记录
         </div>
       ) : (
         <div className="space-y-5">

@@ -7,8 +7,8 @@ import {
 import { DesignWorkbench } from "./DesignWorkbench";
 
 /**
- * 仅从「协同评价 · 作业/考试评价详情 → 根据评价调整教学设计」进入：顶部评价语境说明 + 评价驱动专用设计假数据工作台。
- * 常规「教学设计」菜单/计划详情入口请使用 {@link DesignWorkbench}（learningAdjust=false）。
+ * 提供「学情调整」专用工作台：顶部语境条 + 评价/学情驱动的假数据（learningAdjust）。
+ * 常规入口请使用 {@link DesignWorkbench}（learningAdjust=false）。
  */
 export function DesignLearningAdjustWorkbench({
   planId,

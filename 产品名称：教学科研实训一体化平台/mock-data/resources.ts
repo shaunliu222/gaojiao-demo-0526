@@ -22,6 +22,7 @@ function res(args: {
   thumbnailUrl?: string;
   isAiGenerated?: boolean;
   moocLink?: MoocCourseLink;
+  visibility?: "public" | "personal";
 }): Resource {
   return {
     professionId: "prof-mech",
@@ -55,6 +56,7 @@ export const resources: Resource[] = [
     thumbnailUrl: "/thumbs/res-m-002.png",
     tags: ["课件", "制图基础"],
     sizeMb: 8.6,
+    visibility: "personal",
   }),
   res({
     id: "res-m-003",
@@ -69,6 +71,7 @@ export const resources: Resource[] = [
     uploadedAt: "2025-09-03T10:30:00+08:00",
     thumbnailUrl: "/thumbs/res-m-003.png",
     tags: ["示范", "视频"],
+    visibility: "personal",
   }),
   res({
     id: "res-m-004",
@@ -274,6 +277,7 @@ export const resources: Resource[] = [
     uploaderTeacherId: "t-chen",
     uploadedAt: "2025-11-02T11:00:00+08:00",
     tags: ["速查表", "标准件"],
+    visibility: "personal",
   }),
   res({
     id: "res-m-061",

@@ -8,7 +8,6 @@ import {
   Folder,
   User,
   Wrench,
-  Plug,
   Sparkles,
   ListChecks,
   PenSquare,
@@ -18,7 +17,7 @@ import {
   Code2,
   Headphones,
   Bot,
-  CheckCircle2,
+  Landmark,
 } from "lucide-react";
 import { teachingPlans } from "@mock";
 import type {
@@ -29,7 +28,6 @@ import type {
 } from "@mock";
 import {
   personaById,
-  skillOrMcpById,
   classById,
   designsForWorkbenchSection,
 } from "../data/lookups";
@@ -38,11 +36,22 @@ import { PageHeader, AiBadge } from "./Layout";
 type TabKey = DesignTab;
 type BusinessTabKey = Exclude<TabKey, "AI融合">;
 
-const TABS: { key: BusinessTabKey; label: string }[] = [
-  { key: "讲义", label: "讲义" },
-  { key: "课堂", label: "课堂" },
-  { key: "作业", label: "作业" },
-];
+/** 对话与 AI 融合开关仅绑定「讲义」教学设计会话 */
+const CHAT_CONTEXT_TAB: BusinessTabKey = "讲义";
+
+const DESIGN_MERGE_ORDER: DesignTab[] = ["讲义", "课堂", "作业", "AI融合"];
+
+type DesignOutputType = DesignOutput["type"];
+
+const WORKBENCH_TEMPLATE_TYPES = new Set<DesignOutputType>([
+  "讲义pdf",
+  "PPT",
+  "微课视频",
+  "音频",
+  "思维导图",
+  "教案",
+  "客观题组卷",
+]);
 
 type FusionConfig = {
   intro: string;
@@ -74,6 +83,31 @@ const AI_FUSION_BY_TAB: Record<BusinessTabKey, FusionConfig> = {
   },
 };
 
+/** 课程思政融合建议（与 AI 融合并列；enhancedOutputIds 置空以免与「含AI融合」徽标混用） */
+const IDEOLOGY_FUSION_BY_TAB: Record<BusinessTabKey, FusionConfig> = {
+  讲义: {
+    intro:
+      "已在本节「组合体三视图绘制」语境下，梳理可自然融入的思政元素：专业认同、工程伦理与大国工匠精神，而非生硬说教。",
+    generatedContent:
+      "拟新增段落：课程思政 · 严谨制图与工程师责任（约 1 页）\n\n1. 价值引领\n以国家重大装备与先进制造对「图样是唯一工程语言」的要求为切入点，强调每一条线、每一个尺寸背后都是对安全、质量与契约的承诺。\n\n2. 专业伦理\n结合轴承座等典型零件说明：图面表达不清或随意『凑活』可能导致装配失效与安全隐患，呼应实事求是、守信尽责的职业操守。\n\n3. 学习态度\n引导学生把三视图训练视为「毫米级」严谨习惯的养成，体会精益求精与持之以恒与日常学风、团队协作的关系。\n\n4. 教学提醒\n融入应服务于知识目标，采用案例讨论、随堂提问等轻量方式即可，避免占用过多学时；教师可根据班级特点删减示例。",
+    enhancedOutputIds: [],
+  },
+  课堂: {
+    intro:
+      "已在「135 分钟课堂」活动结构中，给出一段可与本节训练目标对齐的思政切入点，便于在示范与互动中择机展开。",
+    generatedContent:
+      "拟新增课堂环节导语（约 3 分钟，可插在形体分析示范前）\n\n▶ 导语要点\n「我们画的不只是线条，而是在用规范语言对工程事实负责。」请学生思考：若图纸表达含糊，可能对质检、装配与终端用户造成哪些连锁影响？\n\n▶ 互动提示（二选一即可）\n- 小组列举「因图面表达不规范可能带来的风险」2 条，并与中华优秀传统文化中「慎独」「守信」作简要关联。\n- 指定 1 名学生结合生活中的「标准化」案例（交通标志、药品说明书等）类比工程图样的公共性。\n\n▶ 收束\n回到本节知识与技能目标，强调严谨既是能力也是态度，体现当代工程师的社会责任感。",
+    enhancedOutputIds: [],
+  },
+  作业: {
+    intro:
+      "已在课后「4+3+1」作业结构中，拟增补一条与诚信、原创与过程留痕相关的轻量思政要求，便于评价时观察学生的科学态度。",
+    generatedContent:
+      "拟新增作业说明条目：课程思政与学术诚信（置于总说明末尾）\n\n1. 学生在作图与订正过程中应独立完成形体分析与主要作图步骤；可参考教材与课堂笔记，但须在提交中简要说明参考来源与独立思考部分。\n\n2. 鼓励如实记录「卡壳点」与自我纠错过程（两三句话即可），将作为学习态度与过程性评价参考，不计入知识点对错惩罚。\n\n3. 强调工程图样与文档的真实性：不得伪造数据、不得冒用他人图纸；与今后职业中质量记录、签字负责的习惯相联系。\n\n教师可根据评价权重决定是否计入总分（建议≤5% 或仅作评语参考）。",
+    enhancedOutputIds: [],
+  },
+};
+
 const DEFAULT_REPLY_BY_TAB: Record<BusinessTabKey, string> = {
   讲义:
     "已根据你的要求调整当前讲义：补充了轴承座形体分解示意步骤，将原先偏概念化的形体分析法改成「观察实物/模型 → 拆分基本体 → 判断叠加与切割关系 → 对应三视图」的流程说明。\n\n右栏讲义 PDF 将更新为新版，配套思维导图同步增加「组合体拆分步骤」分支。",
@@ -83,7 +117,7 @@ const DEFAULT_REPLY_BY_TAB: Record<BusinessTabKey, string> = {
     "已根据你的要求调整当前作业：在原有 4 道基础题、3 道应用题、1 道综合题基础上，新增 1 道轴承座三视图综合纠错题；同时把教师答案中的评分 rubric 拆成「形体分析 30%」「投影对应 35%」「线型与规范 20%」「过程说明 15%」。\n\n右栏学生版作业和教师答案与评分 rubric 将同步更新。",
 };
 
-/** 按 Tab 划分的创建模板（类似 LLM notebook） */
+/** 工作台「新建」快捷入口（仅保留指定类型；客观题组卷在 UI 上称为「作业」） */
 type TemplateItem = {
   key: string;
   label: string;
@@ -91,36 +125,46 @@ type TemplateItem = {
   accent: string;
 };
 
-const TEMPLATES_BY_TAB: Record<TabKey, TemplateItem[]> = {
-  讲义: [
-    { key: "讲义pdf", label: "讲义", icon: FileText, accent: "text-rose-600 bg-rose-50" },
-    { key: "PPT", label: "课件 PPT", icon: Presentation, accent: "text-orange-600 bg-orange-50" },
-    { key: "微课视频", label: "微课视频", icon: Film, accent: "text-fuchsia-600 bg-fuchsia-50" },
-    { key: "音频", label: "音频讲解", icon: Headphones, accent: "text-cyan-600 bg-cyan-50" },
-    { key: "思维导图", label: "思维导图", icon: Brain, accent: "text-emerald-600 bg-emerald-50" },
-    { key: "教案", label: "教案", icon: PenSquare, accent: "text-indigo-600 bg-indigo-50" },
-  ],
-  课堂: [
-    { key: "课堂活动", label: "课堂活动", icon: Activity, accent: "text-indigo-600 bg-indigo-50" },
-    { key: "互动H5", label: "互动 H5", icon: Sparkles, accent: "text-violet-600 bg-violet-50" },
-    { key: "PPT", label: "课堂 PPT", icon: Presentation, accent: "text-orange-600 bg-orange-50" },
-    { key: "计时表", label: "课堂计时", icon: Timer, accent: "text-amber-600 bg-amber-50" },
-    { key: "教案", label: "课堂教案", icon: PenSquare, accent: "text-sky-600 bg-sky-50" },
-  ],
-  作业: [
-    { key: "客观题组卷", label: "客观题组卷", icon: ListChecks, accent: "text-emerald-600 bg-emerald-50" },
-    { key: "主观题", label: "主观题", icon: PenSquare, accent: "text-indigo-600 bg-indigo-50" },
-    { key: "编程题", label: "编程题", icon: Code2, accent: "text-slate-700 bg-slate-100" },
-    { key: "实训任务", label: "实训任务", icon: Wrench, accent: "text-teal-600 bg-teal-50" },
-  ],
-  AI融合: [
-    { key: "融入策略", label: "融入策略", icon: Sparkles, accent: "text-violet-600 bg-violet-50" },
-    { key: "讲义建议", label: "讲义建议", icon: FileText, accent: "text-rose-600 bg-rose-50" },
-    { key: "课堂建议", label: "课堂建议", icon: Activity, accent: "text-indigo-600 bg-indigo-50" },
-    { key: "AI实训", label: "AI实训", icon: Bot, accent: "text-cyan-600 bg-cyan-50" },
-    { key: "诚信边界", label: "诚信边界", icon: CheckCircle2, accent: "text-emerald-600 bg-emerald-50" },
-  ],
-};
+const WORKBENCH_CREATE_TEMPLATES: TemplateItem[] = [
+  { key: "讲义pdf", label: "讲义", icon: FileText, accent: "text-rose-600 bg-rose-50" },
+  { key: "PPT", label: "课件 PPT", icon: Presentation, accent: "text-orange-600 bg-orange-50" },
+  { key: "微课视频", label: "微课视频", icon: Film, accent: "text-fuchsia-600 bg-fuchsia-50" },
+  { key: "音频", label: "音频讲解", icon: Headphones, accent: "text-cyan-600 bg-cyan-50" },
+  { key: "思维导图", label: "思维导图", icon: Brain, accent: "text-emerald-600 bg-emerald-50" },
+  { key: "教案", label: "教案", icon: PenSquare, accent: "text-indigo-600 bg-indigo-50" },
+  { key: "客观题组卷", label: "作业", icon: ListChecks, accent: "text-emerald-600 bg-emerald-50" },
+];
+
+function outputTypeDisplayLabel(type: DesignOutputType): string {
+  if (type === "客观题组卷") return "作业";
+  return type;
+}
+
+/** 右侧产物：按序合并各 Tab 下允许展示的类型 + AI 融合产物 */
+function collectWorkbenchOutputs(
+  designs: TeachingDesign[],
+  handoutSubstituteOutputs: DesignOutput[] | null,
+): DesignOutput[] {
+  const out: DesignOutput[] = [];
+  for (const tab of DESIGN_MERGE_ORDER) {
+    const d = designs.find((x) => x.tab === tab);
+    if (!d) continue;
+    const list =
+      tab === "讲义" && handoutSubstituteOutputs != null ? handoutSubstituteOutputs : d.outputs;
+    for (const o of list) {
+        if (tab === "AI融合") {
+        if (o.type === "AI融合建议包") out.push(o);
+      } else if (WORKBENCH_TEMPLATE_TYPES.has(o.type)) {
+        out.push(o);
+      }
+    }
+  }
+  return out;
+}
+
+function fullMergedWorkbenchOutputs(designs: TeachingDesign[]): DesignOutput[] {
+  return collectWorkbenchOutputs(designs, null);
+}
 
 function iconForOutput(type: DesignOutput["type"]) {
   switch (type) {
@@ -155,14 +199,24 @@ function iconForOutput(type: DesignOutput["type"]) {
   }
 }
 
-function outputActionLabels(output: DesignOutput, tab: TabKey): string[] {
-  if (tab === "AI融合" && output.type === "AI融合建议包") {
+function outputActionLabels(output: DesignOutput): string[] {
+  if (output.type === "AI融合建议包") {
     return ["预览", "采纳到讲义", "采纳到课堂"];
   }
-  if (tab === "AI融合" && output.type === "AI实训练习") {
+  if (output.type === "AI实训练习") {
     return ["预览", "采纳到作业", "发布设置"];
   }
   return ["预览", "下载", "发布"];
+}
+
+function fusionEnhancedForOutput(
+  fusionConfirmed: boolean,
+  outputId: string,
+): boolean {
+  if (!fusionConfirmed) return false;
+  return (["讲义", "课堂", "作业"] as const).some((t) =>
+    AI_FUSION_BY_TAB[t].enhancedOutputIds.includes(outputId),
+  );
 }
 
 function acceptTargetFromLabel(label: string): Exclude<TabKey, "AI融合"> | undefined {
@@ -232,12 +286,15 @@ function fileSourceLabel(s: "local" | "knowledge_base" | "resource_library" | "i
 }
 
 /** 本地临时消息（发送后 append，不写回 mock） */
+type PendingFusion = { id: string; kind: "ai" | "ideology" };
+
 interface LocalMessage extends ChatMessage {
   pending?: boolean;
   /** 学情模式：占位一条，用于展示 AI 生成中的 loading */
   loadingPlaceholder?: boolean;
   fusionConfirmTab?: BusinessTabKey;
   fusionConfirmId?: string;
+  fusionConfirmKind?: "ai" | "ideology";
 }
 
 export function DesignWorkbench({
@@ -271,21 +328,12 @@ export function DesignWorkbench({
     [planId, sectionId, learningAdjust],
   );
 
-  const [tab, setTab] = useState<BusinessTabKey>("讲义");
+  const currentDesign = designs.find((d) => d.tab === CHAT_CONTEXT_TAB);
   const [extraMsgs, setExtraMsgs] = useState<Record<string, LocalMessage[]>>({});
-  const [fusionEnabledByTab, setFusionEnabledByTab] = useState<Record<BusinessTabKey, boolean>>({
-    讲义: false,
-    课堂: false,
-    作业: false,
-  });
-  const [fusionConfirmedByTab, setFusionConfirmedByTab] = useState<Record<BusinessTabKey, boolean>>({
-    讲义: false,
-    课堂: false,
-    作业: false,
-  });
-  const [pendingFusionByTab, setPendingFusionByTab] = useState<
-    Partial<Record<BusinessTabKey, { id: string }>>
-  >({});
+  const [fusionEnabled, setFusionEnabled] = useState(false);
+  const [ideologyFusionEnabled, setIdeologyFusionEnabled] = useState(false);
+  const [fusionConfirmed, setFusionConfirmed] = useState(false);
+  const [pendingFusion, setPendingFusion] = useState<PendingFusion | undefined>();
   const [chatClearedByDesign, setChatClearedByDesign] = useState<Record<string, boolean>>({});
   const [acceptanceNotices, setAcceptanceNotices] = useState<
     Partial<
@@ -297,19 +345,18 @@ export function DesignWorkbench({
   >({});
   const [input, setInput] = useState("");
 
-  const currentDesign = designs.find((d) => d.tab === tab);
-  const fusionEnabled = fusionEnabledByTab[tab];
-
   const classNames = plan?.classIds.map((cid) => classById(cid)?.name ?? cid).join("+") ?? "";
   const headerTitle = section ? `${classNames} · ${section.title}` : "教学设计工作台";
 
   const send = () => {
     if (!input.trim() || !currentDesign) return;
     const now = new Date().toISOString();
-    const fusionConfig = AI_FUSION_BY_TAB[tab];
+    const fusionConfig = AI_FUSION_BY_TAB[CHAT_CONTEXT_TAB];
+    const ideologyConfig = IDEOLOGY_FUSION_BY_TAB[CHAT_CONTEXT_TAB];
     const fusionConfirmId = `fusion-confirm-${Date.now()}`;
     const shouldAutoEnableFusion = !fusionEnabled && /AI|人工智能/i.test(input);
     const useFusionFlow = fusionEnabled || shouldAutoEnableFusion;
+    const useIdeologyFlow = !useFusionFlow && ideologyFusionEnabled;
     const userMsg: LocalMessage = {
       id: `local-${Date.now()}`,
       role: "user",
@@ -327,20 +374,28 @@ export function DesignWorkbench({
             fusionConfig.generatedContent,
             "确认后，我会把以上内容作为「学科AI融合」章节写入当前文件。",
           ].join("\n\n")
-        : [`你输入的内容：${input.trim()}`, DEFAULT_REPLY_BY_TAB[tab]].join("\n\n"),
+        : useIdeologyFlow
+          ? [
+              `你输入的内容：${input.trim()}`,
+              ideologyConfig.intro,
+              "下面是将写入当前文件的思政融合建议稿：",
+              ideologyConfig.generatedContent,
+              "确认后，我会把以上内容作为「课程思政融合」段落写入当前文件。",
+            ].join("\n\n")
+          : [`你输入的内容：${input.trim()}`, DEFAULT_REPLY_BY_TAB[CHAT_CONTEXT_TAB]].join("\n\n"),
       createdAt: now,
       pending: true,
-      fusionConfirmTab: useFusionFlow ? tab : undefined,
-      fusionConfirmId: useFusionFlow ? fusionConfirmId : undefined,
+      fusionConfirmTab: useFusionFlow || useIdeologyFlow ? CHAT_CONTEXT_TAB : undefined,
+      fusionConfirmId: useFusionFlow || useIdeologyFlow ? fusionConfirmId : undefined,
+      fusionConfirmKind: useFusionFlow ? "ai" : useIdeologyFlow ? "ideology" : undefined,
     };
     if (shouldAutoEnableFusion) {
-      setFusionEnabledByTab((prev) => ({ ...prev, [tab]: true }));
+      setFusionEnabled(true);
     }
     if (useFusionFlow) {
-      setPendingFusionByTab((prev) => ({
-        ...prev,
-        [tab]: { id: fusionConfirmId },
-      }));
+      setPendingFusion({ id: fusionConfirmId, kind: "ai" });
+    } else if (useIdeologyFlow) {
+      setPendingFusion({ id: fusionConfirmId, kind: "ideology" });
     }
     setExtraMsgs((prev) => {
       const curr = prev[currentDesign.id] ?? [];
@@ -349,28 +404,34 @@ export function DesignWorkbench({
     setInput("");
   };
 
-  const setFusionEnabledForCurrentTab = (next: boolean) => {
+  const setFusionEnabledForWorkbench = (next: boolean) => {
     if (!currentDesign) return;
-    setFusionEnabledByTab((prev) => ({ ...prev, [tab]: next }));
+    if (next) setIdeologyFusionEnabled(false);
+    setFusionEnabled(next);
     setExtraMsgs((prev) => ({ ...prev, [currentDesign.id]: [] }));
-    setPendingFusionByTab((prev) => {
-      const copy = { ...prev };
-      delete copy[tab];
-      return copy;
-    });
+    setPendingFusion(undefined);
     setChatClearedByDesign((prev) => ({ ...prev, [currentDesign.id]: true }));
     setInput("");
   };
 
-  const confirmFusionForCurrentTab = (confirmId: string) => {
-    if (!currentDesign || pendingFusionByTab[tab]?.id !== confirmId) return;
+  const setIdeologyFusionEnabledForWorkbench = (next: boolean) => {
+    if (!currentDesign) return;
+    if (next) setFusionEnabled(false);
+    setIdeologyFusionEnabled(next);
+    setExtraMsgs((prev) => ({ ...prev, [currentDesign.id]: [] }));
+    setPendingFusion(undefined);
+    setChatClearedByDesign((prev) => ({ ...prev, [currentDesign.id]: true }));
+    setInput("");
+  };
+
+  const confirmFusionForWorkbench = (confirmId: string) => {
+    if (!currentDesign || pendingFusion?.id !== confirmId) return;
+    const kind = pendingFusion.kind ?? "ai";
     const now = new Date().toISOString();
-    setFusionConfirmedByTab((prev) => ({ ...prev, [tab]: true }));
-    setPendingFusionByTab((prev) => {
-      const copy = { ...prev };
-      delete copy[tab];
-      return copy;
-    });
+    if (kind === "ai") {
+      setFusionConfirmed(true);
+    }
+    setPendingFusion(undefined);
     setExtraMsgs((prev) => {
       const curr = prev[currentDesign.id] ?? [];
       return {
@@ -380,7 +441,10 @@ export function DesignWorkbench({
           {
             id: `fusion-confirmed-${Date.now()}`,
             role: "assistant",
-            content: "已确认，已把上方展示的「学科AI融合」内容写入当前文件。",
+            content:
+              kind === "ideology"
+                ? "已确认，已把上方展示的「课程思政融合」内容写入当前文件。"
+                : "已确认，已把上方展示的「学科AI融合」内容写入当前文件。",
             createdAt: now,
           },
         ],
@@ -395,7 +459,6 @@ export function DesignWorkbench({
       ...prev,
       [target]: { ...acceptedNoticeForTarget(target, source), anchorOutputId },
     }));
-    setTab(target);
   };
 
   const dismissAcceptanceNotice = (target: Exclude<TabKey, "AI融合">) => {
@@ -414,79 +477,95 @@ export function DesignWorkbench({
       />
 
       <DesignBody
-        key={`${planId}-${sectionId}-${tab}-${currentDesign?.id ?? "none"}`}
-        tab={tab}
-        onSidebarTabChange={setTab}
+        key={`${planId}-${sectionId}-${currentDesign?.id ?? "none"}`}
         designsInSection={designs}
-        design={currentDesign}
+        chatDesign={currentDesign}
         sectionTitle={section?.title}
         onOpenDemoSection={onOpenDemoSection}
         extra={currentDesign ? (extraMsgs[currentDesign.id] ?? []) : []}
         input={input}
         onChange={setInput}
         onSend={send}
-        acceptanceNotice={acceptanceNotices[tab]}
-        onDismissAcceptanceNotice={() => dismissAcceptanceNotice(tab)}
+        acceptanceNotices={acceptanceNotices}
+        onDismissAcceptanceNotice={dismissAcceptanceNotice}
         onAcceptFusionOutput={acceptFusionOutput}
         learningAdjustSimulateInitialReply={learningAdjust}
         fusionEnabled={fusionEnabled}
-        onFusionEnabledChange={setFusionEnabledForCurrentTab}
-        fusionConfirmedByTab={fusionConfirmedByTab}
-        pendingFusionId={pendingFusionByTab[tab]?.id}
+        ideologyFusionEnabled={ideologyFusionEnabled}
+        onFusionEnabledChange={setFusionEnabledForWorkbench}
+        onIdeologyFusionEnabledChange={setIdeologyFusionEnabledForWorkbench}
+        fusionConfirmed={fusionConfirmed}
+        pendingFusionId={pendingFusion?.id}
+        pendingFusionKind={pendingFusion?.kind}
         chatCleared={Boolean(currentDesign && chatClearedByDesign[currentDesign?.id ?? ""])}
-        onConfirmFusion={confirmFusionForCurrentTab}
+        onConfirmFusion={confirmFusionForWorkbench}
       />
     </div>
   );
 }
 
 function DesignBody({
-  tab,
-  onSidebarTabChange,
   designsInSection,
-  design,
+  chatDesign,
   sectionTitle,
   onOpenDemoSection,
   extra,
   input,
   onChange,
   onSend,
-  acceptanceNotice,
+  acceptanceNotices,
   onDismissAcceptanceNotice,
   onAcceptFusionOutput,
   learningAdjustSimulateInitialReply = false,
   fusionEnabled,
+  ideologyFusionEnabled,
   onFusionEnabledChange,
-  fusionConfirmedByTab,
+  onIdeologyFusionEnabledChange,
+  fusionConfirmed,
   pendingFusionId,
+  pendingFusionKind,
   chatCleared,
   onConfirmFusion,
 }: {
-  tab: BusinessTabKey;
-  onSidebarTabChange: (next: BusinessTabKey) => void;
   designsInSection: TeachingDesign[];
-  /** 当前右侧「文件类型」对应的教学设计；无则为空会话 */
-  design: TeachingDesign | undefined;
+  /** 当前对话与左侧栏绑定的教学设计（固定为「讲义」会话） */
+  chatDesign: TeachingDesign | undefined;
   sectionTitle?: string;
   onOpenDemoSection?: () => void;
   extra: LocalMessage[];
   input: string;
   onChange: (v: string) => void;
   onSend: () => void;
-  acceptanceNotice?: { id: string; content: string; anchorOutputId?: string };
-  onDismissAcceptanceNotice?: () => void;
+  acceptanceNotices: Partial<
+    Record<Exclude<TabKey, "AI融合">, { id: string; content: string; anchorOutputId?: string }>
+  >;
+  onDismissAcceptanceNotice: (target: Exclude<TabKey, "AI融合">) => void;
   onAcceptFusionOutput: (target: Exclude<TabKey, "AI融合">, source: DesignOutput) => void;
   learningAdjustSimulateInitialReply?: boolean;
   fusionEnabled: boolean;
+  ideologyFusionEnabled: boolean;
   onFusionEnabledChange: (next: boolean) => void;
-  fusionConfirmedByTab: Record<BusinessTabKey, boolean>;
+  onIdeologyFusionEnabledChange: (next: boolean) => void;
+  fusionConfirmed: boolean;
   pendingFusionId?: string;
+  pendingFusionKind?: "ai" | "ideology";
   chatCleared: boolean;
   onConfirmFusion: (confirmId: string) => void;
 }) {
+  const design = chatDesign;
   const persona = design ? personaById(design.personaId) : undefined;
-  const skills = design ? design.skillIds.map(skillOrMcpById).filter(Boolean) : [];
-  const mcps = design ? design.mcpIds.map(skillOrMcpById).filter(Boolean) : [];
+  const handoutDesign = useMemo(
+    () => designsInSection.find((x) => x.tab === CHAT_CONTEXT_TAB),
+    [designsInSection],
+  );
+
+  const activeAcceptance = useMemo(() => {
+    for (const t of ["讲义", "课堂", "作业"] as const) {
+      const n = acceptanceNotices[t];
+      if (n) return { target: t, notice: n };
+    }
+    return undefined;
+  }, [acceptanceNotices]);
 
   const firstUser = design?.chatHistory.find((m) => m.role === "user");
   const firstAssistant = design?.chatHistory.find((m) => m.role === "assistant");
@@ -550,47 +629,47 @@ function DesignBody({
     chatCleared,
   ]);
 
-  const odForTab = useMemo(() => designsInSection.find((x) => x.tab === tab), [designsInSection, tab]);
-
-  const visibleOutputs: DesignOutput[] = useMemo(() => {
-    const d = odForTab;
-    if (!d) return [];
-    const isActiveDesignSession = Boolean(design && d.id === design.id);
-    if (!learningAdjustSimulateInitialReply || !isActiveDesignSession) return d.outputs;
-    return initialLoading ? d.outputsBeforeInitialAiReply ?? [] : d.outputs;
-  }, [
-    odForTab,
-    design,
-    learningAdjustSimulateInitialReply,
-    initialLoading,
-  ]);
-
-  const showLearningOutputsPending =
-    Boolean(design && odForTab && design.id === odForTab.id) &&
+  const handoutSubstitute =
     learningAdjustSimulateInitialReply &&
     initialLoading &&
-    !!odForTab.outputs.length &&
-    visibleOutputs.length < odForTab.outputs.length;
+    handoutDesign?.outputsBeforeInitialAiReply
+      ? handoutDesign.outputsBeforeInitialAiReply
+      : null;
+
+  const visibleOutputs: DesignOutput[] = useMemo(
+    () => collectWorkbenchOutputs(designsInSection, handoutSubstitute),
+    [designsInSection, handoutSubstitute],
+  );
+
+  const showLearningOutputsPending =
+    Boolean(design && handoutDesign && design.id === handoutDesign.id) &&
+    learningAdjustSimulateInitialReply &&
+    initialLoading &&
+    !!handoutDesign.outputs.length &&
+    visibleOutputs.length < fullMergedWorkbenchOutputs(designsInSection).length;
 
   const bubbleAnchorOutputId = useMemo(() => {
-    if (!acceptanceNotice?.anchorOutputId || !visibleOutputs.length) {
+    const anchor = activeAcceptance?.notice.anchorOutputId;
+    if (!anchor || !visibleOutputs.length) {
       return visibleOutputs[0]?.id;
     }
-    const hits = visibleOutputs.some((o) => o.id === acceptanceNotice.anchorOutputId);
-    return hits ? acceptanceNotice.anchorOutputId : visibleOutputs[0]?.id;
-  }, [acceptanceNotice?.anchorOutputId, visibleOutputs]);
+    const hits = visibleOutputs.some((o) => o.id === anchor);
+    return hits ? anchor : visibleOutputs[0]?.id;
+  }, [activeAcceptance?.notice.anchorOutputId, visibleOutputs]);
 
-  const showAcceptanceBubble = Boolean(acceptanceNotice && onDismissAcceptanceNotice && bubbleAnchorOutputId);
+  const showAcceptanceBubble = Boolean(
+    activeAcceptance && onDismissAcceptanceNotice && bubbleAnchorOutputId,
+  );
 
   return (
     <div className="flex-1 grid grid-cols-12 min-h-0 text-[12px]">
       <aside className="col-span-2 border-r border-slate-200 bg-white overflow-auto p-3 space-y-4">
         {!design ? (
           <div className="text-slate-500 text-[11.5px] leading-relaxed">
-            请在右侧选择<strong className="text-slate-700">文件类型</strong>（讲义 / 课堂 / 作业）。
+            当前小节尚无可用的<strong className="text-slate-700">教学设计</strong>会话。
             <br />
             <span className="text-slate-400 mt-2 block">
-              若该类型暂无设计数据，可先切换其他类型或点击下方生成初稿。
+              可点击下方「AI 生成初稿」使用演示数据，或由教师开启备课流程后进入。
             </span>
           </div>
         ) : (
@@ -612,18 +691,6 @@ function DesignBody({
                 <div className="text-slate-400 text-[11px]">未添加</div>
               )}
             </Section>
-            <Section icon={Wrench} title={`技能（${skills.length}）`}>
-              {skills.map((s) => (
-                <Chip key={s!.id} text={s!.name} />
-              ))}
-              {skills.length === 0 && <div className="text-slate-400 text-[11px]">未选择</div>}
-            </Section>
-            <Section icon={Plug} title={`MCP（${mcps.length}）`}>
-              {mcps.map((s) => (
-                <Chip key={s!.id} text={s!.name} />
-              ))}
-              {mcps.length === 0 && <div className="text-slate-400 text-[11px]">未连接</div>}
-            </Section>
           </>
         )}
       </aside>
@@ -632,7 +699,6 @@ function DesignBody({
         {!design ? (
           <div className="flex-1 overflow-auto flex items-center justify-center p-6">
             <EmptyDesignState
-              tabName={tab}
               sectionTitle={sectionTitle}
               onOpenDemo={onOpenDemoSection}
               embedded
@@ -682,13 +748,18 @@ function DesignBody({
                     </div>
                   )}
                   <p className="leading-relaxed whitespace-pre-line">{m.content}</p>
-                  {m.fusionConfirmTab === tab &&
+                  {m.fusionConfirmTab === CHAT_CONTEXT_TAB &&
                     m.fusionConfirmId &&
-                    pendingFusionId === m.fusionConfirmId && (
+                    pendingFusionId === m.fusionConfirmId &&
+                    (m.fusionConfirmKind ?? "ai") === (pendingFusionKind ?? "ai") && (
                       <button
                         type="button"
                         onClick={() => onConfirmFusion(m.fusionConfirmId!)}
-                        className="mt-2 rounded-lg bg-violet-600 px-3 py-1.5 text-[11.5px] text-white transition hover:bg-violet-700"
+                        className={`mt-2 rounded-lg px-3 py-1.5 text-[11.5px] text-white transition ${
+                          m.fusionConfirmKind === "ideology"
+                            ? "bg-rose-600 hover:bg-rose-700"
+                            : "bg-violet-600 hover:bg-violet-700"
+                        }`}
                       >
                         确认写入以上内容
                       </button>
@@ -715,8 +786,8 @@ function DesignBody({
                 if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) onSend();
               }}
               placeholder={
-                fusionEnabled
-                  ? "描述需求，AI 将按右侧当前文件类型的语境生成并可写入融合内容，Cmd+Enter 发送…"
+                fusionEnabled || ideologyFusionEnabled
+                  ? "描述需求，AI 将结合当前语境生成并可写入融合内容，Cmd+Enter 发送…"
                   : "描述你想生成的内容，可与右侧「可生成的文件类型」对照；Cmd+Enter 发送…"
               }
               className="flex-1 bg-transparent outline-none resize-none py-1.5 min-h-[36px] max-h-28 text-[12.5px]"
@@ -736,31 +807,6 @@ function DesignBody({
 
       <aside className="col-span-3 border-l border-slate-200 bg-white overflow-auto flex flex-col min-h-0 p-3">
         <div
-          role="tablist"
-          aria-label="文件类型"
-          className="flex gap-1 bg-slate-100 rounded-lg p-0.5 mb-3 shrink-0"
-        >
-          {TABS.map(({ key: k, label }) => {
-            const exists = designsInSection.some((d) => d.tab === k);
-            return (
-              <button
-                key={k}
-                type="button"
-                role="tab"
-                aria-selected={tab === k}
-                onClick={() => onSidebarTabChange(k)}
-                className={`flex-1 min-w-0 px-2 py-1 rounded-md flex items-center justify-center gap-0.5 text-[12px] ${
-                  tab === k ? "bg-white text-indigo-700 shadow" : "text-slate-600 hover:text-slate-800"
-                }`}
-              >
-                <span className="truncate">{label}</span>
-                {!exists && <span className="text-slate-300 text-[0.625rem] shrink-0">·空</span>}
-              </button>
-            );
-          })}
-        </div>
-
-        <div
           className={`mb-2.5 rounded-xl border px-2.5 py-2 transition ${
             !design ? "opacity-50 pointer-events-none" : ""
           } ${
@@ -776,7 +822,7 @@ function DesignBody({
                 AI融合建议
               </div>
               {!design && (
-                <div className="text-[10px] text-slate-500 mt-0.5 truncate">请先具备当前类型的设计会话</div>
+                <div className="text-[10px] text-slate-500 mt-0.5 truncate">请先加载本节教学设计会话</div>
               )}
             </div>
             <button
@@ -797,11 +843,51 @@ function DesignBody({
           </div>
         </div>
 
+        <div
+          className={`mb-2.5 rounded-xl border px-2.5 py-2 transition ${
+            !design ? "opacity-50 pointer-events-none" : ""
+          } ${
+            ideologyFusionEnabled
+              ? "border-rose-200 bg-rose-50/70"
+              : "border-slate-200 bg-slate-50/60"
+          }`}
+        >
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 text-[12px] font-medium text-slate-900">
+                <Landmark
+                  size={13}
+                  className={ideologyFusionEnabled ? "text-rose-600" : "text-slate-400"}
+                />
+                思政融合建议
+              </div>
+              {!design && (
+                <div className="text-[10px] text-slate-500 mt-0.5 truncate">请先加载本节教学设计会话</div>
+              )}
+            </div>
+            <button
+              type="button"
+              aria-pressed={ideologyFusionEnabled}
+              disabled={!design}
+              onClick={() => design && onIdeologyFusionEnabledChange(!ideologyFusionEnabled)}
+              className={`relative h-5 w-9 shrink-0 rounded-full transition ${
+                ideologyFusionEnabled ? "bg-rose-600" : "bg-slate-300"
+              } disabled:opacity-40`}
+            >
+              <span
+                className={`absolute top-0.5 size-4 rounded-full bg-white shadow transition ${
+                  ideologyFusionEnabled ? "left-4" : "left-0.5"
+                }`}
+              />
+            </button>
+          </div>
+        </div>
+
         <div className="mb-2 text-[10.5px] font-medium text-slate-500 uppercase tracking-wide">
-          可生成的文件类型 · {tab}
+          可生成的文件类型
         </div>
         <div className="grid grid-cols-3 gap-1.5 mb-2.5">
-          {TEMPLATES_BY_TAB[tab].map((templ) => {
+          {WORKBENCH_CREATE_TEMPLATES.map((templ) => {
             const Icon = templ.icon;
             return (
               <button
@@ -821,19 +907,16 @@ function DesignBody({
         <div className="h-px bg-slate-100 my-2.5 shrink-0" />
 
         <div className="text-[10.5px] font-medium text-slate-500 uppercase tracking-wide mb-1.5">
-          当前类型产物
+          产物
         </div>
         <div className="space-y-2 min-h-0">
           {visibleOutputs.map((o) => {
             const Icon = iconForOutput(o.type);
-            const od = odForTab;
             const draftTone =
               learningAdjustSimulateInitialReply &&
               initialLoading &&
-              od?.outputsBeforeInitialAiReply?.some((d) => d.id === o.id);
-            const ownerFusion = AI_FUSION_BY_TAB[tab];
-            const fusionEnhanced =
-              fusionConfirmedByTab[tab] && ownerFusion.enhancedOutputIds.includes(o.id);
+              handoutDesign?.outputsBeforeInitialAiReply?.some((d) => d.id === o.id);
+            const fusionEnhanced = fusionEnhancedForOutput(fusionConfirmed, o.id);
             const isBubbleAnchor = showAcceptanceBubble && bubbleAnchorOutputId === o.id;
             return (
               <div key={o.id} className={`relative ${isBubbleAnchor ? "z-40" : "z-0"}`}>
@@ -865,13 +948,13 @@ function DesignBody({
                         )}
                       </div>
                       <div className="text-slate-500 text-[11px]">
-                        {[o.type, o.sizeLabel, o.durationLabel].filter(Boolean).join(" · ")}
+                        {[outputTypeDisplayLabel(o.type), o.sizeLabel, o.durationLabel].filter(Boolean).join(" · ")}
                       </div>
                     </div>
                   </div>
                   <div className="text-slate-500 mt-1 line-clamp-2 text-[11.5px]">{o.summary}</div>
                   <div className="flex gap-1 mt-1.5">
-                    {outputActionLabels(o, tab).map((label, index) => {
+                    {outputActionLabels(o).map((label, index) => {
                       const acceptTarget = acceptTargetFromLabel(label);
                       return (
                         <button
@@ -890,14 +973,14 @@ function DesignBody({
                     })}
                   </div>
                 </div>
-                {isBubbleAnchor && acceptanceNotice && onDismissAcceptanceNotice && (
+                {isBubbleAnchor && activeAcceptance && onDismissAcceptanceNotice && (
                   <div className="absolute left-0 right-0 top-full z-50 mt-1.5 pointer-events-auto drop-shadow-md">
                     <ComicAcceptBubble
-                      key={`bubble-${acceptanceNotice.id}`}
-                      onDismiss={onDismissAcceptanceNotice}
+                      key={`bubble-${activeAcceptance.notice.id}`}
+                      onDismiss={() => onDismissAcceptanceNotice(activeAcceptance.target)}
                     >
                       <div className="font-semibold mb-1 text-emerald-950">已调整当前产物</div>
-                      <p className="leading-relaxed text-emerald-900/90">{acceptanceNotice.content}</p>
+                      <p className="leading-relaxed text-emerald-900/90">{activeAcceptance.notice.content}</p>
                     </ComicAcceptBubble>
                   </div>
                 )}
@@ -949,12 +1032,10 @@ function ComicAcceptBubble({
 }
 
 function EmptyDesignState({
-  tabName,
   sectionTitle,
   onOpenDemo,
   embedded = false,
 }: {
-  tabName: TabKey;
   sectionTitle?: string;
   onOpenDemo?: () => void;
   /** 嵌入主栏时使用更紧凑留白 */
@@ -980,9 +1061,9 @@ function EmptyDesignState({
         >
           <Sparkles size={iconSize} />
         </div>
-        <div className="text-slate-900 mb-1">{sectionTitle ?? "该小节"} · {tabName}设计尚未生成</div>
+        <div className="text-slate-900 mb-1">{sectionTitle ?? "该小节"} · 教学设计尚未生成</div>
         <p className="text-slate-500 leading-relaxed text-[12px]">
-          该小节还未生成教学设计。你可以从人设、知识文件、技能工具入手，再让 AI 生成{tabName}初稿。
+          该小节还未生成教学设计。你可以从人设、知识文件入手，再让 AI 生成初稿。
         </p>
         <div className="mt-5 flex items-center justify-center">
           <button
@@ -1027,10 +1108,3 @@ function FileRow({ name, sourceLabel }: { name: string; sourceLabel?: string }) 
   );
 }
 
-function Chip({ text }: { text: string }) {
-  return (
-    <span className="inline-block px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-700 mr-1 mb-1 text-[11px]">
-      {text}
-    </span>
-  );
-}

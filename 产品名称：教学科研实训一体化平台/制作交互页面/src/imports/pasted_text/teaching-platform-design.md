@@ -244,11 +244,8 @@ flowchart LR
 │  📁动画│                                          │ │🎬 3 分钟微课 │ │
 │  📁知识├──────────────────────────────────────────│ │ 03:12 · AI   │ │
 │  📁手写 │ [输入框]                          [发送]  │ └─────────────┘ │
-│  📁网页 │                                          │                 │
-│ ──技能  │                                          │ [+ 新建产物]    │
-│ 3 已选  │                                          │                 │
-│ ──MCP   │                                          │                 │
-│ 2 已连  │                                          │                 │
+│  📁网页 │                                          │ [+ 新建产物]    │
+│         │                                          │                 │
 └────────┴─────────────────────────────────────────┴─────────────────┘
 ```
 
@@ -259,8 +256,6 @@ flowchart LR
 
 1. **人设**：一次一个；可从下拉切换平台预置或自定义
 2. **知识文件**：本地 / 知识库 / 资源库 / 互联网 四种来源，标签区分
-3. **技能工具 (skills)**：多选；只显示按钮，不实现具体行为
-4. **MCP 连接**：多选；同上
 
 **中间对话**：
 
@@ -280,7 +275,7 @@ flowchart LR
 - 进行中：底部输入框显示"AI 正在生成..."的进度条
 - 作业 Tab 的"实训任务"产物类型：挂钩到实训项目库，展示绿色徽标
 
-**使用的假数据**：`teachingDesigns`（3 个：design-sec-3-2-handout / class / homework）+ `personas` + `skillAndMcpItems` + `resources`
+**使用的假数据**：`teachingDesigns`（3 个：design-sec-3-2-handout / class / homework）+ `personas` + `resources`
 
 ---
 
@@ -902,7 +897,7 @@ flowchart LR
 | 1.1 教学计划列表 | `teachingPlans` | 4 条（主线/历史/法学/护理） |
 | 1.2 创建向导 | `professions` `subjects` `courses` `classes` `classProfiles` `teachingStrategies` | 全部 |
 | 1.3 计划详情 | `teachingPlans[plan-main]` | + `teachingStrategies` |
-| 1.4 教学设计工作台 | `teachingDesigns` `personas` `skillAndMcpItems` `resources` | 焦点 3 条 design |
+| 1.4 教学设计工作台 | `teachingDesigns` `personas` `resources` | 焦点 3 条 design |
 | 1.5 作业评价总览 | `homeworkEvaluations` | 10 条 |
 | 1.6 作业评价详情 | `homeworkEvaluations[hw-m-003 / hw-m-003-2302]` | 单条 |
 | 1.7 考试评价总览 | `examEvaluations` | 4 条 |
@@ -950,7 +945,7 @@ flowchart LR
 ## 第三站（1.4）NotebookLM 风格教学设计
 
 1. 进入 1.4 工作台，默认在"讲义"Tab。
-2. 依次展示三栏：左栏人设/知识文件/Skills/MCP；中间 6 条对话记录；右栏 3 个产物。
+2. 依次展示三栏：左栏人设/知识文件；中间 6 条对话记录；右栏 3 个产物。
 3. 打开"讲义 v3.pdf"预览（右栏卡点击 → 覆盖层弹出）。
 4. 顶部 Tab 切到"课堂"：展示 PPT + 找茬 H5 + 计时表。
 5. 再切"作业"：展示 3 道题型分配的作业。

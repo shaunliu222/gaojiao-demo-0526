@@ -46,6 +46,15 @@ export const courses: Course[] = [
     knowledgeNodeIds: ["kn-mech-007", "kn-mech-008", "kn-mech-009", "kn-mech-010"],
     ownerTeacherId: "t-chen",
     tags: ["核心课", "机械设计"],
+    aiSuggestion: {
+      kind: "add_resource",
+      summary: "建议补充题库与微课，覆盖截交/相贯与三维—工程图衔接节点",
+      reason:
+        "最新能力谱系在「截交线与相贯线」「三维特征—装配—工程图」「AutoCAD 出图」上加深了与零件设计的耦合；当前课程挂载点偏少，学生完成大作业时上述环节错误集中，需配套可练可测资源。",
+      uncoveredNodeIds: ["kn-mech-006", "kn-mech-011", "kn-mech-012"],
+      suggestedResourceTypes: ["video", "quiz"],
+      generatedAt: "2026-03-28T10:00:00+08:00",
+    },
   },
   {
     id: "course-mech-practice",
@@ -136,6 +145,15 @@ export const courses: Course[] = [
     knowledgeNodeIds: ["kn-mech-009", "kn-mech-013", "kn-mech-010", "kn-mech-017"],
     ownerTeacherId: "t-wanglh",
     tags: ["制造工艺", "质量"],
+    aiSuggestion: {
+      kind: "adjust_hours",
+      summary: "建议总学时 +8，承接「智能制造孪生」与「机器人工作站」在工艺链里的课堂演练",
+      reason:
+        "图谱迭代后，工艺学需显式对齐产线数字孪生与机器人节拍安全等知识点；若维持现学时，综合工艺大课只能点到为止，建议在本专业课程委员会备案后增加 8 学时用于案例拆解与课内实作。",
+      uncoveredNodeIds: ["kn-mech-016", "kn-mech-014"],
+      suggestedHoursDelta: 8,
+      generatedAt: "2026-03-28T10:00:00+08:00",
+    },
   },
   {
     id: "course-mech-ai-lab",
@@ -158,5 +176,15 @@ export const courses: Course[] = [
     ],
     ownerTeacherId: "t-sun",
     tags: ["AI实训", "生成式AI", "跨课程"],
+    aiSuggestion: {
+      kind: "add_resource_and_hours",
+      summary: "需同步补充组合体案例与线上题库，并增加 8 学时用于人机协同实训",
+      reason:
+        "图谱对比显示「组合体分析与表征」「专业图谱路径意识」仍落在制图主线能力上，本课目前缺少结构化实训脚手架；同时课堂实作时间紧张，建议加学时并引入分层题库与微课，支撑 AI 辅助学习的核验训练。",
+      uncoveredNodeIds: ["kn-mech-005", "kn-mech-006", "kn-mech-018"],
+      suggestedHoursDelta: 8,
+      suggestedResourceTypes: ["video", "quiz", "ppt"],
+      generatedAt: "2026-03-28T10:00:00+08:00",
+    },
   },
 ];

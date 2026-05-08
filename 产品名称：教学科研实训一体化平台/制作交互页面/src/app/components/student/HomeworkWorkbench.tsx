@@ -281,13 +281,6 @@ export function HomeworkWorkbench({
                         >
                           <Paperclip size={14} /> 本地上传
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => setAttachHint("已关联实训平台草稿")}
-                          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-[0.75rem] text-slate-700 hover:bg-slate-50"
-                        >
-                          实训草稿
-                        </button>
                       </div>
                       {attachHint ? (
                         <div className="text-[0.7rem] text-indigo-700 bg-indigo-50/80 rounded-md px-2 py-1.5">

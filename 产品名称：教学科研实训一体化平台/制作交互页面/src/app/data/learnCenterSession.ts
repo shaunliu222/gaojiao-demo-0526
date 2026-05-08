@@ -22,6 +22,7 @@ import {
   flattenPlanSections,
   nextSectionId,
   planById,
+  isResourcePublicForDiscovery,
 } from "./lookups";
 import {
   findResumeSectionId,
@@ -1013,6 +1014,7 @@ export function resourcesForGoalNodes(goalNodeIds: string[]) {
       resource.courseIds.some((id) => courseIds.has(id)) ||
       (resource.trainingIds ?? []).some((id) => trainingIds.has(id))
     ) {
+      if (!isResourcePublicForDiscovery(resource)) continue;
       hits.set(resource.id, resource);
     }
   }

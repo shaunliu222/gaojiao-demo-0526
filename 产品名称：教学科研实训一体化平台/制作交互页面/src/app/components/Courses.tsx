@@ -1,84 +1,159 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   BookOpen,
   ChevronDown,
-  Clock,
-  CloudRain,
   FileText,
   Film,
-  FlaskConical,
   GraduationCap,
   Image as ImageIcon,
   ListChecks,
   Music,
   Code2,
   Database,
-  Download,
   Plus,
-  School,
   Search,
-  Sparkles,
-  TreePine,
-  User,
+  Upload,
+  X,
 } from "lucide-react";
-import { courses, professions } from "@mock";
-import type { ResourceType } from "@mock";
+import { courses, professions, suggestedNewCourses } from "@mock";
+import type { Course, ResourceType, SuggestedNewCourse } from "@mock";
 import {
   teacherById,
   professionById,
   resourcesByCourse,
-  trainingsByCourse,
   teacherSeesAllScopedContent,
+  teacherCanViewResource,
 } from "../data/lookups";
-import { PageHeader } from "./Layout";
+import { PageHeader, AiBadge } from "./Layout";
 import { AssociatedKnowledgeNodes } from "./AssociatedKnowledgeNodes";
-
-const IMPORT_SOURCES: {
-  key: string;
-  name: string;
-  description: string;
-  icon: typeof Sparkles;
-  iconCls: string;
-  bgCls: string;
-}[] = [
-  {
-    key: "chaoxing",
-    name: "超星",
-    description: "同步超星泛雅 / 学习通课程",
-    icon: Sparkles,
-    iconCls: "text-violet-600",
-    bgCls: "bg-violet-50",
-  },
-  {
-    key: "zhihuishu",
-    name: "智慧树",
-    description: "同步智慧树平台课程",
-    icon: TreePine,
-    iconCls: "text-emerald-600",
-    bgCls: "bg-emerald-50",
-  },
-  {
-    key: "yuketang",
-    name: "雨课堂",
-    description: "同步雨课堂课程",
-    icon: CloudRain,
-    iconCls: "text-sky-600",
-    bgCls: "bg-sky-50",
-  },
-  {
-    key: "jwxt",
-    name: "教务系统",
-    description: "从校内教务系统导入课表",
-    icon: School,
-    iconCls: "text-amber-600",
-    bgCls: "bg-amber-50",
-  },
-];
 
 function summarizeTags(tags: string[]): string {
   if (tags.length === 0) return "—";
   if (tags.length <= 2) return tags.join("、");
   return `${tags[0]}、${tags[1]} 等 ${tags.length} 项`;
+}
+
+function CourseAiSuggestionChips({ s }: { s: NonNullable<Course["aiSuggestion"]> }) {
+  const chipBase = "inline-flex items-center px-2 py-0.5 rounded-md text-[0.6875rem] font-medium";
+  const chips: ReactNode[] = [];
+  if (s.kind === "add_resource" || s.kind === "add_resource_and_hours") {
+    chips.push(
+      <span key="res" className={`${chipBase} bg-orange-50 text-orange-800 border border-orange-200`}>
+        待补资料
+      </span>,
+    );
+  }
+  if (s.kind === "adjust_hours" || s.kind === "add_resource_and_hours") {
+    const delta = s.suggestedHoursDelta ?? 0;
+    chips.push(
+      <span key="hrs" className={`${chipBase} bg-sky-50 text-sky-800 border border-sky-200`}>
+        待调课时{delta > 0 ? `（+${delta}h）` : ""}
+      </span>,
+    );
+  }
+  return <div className="flex flex-wrap gap-1 justify-end">{chips}</div>;
+}
+
+function NewCourseSuggestionDrawer({
+  suggestion,
+  onClose,
+  onConfirm,
+  onIgnore,
+  onLater,
+}: {
+  suggestion: SuggestedNewCourse | null;
+  onClose: () => void;
+  onConfirm: () => void;
+  onIgnore: () => void;
+  onLater: () => void;
+}) {
+  if (!suggestion) return null;
+  const prof = professionById(suggestion.professionId);
+
+  return (
+    <>
+      <div
+        role="presentation"
+        className="fixed inset-0 z-50 bg-slate-900/40"
+        onClick={onClose}
+      />
+      <aside className="fixed top-0 right-0 z-[51] h-full w-[min(100vw,30rem)] bg-white border-l border-slate-200 shadow-2xl flex flex-col">
+        <div className="flex items-start justify-between gap-3 p-4 border-b border-slate-100 shrink-0">
+          <div>
+            <div className="flex items-center gap-2 mb-1 flex-wrap">
+              <AiBadge>AI 建议新增课程</AiBadge>
+              <span className="text-xs text-slate-500">
+                {new Date(suggestion.generatedAt).toLocaleString("zh-CN")}
+              </span>
+            </div>
+            <h2 className="text-lg font-semibold text-slate-900 leading-snug">
+              《{suggestion.name}》
+            </h2>
+            <p className="text-sm text-slate-500 mt-1">{prof?.name ?? suggestion.professionId}</p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-2 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
+            <dt className="text-slate-500">推荐学分</dt>
+            <dd className="text-slate-800 text-right tabular-nums">{suggestion.recommendedCredit}</dd>
+            <dt className="text-slate-500">推荐学时</dt>
+            <dd className="text-slate-800 text-right tabular-nums">{suggestion.recommendedHours}</dd>
+            <dt className="text-slate-500">拟开课学期</dt>
+            <dd className="text-slate-800 text-right">{suggestion.semester}</dd>
+          </dl>
+
+          <div>
+            <div className="text-sm font-medium text-slate-700 mb-2">待覆盖知识点</div>
+            <AssociatedKnowledgeNodes
+              knowledgeNodeIds={suggestion.uncoveredNodeIds}
+              showHeader={false}
+              onNodeClick={undefined}
+              emptyMessage="暂无解析节点"
+            />
+          </div>
+
+          <div>
+            <div className="text-sm font-medium text-slate-700 mb-1">AI 推荐理由</div>
+            <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-wrap">
+              {suggestion.reason}
+            </p>
+          </div>
+        </div>
+
+        <div className="p-4 border-t border-slate-100 flex flex-wrap gap-2 justify-end shrink-0 bg-slate-50/80">
+          <button
+            type="button"
+            onClick={onIgnore}
+            className="px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-700 text-sm hover:bg-slate-50"
+          >
+            忽略
+          </button>
+          <button
+            type="button"
+            onClick={onLater}
+            className="px-3 py-2 rounded-lg border border-slate-200 bg-white text-slate-700 text-sm hover:bg-slate-50"
+          >
+            稍后处理
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            className="px-3 py-2 rounded-lg bg-indigo-600 text-white text-sm hover:bg-indigo-700"
+          >
+            确认创建
+          </button>
+        </div>
+      </aside>
+    </>
+  );
 }
 
 export function CourseList({
@@ -94,8 +169,14 @@ export function CourseList({
   const [courseQuery, setCourseQuery] = useState("");
   const [profPanelOpen, setProfPanelOpen] = useState(false);
   const [profSearch, setProfSearch] = useState("");
+  const [aiOnly, setAiOnly] = useState(false);
+  const [pendingSuggestionId, setPendingSuggestionId] = useState<string | null>(null);
+  const [dismissedSuggestionIds, setDismissedSuggestionIds] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const [toast, setToast] = useState<string | null>(null);
 
-  const list = useMemo(() => {
+  const scopeCourses = useMemo(() => {
     const seesAll = teacherSeesAllScopedContent(currentTeacherId);
     let rows = courses.filter((c) => selectedProfIds.has(c.professionId));
     if (!seesAll) {
@@ -105,6 +186,29 @@ export function CourseList({
     if (q) rows = rows.filter((c) => c.name.toLowerCase().includes(q));
     return rows;
   }, [selectedProfIds, courseQuery, currentTeacherId]);
+
+  const scopeSuggested = useMemo(
+    () =>
+      suggestedNewCourses.filter(
+        (s) => selectedProfIds.has(s.professionId) && !dismissedSuggestionIds.has(s.id),
+      ),
+    [selectedProfIds, dismissedSuggestionIds],
+  );
+
+  const aiExistingCount = useMemo(
+    () => scopeCourses.filter((c) => c.aiSuggestion).length,
+    [scopeCourses],
+  );
+
+  const listCourses = useMemo(() => {
+    if (!aiOnly) return scopeCourses;
+    return scopeCourses.filter((c) => c.aiSuggestion);
+  }, [scopeCourses, aiOnly]);
+
+  const drawerSuggestion = useMemo(
+    () => suggestedNewCourses.find((s) => s.id === pendingSuggestionId) ?? null,
+    [pendingSuggestionId],
+  );
 
   const professionsFiltered = useMemo(() => {
     const q = profSearch.trim().toLowerCase();
@@ -129,24 +233,43 @@ export function CourseList({
     setSelectedProfIds(new Set());
   };
 
-  const [importOpen, setImportOpen] = useState(false);
-  const importRef = useRef<HTMLDivElement>(null);
+  const courseImportInputRef = useRef<HTMLInputElement>(null);
   const profRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!importOpen && !profPanelOpen) return;
+    if (!profPanelOpen) return;
     const handler = (e: MouseEvent) => {
       const t = e.target as Node;
-      if (importOpen && importRef.current && !importRef.current.contains(t)) {
-        setImportOpen(false);
-      }
       if (profPanelOpen && profRef.current && !profRef.current.contains(t)) {
         setProfPanelOpen(false);
       }
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
-  }, [importOpen, profPanelOpen]);
+  }, [profPanelOpen]);
+
+  useEffect(() => {
+    if (!toast) return;
+    const t = window.setTimeout(() => setToast(null), 3200);
+    return () => window.clearTimeout(t);
+  }, [toast]);
+
+  const confirmSuggestion = () => {
+    if (pendingSuggestionId) {
+      setDismissedSuggestionIds((prev) => new Set(prev).add(pendingSuggestionId));
+    }
+    setToast("已记录创建意向（演示环境，未写入后台）");
+    setPendingSuggestionId(null);
+  };
+
+  const ignoreSuggestion = () => {
+    if (pendingSuggestionId) {
+      setDismissedSuggestionIds((prev) => new Set(prev).add(pendingSuggestionId));
+    }
+    setPendingSuggestionId(null);
+  };
+
+  const laterSuggestion = () => setPendingSuggestionId(null);
 
   return (
     <div>
@@ -154,55 +277,24 @@ export function CourseList({
         title="课程中心"
         actions={
           <>
-            {/* 导入数据下拉 */}
-            <div ref={importRef} className="relative">
-              <button
-                onClick={() => setImportOpen((v) => !v)}
-                className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-md border transition ${
-                  importOpen
-                    ? "border-indigo-300 bg-indigo-50 text-indigo-700"
-                    : "border-slate-200 bg-white text-slate-700 hover:border-indigo-300 hover:text-indigo-700"
-                }`}
-              >
-                <Download size={14} />
-                <span>导入数据</span>
-                <ChevronDown
-                  size={14}
-                  className={`transition ${
-                    importOpen ? "rotate-180 text-indigo-500" : "text-slate-400"
-                  }`}
-                />
-              </button>
-              {importOpen && (
-                <div className="absolute right-0 top-[calc(100%+6px)] w-72 bg-white border border-slate-200 rounded-xl shadow-lg p-1.5 z-20">
-                  <div className="px-3 py-1.5 text-slate-400 text-[0.6875rem] uppercase tracking-wider">
-                    选择数据来源
-                  </div>
-                  {IMPORT_SOURCES.map((src) => {
-                    const Icon = src.icon;
-                    return (
-                      <button
-                        key={src.key}
-                        onClick={() => setImportOpen(false)}
-                        className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left text-slate-700 hover:bg-slate-50"
-                      >
-                        <span
-                          className={`size-7 rounded-md flex items-center justify-center ${src.bgCls}`}
-                        >
-                          <Icon size={14} className={src.iconCls} />
-                        </span>
-                        <div className="flex-1 min-w-0">
-                          <div className="truncate text-slate-800">{src.name}</div>
-                          <div className="text-slate-400 text-[0.6875rem] truncate">
-                            {src.description}
-                          </div>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
+            <input
+              ref={courseImportInputRef}
+              type="file"
+              className="sr-only"
+              accept=".csv,.xlsx,.xls,.json,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv,application/json"
+              onChange={() => {
+                const el = courseImportInputRef.current;
+                if (el) el.value = "";
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => courseImportInputRef.current?.click()}
+              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-md border border-slate-200 bg-white text-slate-700 transition hover:border-indigo-300 hover:text-indigo-700"
+            >
+              <Upload size={14} />
+              <span>上传文件导入</span>
+            </button>
 
             <button
               onClick={() => {}}
@@ -299,11 +391,34 @@ export function CourseList({
         </div>
 
         <span className="text-slate-400 text-sm tabular-nums ml-auto">
-          共 {list.length} 条
+          课程 {listCourses.length} 条 · AI 建议新增 {scopeSuggested.length} 条
         </span>
       </div>
 
-      <div className="px-6 pb-6 pt-3">
+      <div className="px-6 pb-3">
+        <div className="rounded-lg border border-violet-200 bg-gradient-to-r from-violet-50 to-indigo-50 px-4 py-3 flex flex-wrap items-center gap-3">
+          <p className="text-sm text-violet-950 flex-1 min-w-[12rem] leading-relaxed">
+            <span className="font-medium">✦ AI 图谱差异分析：</span>
+            检测到{" "}
+            <strong className="tabular-nums">{aiExistingCount}</strong>{" "}
+            门已有课程需补充资料或调整学时，另有{" "}
+            <strong className="tabular-nums">{scopeSuggested.length}</strong>{" "}
+            门课程建议新增立项（数据为演示预置）。
+          </p>
+          <button
+            type="button"
+            onClick={() => setAiOnly((v) => !v)}
+            className={`shrink-0 px-3 py-1.5 rounded-md text-sm font-medium border transition ${
+              aiOnly
+                ? "border-violet-500 bg-violet-600 text-white shadow-sm"
+                : "border-violet-200 bg-white/80 text-violet-900 hover:border-violet-300"
+            }`}
+          >
+            {aiOnly ? "查看全部课程" : "仅看 AI 建议"}
+          </button>
+        </div>
+      </div>
+      <div className="px-6 pb-6 pt-1">
         <div className="border border-slate-200 rounded-lg bg-white overflow-hidden">
           <div className="overflow-x-auto max-h-[min(70vh,calc(100vh-12rem))] overflow-y-auto">
             <table className="w-full text-sm text-left border-collapse">
@@ -316,21 +431,70 @@ export function CourseList({
                   <th className="px-3 py-2.5 font-medium whitespace-nowrap text-right">学时</th>
                   <th className="px-3 py-2.5 font-medium whitespace-nowrap">主讲</th>
                   <th className="px-3 py-2.5 font-medium min-w-[8rem]">标签摘要</th>
+                  <th className="px-3 py-2.5 font-medium whitespace-nowrap text-right min-w-[7rem]">
+                    AI 建议
+                  </th>
                   <th className="px-3 py-2.5 font-medium whitespace-nowrap text-right">知识点</th>
                   <th className="px-3 py-2.5 font-medium whitespace-nowrap text-right">资源</th>
-                  <th className="px-3 py-2.5 font-medium whitespace-nowrap text-right">实训</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {list.map((c) => {
+                {scopeSuggested.map((s) => {
+                  const prof = professionById(s.professionId);
+                  return (
+                    <tr
+                      key={s.id}
+                      onClick={() => setPendingSuggestionId(s.id)}
+                      className="cursor-pointer bg-violet-50/40 text-violet-950 hover:bg-violet-50/80"
+                    >
+                      <td className="border-l-[3px] border-violet-400 px-3 py-2 max-w-[14rem]">
+                        <div className="flex gap-2">
+                          <span
+                            className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-violet-500"
+                            aria-hidden
+                          />
+                          <div className="min-w-0">
+                            <span className="line-clamp-2 font-medium" title={s.name}>
+                              《{s.name}》
+                            </span>
+                            <div className="text-[0.6875rem] text-violet-700/90 mt-0.5">
+                              AI 建议新增 · 推荐挂载 {s.uncoveredNodeIds.length} 个知识点
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                      <td
+                        className="px-3 py-2 text-slate-600 whitespace-nowrap max-w-[10rem] truncate"
+                        title={prof?.name}
+                      >
+                        {prof?.name ?? "—"}
+                      </td>
+                      <td className="px-3 py-2 text-slate-600 whitespace-nowrap">{s.semester}</td>
+                      <td className="px-3 py-2 text-right tabular-nums text-slate-600">
+                        {s.recommendedCredit}
+                      </td>
+                      <td className="px-3 py-2 text-right tabular-nums text-slate-600">
+                        {s.recommendedHours}
+                      </td>
+                      <td className="px-3 py-2 text-slate-500 whitespace-nowrap">—</td>
+                      <td className="px-3 py-2 text-violet-800 max-w-[12rem] truncate">AI 建议新增</td>
+                      <td className="px-3 py-2 text-right">
+                        <span className="inline-flex px-2 py-0.5 rounded-md text-[0.6875rem] font-medium bg-violet-100 text-violet-900 border border-violet-200">
+                          建议新增
+                        </span>
+                      </td>
+                      <td className="px-3 py-2 text-right tabular-nums text-slate-600">
+                        {s.uncoveredNodeIds.length}
+                      </td>
+                      <td className="px-3 py-2 text-right tabular-nums text-slate-400">—</td>
+                    </tr>
+                  );
+                })}
+                {listCourses.map((c) => {
                   const owner = teacherById(c.ownerTeacherId);
                   const prof = professionById(c.professionId);
-                  const seesAll = teacherSeesAllScopedContent(currentTeacherId);
-                  const resCount = resourcesByCourse(c.id).filter(
-                    (r) => seesAll || r.uploaderTeacherId === currentTeacherId,
-                  ).length;
-                  const trainCount = trainingsByCourse(c.id).filter(
-                    (t) => seesAll || t.ownerTeacherId === currentTeacherId,
+                  const resCount = resourcesByCourse(c.id).filter((r) =>
+                    teacherCanViewResource(r, currentTeacherId),
                   ).length;
                   return (
                     <tr
@@ -343,32 +507,51 @@ export function CourseList({
                           《{c.name}》
                         </span>
                       </td>
-                      <td className="px-3 py-2 text-slate-600 whitespace-nowrap max-w-[10rem] truncate" title={prof?.name}>
+                      <td
+                        className="px-3 py-2 text-slate-600 whitespace-nowrap max-w-[10rem] truncate"
+                        title={prof?.name}
+                      >
                         {prof?.name ?? "—"}
                       </td>
                       <td className="px-3 py-2 text-slate-600 whitespace-nowrap">{c.semester}</td>
                       <td className="px-3 py-2 text-right tabular-nums text-slate-600">{c.credit}</td>
-                      <td className="px-3 py-2 text-right tabular-nums text-slate-600">{c.totalHours}</td>
-                      <td className="px-3 py-2 text-slate-600 whitespace-nowrap max-w-[8rem] truncate" title={owner?.name}>
+                      <td className="px-3 py-2 text-right tabular-nums text-slate-600">
+                        {c.totalHours}
+                      </td>
+                      <td
+                        className="px-3 py-2 text-slate-600 whitespace-nowrap max-w-[8rem] truncate"
+                        title={owner?.name}
+                      >
                         {owner?.name ?? "—"}
                       </td>
-                      <td className="px-3 py-2 text-slate-500 max-w-[12rem] truncate" title={summarizeTags(c.tags)}>
+                      <td
+                        className="px-3 py-2 text-slate-500 max-w-[12rem] truncate"
+                        title={summarizeTags(c.tags)}
+                      >
                         {summarizeTags(c.tags)}
+                      </td>
+                      <td className="px-3 py-2 text-right">
+                        {c.aiSuggestion ? (
+                          <CourseAiSuggestionChips s={c.aiSuggestion} />
+                        ) : (
+                          <span className="text-slate-300">—</span>
+                        )}
                       </td>
                       <td className="px-3 py-2 text-right tabular-nums text-slate-600">
                         {c.knowledgeNodeIds.length}
                       </td>
                       <td className="px-3 py-2 text-right tabular-nums text-slate-600">{resCount}</td>
-                      <td className="px-3 py-2 text-right tabular-nums text-slate-600">{trainCount}</td>
                     </tr>
                   );
                 })}
-                {list.length === 0 && (
+                {scopeSuggested.length === 0 && listCourses.length === 0 && (
                   <tr>
                     <td colSpan={10} className="px-3 py-16 text-center text-slate-400">
                       {selectedProfIds.size === 0
                         ? "请至少选择一个专业"
-                        : "当前筛选条件下暂无课程"}
+                        : aiOnly
+                          ? "当前仅显示 AI 建议相关条目，暂无匹配项"
+                          : "当前筛选条件下暂无课程"}
                     </td>
                   </tr>
                 )}
@@ -377,6 +560,18 @@ export function CourseList({
           </div>
         </div>
       </div>
+      <NewCourseSuggestionDrawer
+        suggestion={drawerSuggestion}
+        onClose={() => setPendingSuggestionId(null)}
+        onConfirm={confirmSuggestion}
+        onIgnore={ignoreSuggestion}
+        onLater={laterSuggestion}
+      />
+      {toast && (
+        <div className="fixed bottom-6 left-1/2 z-[60] -translate-x-1/2 rounded-lg bg-slate-900 px-4 py-2 text-sm text-white shadow-lg">
+          {toast}
+        </div>
+      )}
     </div>
   );
 }
@@ -386,17 +581,20 @@ export function CourseDetail({
   currentTeacherId,
   onBack,
   onOpenResource,
-  onOpenTraining,
   onOpenKnowledgeInGraph,
 }: {
   id: string;
   currentTeacherId: string;
   onBack: () => void;
   onOpenResource: (id: string) => void;
-  onOpenTraining: (id: string) => void;
   onOpenKnowledgeInGraph: (nodeId: string) => void;
 }) {
+  const [aiFeedback, setAiFeedback] = useState<"adopt" | "dismiss" | null>(null);
   const c = courses.find((x) => x.id === id);
+
+  useEffect(() => {
+    setAiFeedback(null);
+  }, [id]);
 
   if (!c) {
     return (
@@ -421,11 +619,8 @@ export function CourseDetail({
 
   const owner = teacherById(c.ownerTeacherId);
   const prof = professionById(c.professionId);
-  const resources = resourcesByCourse(c.id).filter(
-    (r) => seesAll || r.uploaderTeacherId === currentTeacherId,
-  );
-  const trainings = trainingsByCourse(c.id).filter(
-    (t) => seesAll || t.ownerTeacherId === currentTeacherId,
+  const resourcesList = resourcesByCourse(c.id).filter((r) =>
+    teacherCanViewResource(r, currentTeacherId),
   );
 
   return (
@@ -455,6 +650,55 @@ export function CourseDetail({
               ))}
             </div>
             <p className="text-slate-700 mt-3 leading-relaxed">{c.description}</p>
+            {c.aiSuggestion && (
+              <div className="mt-4 rounded-xl border border-violet-200 bg-violet-50/60 p-4">
+                {aiFeedback === null ? (
+                  <>
+                    <div className="flex flex-wrap items-center gap-2 mb-2">
+                      <AiBadge>AI 课程优化建议</AiBadge>
+                      <span className="text-sm font-medium text-violet-950">
+                        {c.aiSuggestion.summary}
+                      </span>
+                      <span className="text-xs text-slate-500 ml-auto">
+                        {new Date(c.aiSuggestion.generatedAt).toLocaleString("zh-CN")}
+                      </span>
+                    </div>
+                    <div className="text-xs text-slate-500 mb-1">图谱对比待加强覆盖的知识点</div>
+                    <AssociatedKnowledgeNodes
+                      knowledgeNodeIds={c.aiSuggestion.uncoveredNodeIds}
+                      onNodeClick={onOpenKnowledgeInGraph}
+                      showHeader={false}
+                      emptyMessage="暂无解析节点"
+                    />
+                    <p className="text-sm text-slate-600 mt-3 leading-relaxed whitespace-pre-wrap">
+                      {c.aiSuggestion.reason}
+                    </p>
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setAiFeedback("adopt")}
+                        className="px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-sm hover:bg-indigo-700"
+                      >
+                        采纳建议
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setAiFeedback("dismiss")}
+                        className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 text-sm hover:bg-slate-50"
+                      >
+                        忽略
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-sm text-slate-600">
+                    {aiFeedback === "adopt"
+                      ? "已记录采纳意向（演示环境，未持久化）。"
+                      : "已标记忽略，可在学院课程委员会或培养方案复审中再次评估。"}
+                  </p>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
@@ -470,8 +714,7 @@ export function CourseDetail({
               k="关联知识点"
               v={`${c.knowledgeNodeIds.length} 个`}
             />
-            <Info k="教学资源" v={`${resources.length} 个`} />
-            <Info k="实训项目" v={`${trainings.length} 个`} />
+            <Info k="教学资源" v={`${resourcesList.length} 个`} />
           </dl>
         </aside>
 
@@ -483,14 +726,14 @@ export function CourseDetail({
           />
         </section>
 
-        <section className="col-span-7 bg-white rounded-xl border border-slate-200 p-5">
+        <section className="col-span-12 bg-white rounded-xl border border-slate-200 p-5">
           <div className="flex items-center gap-2 mb-3">
             <FileText size={16} className="text-indigo-500" />
             <span className="text-slate-900">关联教学资源</span>
-            <span className="text-slate-400">（{resources.length}）</span>
+            <span className="text-slate-400">（{resourcesList.length}）</span>
           </div>
           <div className="space-y-1.5 max-h-[420px] overflow-auto">
-            {resources.map((r) => (
+            {resourcesList.map((r) => (
               <button
                 key={r.id}
                 onClick={() => onOpenResource(r.id)}
@@ -504,46 +747,8 @@ export function CourseDetail({
                 </span>
               </button>
             ))}
-            {resources.length === 0 && (
+            {resourcesList.length === 0 && (
               <div className="text-slate-400">该课程暂无关联资源</div>
-            )}
-          </div>
-        </section>
-
-        <section className="col-span-5 bg-white rounded-xl border border-slate-200 p-5">
-          <div className="flex items-center gap-2 mb-3">
-            <FlaskConical size={16} className="text-emerald-500" />
-            <span className="text-slate-900">关联实训项目</span>
-            <span className="text-slate-400">（{trainings.length}）</span>
-          </div>
-          <div className="space-y-1.5 max-h-[420px] overflow-auto">
-            {trainings.map((t) => (
-              <button
-                key={t.id}
-                onClick={() => onOpenTraining(t.id)}
-                className="w-full text-left px-3 py-2 rounded-lg border border-slate-200 hover:border-emerald-300 hover:bg-emerald-50/40"
-              >
-                <div className="flex items-center gap-2">
-                  <span className="flex-1 truncate text-slate-800">{t.name}</span>
-                  <span
-                    className={`px-2 py-0.5 rounded-md shrink-0 ${
-                      t.difficulty === "入门"
-                        ? "bg-emerald-50 text-emerald-700"
-                        : t.difficulty === "进阶"
-                        ? "bg-amber-50 text-amber-700"
-                        : "bg-rose-50 text-rose-700"
-                    }`}
-                  >
-                    {t.difficulty}
-                  </span>
-                </div>
-                <div className="text-slate-500 mt-0.5">
-                  预估 {t.estimatedHours}h · {t.goals[0] ?? ""}
-                </div>
-              </button>
-            ))}
-            {trainings.length === 0 && (
-              <div className="text-slate-400">该课程暂无关联实训</div>
             )}
           </div>
         </section>

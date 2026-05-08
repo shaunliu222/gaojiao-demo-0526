@@ -19,8 +19,6 @@ export const teachingDesignsLearningAdjust: TeachingDesign[] = [
       { source: "resource_library", refId: "res-m-022", name: "投影基础练习题库（精选）" },
       { source: "knowledge_base", refId: "kb-engdrawing", name: "工程制图知识库（全文检索）" },
     ],
-    skillIds: ["skill-gen-mindmap", "skill-gen-microvideo"],
-    mcpIds: ["mcp-textbook"],
     chatHistory: [
       {
         id: "msg-la32-h-1",
@@ -83,8 +81,6 @@ export const teachingDesignsLearningAdjust: TeachingDesign[] = [
       { source: "resource_library", refId: "res-m-041", name: "组合体三视图绘制示范 · 轴承座" },
       { source: "resource_library", refId: "res-m-044", name: "轴承座 STL 模型" },
     ],
-    skillIds: ["skill-gen-quiz", "skill-gen-h5"],
-    mcpIds: ["mcp-solidworks"],
     chatHistory: [
       {
         id: "msg-la32-c-1",
@@ -146,8 +142,6 @@ export const teachingDesignsLearningAdjust: TeachingDesign[] = [
     knowledgeFiles: [
       { source: "resource_library", refId: "res-m-041", name: "组合体三视图绘制示范 · 轴承座" },
     ],
-    skillIds: ["skill-gen-quiz", "skill-assign-grader"],
-    mcpIds: [],
     chatHistory: [
       {
         id: "msg-la32-w-1",

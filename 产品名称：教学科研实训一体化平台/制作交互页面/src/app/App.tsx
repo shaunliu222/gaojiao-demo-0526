@@ -10,14 +10,15 @@ import {
 import {
   courseById,
   classIdsVisibleToTeacher,
+  classProfileByClassId,
   defaultLearningClassIdForTeacher,
   examById,
+  flattenPlanSections,
   homeworkById,
+  nextSectionId,
   planById,
   resourceById,
-  resolveTeachingDesignJumpFromEvalClasses,
   studentById,
-  trainingById,
 } from "./data/lookups";
 import { LearningAnalyticsHub } from "./components/ClassProfiles";
 import { PlansList, PlanDetail } from "./components/Plans";
@@ -30,8 +31,8 @@ import { HwOverview, HwDetail } from "./components/HomeworkEval";
 import { ExamOverview, ExamDetail } from "./components/ExamEval";
 import { CourseList, CourseDetail } from "./components/Courses";
 import { ResourceLibrary } from "./components/ResourceLibrary";
-import { TrainingList, TrainingDetail } from "./components/TrainingLibrary";
 import { GraphBrowse, ResourceDetail } from "./components/Graph";
+import { PersonnelManagement } from "./components/PersonnelManagement";
 import {
   MyPlansList,
   MyPlanDetail,
@@ -40,16 +41,14 @@ import {
 import { LearnCenter, type LearnCenterHubSectionId } from "./components/student/LearnCenter";
 import { ClassStudy } from "./components/student/ClassStudy";
 import { HomeworkWorkbench } from "./components/student/HomeworkWorkbench";
-import { TrainingWorkbench } from "./components/student/TrainingWorkbench";
 import {
   findPlanSection,
   findSectionIdByKnowledgeNode,
   getStudentPlans,
   normalizeStudentChapterPointIdsToGraphNodes,
 } from "./data/learnCenterSession";
-import { TrainingLab } from "./components/student/TrainingLab";
 import { MyProfile } from "./components/student/MyProfile";
-import { findResumeSectionId, personalPlanById } from "./data/studentMock";
+import { findResumeSectionId } from "./data/studentMock";
 import {
   DEMO_DESIGN_PLAN_ID,
   DEMO_DESIGN_SECTION_ID,
@@ -94,12 +93,11 @@ type TeacherView =
   | { k: "course-detail"; id: string }
   | { k: "resource-list" }
   | { k: "resource-detail"; id: string; from?: "graph" | "library" | "course" }
-  | { k: "training-list" }
-  | { k: "training-detail"; id: string };
+  | { k: "personnel-mgmt" };
 
 type StudentView =
   | { k: "my-plans-list" }
-  | { k: "my-plan-detail"; id: string; kind: "course" | "personal" }
+  | { k: "my-plan-detail"; id: string }
   | {
       k: "learn-center";
       initialPlanId?: string;
@@ -113,9 +111,6 @@ type StudentView =
       goalNodeIds?: string[];
     }
   | { k: "homework-workbench"; homeworkId: string }
-  | { k: "training-workbench"; assignmentId: string }
-  | { k: "training-lab" }
-  | { k: "training-detail-student"; id: string }
   | { k: "my-profile" };
 
 type View = TeacherView | StudentView;
@@ -224,31 +219,19 @@ function titleForView(view: View, resourceSessionOverlay: Resource[]): string {
         resourceById(view.id)?.title ??
         "资源详情"
       );
-    case "training-list":
-      return "实训项目库";
-    case "training-detail":
-      return trainingById(view.id)?.name ?? "实训项目详情";
+    case "personnel-mgmt":
+      return "人员管理";
     // ---- 学生端 ----
     case "my-plans-list":
       return "学习计划";
-    case "my-plan-detail": {
-      if (view.kind === "course") {
-        return planById(view.id)?.title ?? "学习计划详情";
-      }
-      return personalPlanById(view.id)?.title ?? "个人学习计划";
-    }
+    case "my-plan-detail":
+      return planById(view.id)?.title ?? "学习计划详情";
     case "learn-center":
       return "学习中心";
     case "class-study":
       return "课堂学习";
     case "homework-workbench":
       return "作业工作台";
-    case "training-workbench":
-      return "实训工作台";
-    case "training-lab":
-      return "实训中心";
-    case "training-detail-student":
-      return trainingById(view.id)?.name ?? "实训详情";
     case "my-profile":
       return "学情分析";
   }
@@ -317,8 +300,8 @@ export default function App() {
       case "resources":
         setView({ k: "resource-list" });
         break;
-      case "trainings":
-        setView({ k: "training-list" });
+      case "personnel":
+        setView({ k: "personnel-mgmt" });
         break;
     }
   };
@@ -331,9 +314,6 @@ export default function App() {
         break;
       case "learn-center":
         setView({ k: "learn-center" });
-        break;
-      case "training-lab":
-        setView({ k: "training-lab" });
         break;
       case "my-profile":
         setView({ k: "my-profile" });
@@ -492,6 +472,35 @@ export default function App() {
             onOpenResourceLibrary={(rid) =>
               goEnginePage("resources", { k: "resource-detail", id: rid, from: "library" })
             }
+            onOpenLearningAnalytics={(classId) => {
+              setNav("learning");
+              setView({ k: "learning-analytics", classId });
+            }}
+            onOpenTeachingDesignForClass={(classId) => {
+              const profile = classProfileByClassId(classId);
+              const progressRaw = profile?.progressSectionId;
+              const review = profile?.designReviewSectionIds ?? [];
+              const p = planById(view.planId);
+              let targetSectionId = view.sectionId;
+              if (p && progressRaw) {
+                const flatIds = new Set(flattenPlanSections(p).map((s) => s.sectionId));
+                if (flatIds.has(progressRaw)) {
+                  const next = nextSectionId(p, progressRaw);
+                  targetSectionId = next ?? view.sectionId;
+                }
+              }
+              setNav("designs");
+              setView({
+                k: "design",
+                planId: view.planId,
+                sectionId: targetSectionId,
+                fromPlanId: view.fromPlanId ?? view.planId,
+                fromDashboard: view.fromDashboard,
+                fromSectionResources: true,
+                progressSectionId: progressRaw ?? view.sectionId,
+                reviewSectionIds: review,
+              });
+            }}
           />
         );
       case "design-dashboard":
@@ -557,10 +566,7 @@ export default function App() {
           });
         };
 
-        if (
-          view.evalAdjustReturn &&
-          view.progressSectionId
-        ) {
+        if (view.progressSectionId) {
           return (
             <DesignLearningAdjustWorkbench
               planId={view.planId}
@@ -588,10 +594,7 @@ export default function App() {
             onOpen={(id) => setView({ k: "hw-detail", id })}
           />
         );
-      case "hw-detail": {
-        const row = homeworkById(view.id);
-        const evalAdj =
-          row && resolveTeachingDesignJumpFromEvalClasses(row.classId);
+      case "hw-detail":
         return (
           <HwDetail
             id={view.id}
@@ -601,24 +604,8 @@ export default function App() {
               setNav("plans");
               setView({ k: "plan-detail", id: planId, focusSectionId: sectionId });
             }}
-            onOpenTeachingDesignAdjust={
-              evalAdj
-                ? () => {
-                    setNav("designs");
-                    setView({
-                      k: "design",
-                      planId: evalAdj.planId,
-                      sectionId: evalAdj.sectionId,
-                      progressSectionId: evalAdj.progressSectionId,
-                      reviewSectionIds: evalAdj.reviewSectionIds,
-                      evalAdjustReturn: { source: "hw", detailId: view.id },
-                    });
-                  }
-                : undefined
-            }
           />
         );
-      }
       case "exam-overview":
         return (
           <ExamOverview
@@ -626,10 +613,7 @@ export default function App() {
             onOpen={(id) => setView({ k: "exam-detail", id })}
           />
         );
-      case "exam-detail": {
-        const row = examById(view.id);
-        const evalAdj =
-          row && resolveTeachingDesignJumpFromEvalClasses(row.classIds);
+      case "exam-detail":
         return (
           <ExamDetail
             id={view.id}
@@ -639,24 +623,8 @@ export default function App() {
               setNav("plans");
               setView({ k: "plan-detail", id: planId, focusSectionId: sectionId });
             }}
-            onOpenTeachingDesignAdjust={
-              evalAdj
-                ? () => {
-                    setNav("designs");
-                    setView({
-                      k: "design",
-                      planId: evalAdj.planId,
-                      sectionId: evalAdj.sectionId,
-                      progressSectionId: evalAdj.progressSectionId,
-                      reviewSectionIds: evalAdj.reviewSectionIds,
-                      evalAdjustReturn: { source: "exam", detailId: view.id },
-                    });
-                  }
-                : undefined
-            }
           />
         );
-      }
       case "graph":
         return (
           <GraphBrowse
@@ -668,9 +636,6 @@ export default function App() {
             }
             onOpenCourse={(id) =>
               goEnginePage("courses", { k: "course-detail", id })
-            }
-            onOpenTraining={(id) =>
-              goEnginePage("trainings", { k: "training-detail", id })
             }
           />
         );
@@ -693,9 +658,6 @@ export default function App() {
             onOpenResource={(id) =>
               goEnginePage("resources", { k: "resource-detail", id, from: "course" })
             }
-            onOpenTraining={(id) =>
-              goEnginePage("trainings", { k: "training-detail", id })
-            }
             onOpenKnowledgeInGraph={(nodeId) =>
               goEnginePage("graph", { k: "graph", focusNodeId: nodeId })
             }
@@ -709,6 +671,9 @@ export default function App() {
             onAddSessionResource={(r) =>
               setResourceSessionOverlay((prev) => [r, ...prev.filter((x) => x.id !== r.id)])
             }
+            onUpsertSessionResource={(r) =>
+              setResourceSessionOverlay((prev) => [r, ...prev.filter((x) => x.id !== r.id)])
+            }
             onOpen={(id) =>
               goEnginePage("resources", { k: "resource-detail", id, from: "library" })
             }
@@ -720,6 +685,9 @@ export default function App() {
             id={view.id}
             sessionResources={resourceSessionOverlay}
             currentTeacherId={teacherId}
+            onUpsertSessionResource={(r) =>
+              setResourceSessionOverlay((prev) => [r, ...prev.filter((x) => x.id !== r.id)])
+            }
             onBack={() => {
               if (view.from === "library") {
                 setNav("resources");
@@ -737,28 +705,15 @@ export default function App() {
             }
           />
         );
-      case "training-list":
-        return (
-          <TrainingList
-            currentTeacherId={teacherId}
-            onOpen={(id) => goEnginePage("trainings", { k: "training-detail", id })}
-          />
-        );
-      case "training-detail":
-        return (
-          <TrainingDetail
-            id={view.id}
-            currentTeacherId={teacherId}
-            onBack={() => {
-              setNav("trainings");
-              setView({ k: "training-list" });
-            }}
-            onOpenCourse={(id) => goEnginePage("courses", { k: "course-detail", id })}
-            onOpenKnowledgeInGraph={(nodeId) =>
-              goEnginePage("graph", { k: "graph", focusNodeId: nodeId })
-            }
-          />
-        );
+      case "personnel-mgmt":
+        if (role !== "college_admin") {
+          return (
+            <div className="p-8 text-slate-500 text-sm">
+              人员管理仅「学院管理」身份可用，请从顶栏切换身份。
+            </div>
+          );
+        }
+        return <PersonnelManagement />;
       default:
         return null;
     }
@@ -770,8 +725,8 @@ export default function App() {
         return (
           <MyPlansList
             studentId={studentId}
-            onOpen={(id, kind) =>
-              setView({ k: "my-plan-detail", id, kind })
+            onOpen={(id) =>
+              setView({ k: "my-plan-detail", id })
             }
             onGoLearn={(opts: StudentLearnNavigateInput | undefined) => {
               setNav("learn-center");
@@ -802,7 +757,6 @@ export default function App() {
           <MyPlanDetail
             studentId={studentId}
             id={view.id}
-            kind={view.kind}
             onBack={() => setView({ k: "my-plans-list" })}
             onGoLearn={(opts: StudentLearnNavigateInput | undefined) => {
               setNav("learn-center");
@@ -826,10 +780,6 @@ export default function App() {
                 setView({ k: "learn-center" });
               }
             }}
-            onGoTraining={(assignmentId: string) => {
-              setNav("learn-center");
-              setView({ k: "training-workbench", assignmentId });
-            }}
           />
         );
       case "learn-center":
@@ -849,21 +799,6 @@ export default function App() {
             onEnterHomeworkWorkbench={(homeworkId) =>
               setView({ k: "homework-workbench", homeworkId })
             }
-            onOpenStudentLearningPlans={() => {
-              setNav("my-plans");
-              setView({ k: "my-plans-list" });
-            }}
-            onContinuePersonalLearn={(opts: StudentLearnNavigateInput) => {
-              const entry = resolveClassStudyEntry(studentId, opts);
-              if (!entry) return;
-              setView({
-                k: "class-study",
-                planId: entry.planId,
-                sectionId: entry.sectionId,
-                focus: "课堂",
-                goalNodeIds: entry.goalNodeIds,
-              });
-            }}
             onPracticeKnowledge={(planId, goalNodeIds) => {
               const entry = resolveClassStudyEntry(studentId, { planId, goalNodeIds });
               if (!entry) return;
@@ -894,35 +829,6 @@ export default function App() {
             studentId={studentId}
             homeworkId={view.homeworkId}
             onBack={() => setView({ k: "learn-center" })}
-          />
-        );
-      case "training-workbench":
-        return (
-          <TrainingWorkbench
-            studentId={studentId}
-            assignmentId={view.assignmentId}
-            onBack={() => setView({ k: "learn-center" })}
-          />
-        );
-      case "training-lab":
-        return (
-          <TrainingLab
-            studentId={studentId}
-            onOpenTraining={(id) =>
-              setView({ k: "training-detail-student", id })
-            }
-            onGoLearn={() => {
-              setNav("learn-center");
-              setView({ k: "learn-center" });
-            }}
-          />
-        );
-      case "training-detail-student":
-        return (
-          <TrainingDetail
-            id={view.id}
-            onBack={() => setView({ k: "training-lab" })}
-            onOpenCourse={() => setView({ k: "training-lab" })}
           />
         );
       case "my-profile":
@@ -957,10 +863,6 @@ export default function App() {
             onGoPlans={() => {
               setNav("my-plans");
               setView({ k: "my-plans-list" });
-            }}
-            onGoLab={() => {
-              setNav("training-lab");
-              setView({ k: "training-lab" });
             }}
           />
         );

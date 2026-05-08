@@ -20,7 +20,8 @@ import type { ResourceType, Resource } from "@mock";
 import {
   teacherById,
   professionById,
-  teacherSeesAllScopedContent,
+  teacherCanViewResource,
+  effectiveResourceVisibility,
 } from "../data/lookups";
 import { PageHeader, AiBadge } from "./Layout";
 import {
@@ -71,11 +72,13 @@ export function ResourceLibrary({
   currentTeacherId,
   sessionResources,
   onAddSessionResource,
+  onUpsertSessionResource,
   onOpen,
 }: {
   currentTeacherId: string;
   sessionResources: Resource[];
   onAddSessionResource: (r: Resource) => void;
+  onUpsertSessionResource: (r: Resource) => void;
   onOpen: (id: string) => void;
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -87,6 +90,9 @@ export function ResourceLibrary({
   const [statusHint, setStatusHint] = useState<string | null>(null);
   const [typeFilter, setTypeFilter] = useState<ResourceType | "all">("all");
   const [profFilter, setProfFilter] = useState<string>("all");
+  const [visibilityFilter, setVisibilityFilter] = useState<
+    "all" | "public" | "personal"
+  >("all");
   const [aiOnly, setAiOnly] = useState<boolean>(false);
   const [q, setQ] = useState<string>("");
 
@@ -104,9 +110,19 @@ export function ResourceLibrary({
   );
 
   const list = useMemo(() => {
-    const seesAll = teacherSeesAllScopedContent(currentTeacherId);
     return allResources.filter((r) => {
-      if (!seesAll && r.uploaderTeacherId !== currentTeacherId) return false;
+      if (!teacherCanViewResource(r, currentTeacherId)) return false;
+      if (
+        visibilityFilter === "public" &&
+        effectiveResourceVisibility(r) !== "public"
+      )
+        return false;
+      if (
+        visibilityFilter === "personal" &&
+        effectiveResourceVisibility(r) !== "personal"
+      )
+        return false;
+      if ((r.trainingIds?.length ?? 0) > 0) return false;
       if (typeFilter !== "all" && r.type !== typeFilter) return false;
       if (profFilter !== "all" && r.professionId !== profFilter) return false;
       if (aiOnly && !r.isAiGenerated) return false;
@@ -122,13 +138,20 @@ export function ResourceLibrary({
       }
       return true;
     });
-  }, [typeFilter, profFilter, aiOnly, q, currentTeacherId, allResources]);
+  }, [
+    typeFilter,
+    profFilter,
+    visibilityFilter,
+    aiOnly,
+    q,
+    currentTeacherId,
+    allResources,
+  ]);
 
   const typeStats = useMemo(() => {
-    const seesAll = teacherSeesAllScopedContent(currentTeacherId);
     const out: Record<string, number> = {};
     for (const r of allResources) {
-      if (!seesAll && r.uploaderTeacherId !== currentTeacherId) continue;
+      if (!teacherCanViewResource(r, currentTeacherId)) continue;
       out[r.type] = (out[r.type] ?? 0) + 1;
     }
     return out;
@@ -333,6 +356,7 @@ export function ResourceLibrary({
                     externalTitle: item.title,
                     courseUrl: item.courseUrl,
                   },
+                  visibility: "personal",
                 };
                 onAddSessionResource(newR);
                 setStatusHint(`已创建线上课程资源「${title}」，已关联 ${plat.name}。`);
@@ -470,6 +494,30 @@ export function ResourceLibrary({
                 </button>
               ))}
             </div>
+            <div className="h-6 w-px bg-slate-200" />
+            <div className="flex flex-wrap gap-1.5 items-center">
+              <span className="text-slate-500 text-sm mr-1">可见性</span>
+              {(
+                [
+                  { value: "all" as const, label: "全部" },
+                  { value: "public" as const, label: "公共资源" },
+                  { value: "personal" as const, label: "个人资源" },
+                ] as const
+              ).map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setVisibilityFilter(opt.value)}
+                  className={`px-2.5 py-1 rounded-md transition ${
+                    visibilityFilter === opt.value
+                      ? "bg-indigo-600 text-white"
+                      : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -478,52 +526,109 @@ export function ResourceLibrary({
           {list.map((r) => {
             const uploader = teacherById(r.uploaderTeacherId);
             const prof = professionById(r.professionId);
+            const ev = effectiveResourceVisibility(r);
+            const isOwner = r.uploaderTeacherId === currentTeacherId;
             return (
-              <button
+              <div
                 key={r.id}
-                onClick={() => onOpen(r.id)}
-                className="text-left bg-white rounded-xl border border-slate-200 overflow-hidden hover:border-indigo-300 hover:shadow-md transition"
+                className="bg-white rounded-xl border border-slate-200 overflow-hidden hover:border-indigo-300 hover:shadow-md transition flex flex-col"
               >
-                <div className="h-28 relative bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center">
-                  <ResIcon type={r.type} size={32} />
-                  <span className="absolute top-2 left-2 px-2 py-0.5 rounded-md bg-white/80 backdrop-blur text-slate-700">
-                    {RESOURCE_TYPE_LABEL[r.type]}
-                  </span>
-                  {r.isAiGenerated && (
-                    <span className="absolute top-2 right-2">
-                      <AiBadge>AI</AiBadge>
+                <button
+                  type="button"
+                  onClick={() => onOpen(r.id)}
+                  className="text-left flex-1 min-h-0"
+                >
+                  <div className="h-28 relative bg-gradient-to-br from-slate-100 to-slate-200 flex items-center justify-center">
+                    <ResIcon type={r.type} size={32} />
+                    <span className="absolute top-2 left-2 px-2 py-0.5 rounded-md bg-white/80 backdrop-blur text-slate-700">
+                      {RESOURCE_TYPE_LABEL[r.type]}
                     </span>
-                  )}
-                </div>
-                <div className="p-3">
-                  <div className="text-slate-900 truncate">{r.title}</div>
-                  <div className="text-slate-500 truncate mt-0.5">
-                    {prof?.name} · {uploader?.name ?? "—"}
-                  </div>
-                  <div className="mt-2 flex items-center gap-2 text-slate-400">
-                    {r.duration && <span>{r.duration}</span>}
-                    {r.sizeMb != null && r.sizeMb > 0 && <span>{r.sizeMb} MB</span>}
-                    {r.type === "online_course" && r.moocLink && (
-                      <span className="truncate max-w-[10rem]" title={r.moocLink.platformName}>
-                        {r.moocLink.platformName}
+                    {r.isAiGenerated && (
+                      <span className="absolute top-2 right-2">
+                        <AiBadge>AI</AiBadge>
                       </span>
                     )}
-                    <span className="ml-auto">{r.uploadedAt.slice(0, 10)}</span>
                   </div>
-                  {r.tags.length > 0 && (
-                    <div className="mt-2 flex flex-wrap gap-1">
-                      {r.tags.slice(0, 3).map((t) => (
+                  <div className="p-3">
+                    <div className="text-slate-900 truncate">{r.title}</div>
+                    <div className="text-slate-500 truncate mt-0.5">
+                      {prof?.name} · {uploader?.name ?? "—"}
+                    </div>
+                    <div className="mt-2 flex items-center gap-2 text-slate-400">
+                      {r.duration && <span>{r.duration}</span>}
+                      {r.sizeMb != null && r.sizeMb > 0 && <span>{r.sizeMb} MB</span>}
+                      {r.type === "online_course" && r.moocLink && (
                         <span
-                          key={t}
-                          className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 text-[0.6875rem]"
+                          className="truncate max-w-[10rem]"
+                          title={r.moocLink.platformName}
                         >
-                          {t}
+                          {r.moocLink.platformName}
                         </span>
-                      ))}
+                      )}
+                      <span className="ml-auto">{r.uploadedAt.slice(0, 10)}</span>
+                    </div>
+                    {r.tags.length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-1">
+                        {r.tags.slice(0, 3).map((t) => (
+                          <span
+                            key={t}
+                            className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 text-[0.6875rem]"
+                          >
+                            {t}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </button>
+                <div className="border-t border-slate-100 px-3 py-2 flex flex-wrap items-center gap-2">
+                  <span
+                    className={`px-2 py-0.5 rounded-md text-[0.6875rem] font-medium ${
+                      ev === "public"
+                        ? "bg-emerald-50 text-emerald-800"
+                        : "bg-slate-100 text-slate-700"
+                    }`}
+                  >
+                    {ev === "public" ? "公共" : "个人"}
+                  </span>
+                  {isOwner && (
+                    <div className="ml-auto inline-flex rounded-md border border-slate-200 p-0.5 text-[0.6875rem]">
+                      <button
+                        type="button"
+                        title="切换到公共资源"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (ev === "public") return;
+                          onUpsertSessionResource({ ...r, visibility: "public" });
+                        }}
+                        className={`px-2 py-1 rounded transition ${
+                          ev === "public"
+                            ? "bg-indigo-600 text-white"
+                            : "text-slate-600 hover:bg-slate-50"
+                        }`}
+                      >
+                        公共
+                      </button>
+                      <button
+                        type="button"
+                        title="切换到个人资源"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (ev === "personal") return;
+                          onUpsertSessionResource({ ...r, visibility: "personal" });
+                        }}
+                        className={`px-2 py-1 rounded transition ${
+                          ev === "personal"
+                            ? "bg-indigo-600 text-white"
+                            : "text-slate-600 hover:bg-slate-50"
+                        }`}
+                      >
+                        个人
+                      </button>
                     </div>
                   )}
                 </div>
-              </button>
+              </div>
             );
           })}
           {list.length === 0 && (

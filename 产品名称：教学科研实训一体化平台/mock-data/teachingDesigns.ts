@@ -14,7 +14,7 @@ export const DEMO_DESIGN_SECTION_ID = "sec-3-2";
  * 数据正文
  * @see DEMO_DESIGN_PLAN_ID / DEMO_DESIGN_SECTION_ID
  *
- * 四个 Tab（讲义/课堂/作业/AI融合）均有完整产物、对话历史、技能工具引用。
+ * 四个 Tab（讲义/课堂/作业/AI融合）均有完整产物与对话历史。
  * 其他小节不提供具体设计（hasDesign=false 即可）。
  */
 export const teachingDesigns: TeachingDesign[] = [
@@ -34,8 +34,6 @@ export const teachingDesigns: TeachingDesign[] = [
       { source: "local", refId: "local-001", name: "李老师手写讲义扫描件.pdf" },
       { source: "internet", refId: "web-001", name: "SAE International 参考规范网页" },
     ],
-    skillIds: ["skill-gen-mindmap", "skill-gen-microvideo", "skill-voice-tts"],
-    mcpIds: ["mcp-solidworks", "mcp-textbook"],
     chatHistory: [
       {
         id: "msg-h-001",
@@ -128,8 +126,6 @@ export const teachingDesigns: TeachingDesign[] = [
       { source: "resource_library", refId: "res-m-044", name: "轴承座 STL 模型" },
       { source: "local", refId: "local-002", name: "课堂抽查名单.xlsx" },
     ],
-    skillIds: ["skill-gen-quiz", "skill-gen-h5"],
-    mcpIds: ["mcp-solidworks"],
     chatHistory: [
       {
         id: "msg-c-001",
@@ -215,8 +211,6 @@ export const teachingDesigns: TeachingDesign[] = [
       { source: "resource_library", refId: "res-m-022", name: "投影基础练习题库（100 题）" },
       { source: "resource_library", refId: "res-m-090", name: "《机械制图与CAD》期中题库" },
     ],
-    skillIds: ["skill-gen-quiz", "skill-assign-grader"],
-    mcpIds: ["mcp-autocad"],
     chatHistory: [
       {
         id: "msg-w-001",
@@ -282,8 +276,6 @@ export const teachingDesigns: TeachingDesign[] = [
       { source: "knowledge_base", refId: "kb-engdrawing", name: "工程制图知识库（全文检索）" },
       { source: "internet", refId: "web-ai-001", name: "职业教育数字素养与 AI 应用案例" },
     ],
-    skillIds: ["skill-gen-quiz", "skill-gen-h5"],
-    mcpIds: ["mcp-solidworks", "mcp-textbook"],
     chatHistory: [
       {
         id: "msg-ai-001",
@@ -360,8 +352,6 @@ export const teachingDesigns: TeachingDesign[] = [
       { source: "knowledge_base", refId: "kb-engdrawing", name: "工程制图知识库（全文检索）" },
       { source: "local", refId: "local-2-4-001", name: "2.4 面相对位置 · 板书照片.zip" },
     ],
-    skillIds: ["skill-gen-mindmap", "skill-gen-microvideo"],
-    mcpIds: ["mcp-textbook"],
     chatHistory: [
       {
         id: "msg-24-h-1",
@@ -425,8 +415,6 @@ export const teachingDesigns: TeachingDesign[] = [
       { source: "resource_library", refId: "res-m-030", name: "点线面投影互动课件（H5）" },
       { source: "local", refId: "local-2-4-002", name: "随堂模型照片（三角板/楔块）.jpg" },
     ],
-    skillIds: ["skill-gen-quiz", "skill-gen-h5"],
-    mcpIds: [],
     chatHistory: [
       {
         id: "msg-24-c-1",
@@ -486,8 +474,6 @@ export const teachingDesigns: TeachingDesign[] = [
     knowledgeFiles: [
       { source: "resource_library", refId: "res-m-022", name: "投影基础练习题库（100 题）" },
     ],
-    skillIds: ["skill-gen-quiz", "skill-assign-grader"],
-    mcpIds: ["mcp-autocad"],
     chatHistory: [
       {
         id: "msg-24-w-1",
@@ -542,8 +528,6 @@ export const teachingDesigns: TeachingDesign[] = [
       { source: "resource_library", refId: "res-m-091", name: "极限与配合选用速查手册（机械类）" },
       { source: "local", refId: "local-wgw-001", name: "校工厂量具借用登记表（扫描）.pdf" },
     ],
-    skillIds: ["skill-gen-mindmap", "skill-gen-microvideo"],
-    mcpIds: ["mcp-textbook"],
     chatHistory: [
       {
         id: "msg-wgw-h-1",
@@ -607,8 +591,6 @@ export const teachingDesigns: TeachingDesign[] = [
       { source: "resource_library", refId: "res-m-094", name: "三坐标测量报告解读 · 微课" },
       { source: "local", refId: "local-wgw-002", name: "2302 班分组名单与台位安排.xlsx" },
     ],
-    skillIds: ["skill-gen-quiz", "skill-gen-h5"],
-    mcpIds: [],
     chatHistory: [
       {
         id: "msg-wgw-c-1",
@@ -658,8 +640,6 @@ export const teachingDesigns: TeachingDesign[] = [
       { source: "resource_library", refId: "res-m-096", name: "互换性与技术测量期中题库" },
       { source: "knowledge_base", refId: "kb-engdrawing", name: "工程制图知识库（全文检索）" },
     ],
-    skillIds: ["skill-gen-quiz", "skill-assign-grader"],
-    mcpIds: [],
     chatHistory: [
       {
         id: "msg-wgw-w-1",

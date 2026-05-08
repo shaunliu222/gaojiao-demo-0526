@@ -13,8 +13,6 @@ import {
   CheckCircle2,
   Clock,
   ChevronRight,
-  Users,
-  Lightbulb,
   Route,
   Star,
   FileX2,
@@ -43,7 +41,6 @@ import {
   sectionProgressByStudent,
   deviceUsageByStudent,
   learnScenariosByStudent,
-  personalPlansByStudent,
   getPlanProgressSummary,
   wrongQuestionsByStudent,
   chapterMasteryByStudent,
@@ -106,13 +103,11 @@ export function MyProfile({
   onGoLearn,
   onGoLearnCenterWrongBook,
   onGoPlans,
-  onGoLab,
 }: {
   studentId: string;
   onGoLearn: (presetGoalNodeIds?: string[]) => void;
   onGoLearnCenterWrongBook: (planId: string) => void;
   onGoPlans: () => void;
-  onGoLab: () => void;
 }) {
   const s = studentById(studentId);
   const p = studentProfileByStudentId(studentId);
@@ -135,7 +130,6 @@ export function MyProfile({
 
   const deviceUsage = deviceUsageByStudent[studentId] ?? [];
   const scenarios = learnScenariosByStudent(studentId);
-  const personalPlans = personalPlansByStudent(studentId);
   const wrongQuestions = wrongQuestionsByStudent(studentId);
   const chapterMastery = chapterMasteryByStudent(studentId);
 
@@ -156,11 +150,10 @@ export function MyProfile({
 
   // 学习时间线数据
   const timeline = useMemo(
-    () => buildTimeline(studentId, scenarios, deviceUsage, personalPlans),
-    [studentId, scenarios, deviceUsage, personalPlans],
+    () => buildTimeline(studentId, scenarios, deviceUsage),
+    [studentId, scenarios, deviceUsage],
   );
 
-  const growthTips = buildGrowthTips(studentId, tier);
   const [timelineExpanded, setTimelineExpanded] = useState(false);
 
   if (!s || !p) {
@@ -546,52 +539,6 @@ export function MyProfile({
             )}
           </Card>
         </div>
-
-        {/* 底部：AI 成长建议 */}
-        <div className="col-span-12">
-          <Card title="AI 成长建议" icon={<Lightbulb size={14} />}>
-            <div className="grid grid-cols-3 gap-3">
-              {growthTips.map((g, idx) => {
-                const GIcon = g.icon;
-                return (
-                  <div
-                    key={idx}
-                    className={`rounded-2xl border p-4 flex flex-col justify-between ${g.cardBg}`}
-                  >
-                    <div>
-                      <div className="flex items-center gap-2 mb-2">
-                        <div
-                          className={`size-8 rounded-lg flex items-center justify-center ${g.iconBg} ${g.iconText}`}
-                        >
-                          <GIcon size={14} />
-                        </div>
-                        <div className="text-slate-900">{g.title}</div>
-                      </div>
-                      <p className="text-slate-600 leading-relaxed text-[0.8125rem]">
-                        {g.detail}
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => {
-                        if (g.target === "learn")
-                          onGoLearn(
-                            weakPoints
-                              .slice(0, 2)
-                              .map((w) => w.knowledgePointId),
-                          );
-                        else if (g.target === "plans") onGoPlans();
-                        else if (g.target === "lab") onGoLab();
-                      }}
-                      className={`mt-3 px-3 py-1.5 rounded-lg inline-flex items-center justify-center gap-1 ${g.btnBg} ${g.btnText} self-start`}
-                    >
-                      {g.action} <ChevronRight size={13} />
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-          </Card>
-        </div>
       </div>
     </div>
   );
@@ -673,7 +620,6 @@ function buildTimeline(
   studentId: string,
   scenarios: ReturnType<typeof learnScenariosByStudent>,
   deviceUsage: ReturnType<(typeof deviceUsageByStudent)["s-mech2301-01"]>,
-  personalPlans: ReturnType<typeof personalPlansByStudent>,
 ): TimelineEntry[] {
   const entries: TimelineEntry[] = [];
 
@@ -711,20 +657,6 @@ function buildTimeline(
     });
   });
 
-  // 个人计划
-  personalPlans.forEach((p) => {
-    entries.push({
-      date: p.createdAt.slice(0, 10),
-      title: `创建个人学习计划 · ${p.title}`,
-      detail: `${p.durationLabel} · ${p.steps.length} 个步骤 · 进度 ${Math.round(
-        p.progress * 100,
-      )}%`,
-      icon: BookOpen,
-      dotBg: "bg-violet-500",
-      dotText: "text-white",
-    });
-  });
-
   // 小节进度里的高光（已掌握 / 薄弱）
   const sectionList = sectionProgressByStudent[studentId]?.["plan-main"] ?? [];
   const notable = sectionList.filter((s) => !!s.note).slice(0, 3);
@@ -741,152 +673,6 @@ function buildTimeline(
 
   entries.sort((a, b) => b.date.localeCompare(a.date));
   return entries.slice(0, 8);
-}
-
-// ======== 成长建议构建 ========
-
-type GrowthTip = {
-  title: string;
-  detail: string;
-  action: string;
-  target: "learn" | "plans" | "lab";
-  icon: React.ElementType;
-  cardBg: string;
-  iconBg: string;
-  iconText: string;
-  btnBg: string;
-  btnText: string;
-};
-
-function buildGrowthTips(studentId: string, tier: Tier): GrowthTip[] {
-  if (tier === "excellent") {
-    return [
-      {
-        title: "加入学院 A 级实训队",
-        detail:
-          "以你当前的空间想象和三维建模能力，适合加入学院「机械创新 A 队」，下月会带队参加省赛。",
-        action: "查看报名入口",
-        target: "lab",
-        icon: Trophy,
-        cardBg: "bg-emerald-50/70 border-emerald-100",
-        iconBg: "bg-emerald-100",
-        iconText: "text-emerald-600",
-        btnBg: "bg-emerald-600 hover:bg-emerald-700",
-        btnText: "text-white",
-      },
-      {
-        title: "体验一个「进阶挑战」个人计划",
-        detail:
-          "AI 已为你预置了一个「2 小时快速上手 SolidWorks」个人计划，直接去学习计划里打开就能开始。",
-        action: "去学习计划",
-        target: "plans",
-        icon: Route,
-        cardBg: "bg-indigo-50/70 border-indigo-100",
-        iconBg: "bg-indigo-100",
-        iconText: "text-indigo-600",
-        btnBg: "bg-indigo-600 hover:bg-indigo-700",
-        btnText: "text-white",
-      },
-      {
-        title: "担任朋辈辅导 · 带 2302 班同学",
-        detail:
-          "你是 2301 班前 3 名，AI 可以帮你匹配 2 位 2302 班薄弱同学进行朋辈辅导（自愿）。",
-        action: "查看匹配",
-        target: "lab",
-        icon: Users,
-        cardBg: "bg-violet-50/70 border-violet-100",
-        iconBg: "bg-violet-100",
-        iconText: "text-violet-600",
-        btnBg: "bg-violet-600 hover:bg-violet-700",
-        btnText: "text-white",
-      },
-    ];
-  }
-  if (tier === "watch") {
-    return [
-      {
-        title: "进入基础补救小组",
-        detail:
-          "问题根源在投影基础。AI 已为你准备一条 30 分钟补救路径，先吃透三投影面体系，再往后做。",
-        action: "打开补救路径",
-        target: "learn",
-        icon: Route,
-        cardBg: "bg-rose-50/70 border-rose-100",
-        iconBg: "bg-rose-100",
-        iconText: "text-rose-600",
-        btnBg: "bg-rose-600 hover:bg-rose-700",
-        btnText: "text-white",
-      },
-      {
-        title: "约朋辈辅导 · 林诗涵",
-        detail:
-          "AI 从 2302 班为你匹配了成绩最高的林诗涵，作息完全重合。两次 45 分钟就能搞定第 3.2 节组合体三视图。",
-        action: "查看匹配",
-        target: "plans",
-        icon: Users,
-        cardBg: "bg-indigo-50/70 border-indigo-100",
-        iconBg: "bg-indigo-100",
-        iconText: "text-indigo-600",
-        btnBg: "bg-indigo-600 hover:bg-indigo-700",
-        btnText: "text-white",
-      },
-      {
-        title: "去「组合体实体模型柜」手搓",
-        detail:
-          "你是动觉型学习者，先摸实物再看三视图比直接看图快 3 倍建立空间感。A-101 常开。",
-        action: "去实训中心",
-        target: "lab",
-        icon: Cpu,
-        cardBg: "bg-amber-50/70 border-amber-100",
-        iconBg: "bg-amber-100",
-        iconText: "text-amber-600",
-        btnBg: "bg-amber-600 hover:bg-amber-700",
-        btnText: "text-white",
-      },
-    ];
-  }
-  // mid
-  return [
-    {
-      title: "把薄弱项逐个拔掉",
-      detail:
-        "AI 会为你按薄弱度排序生成一组 5 分钟速学卡片，午休刷完就能掉 1 级颜色。",
-      action: "去学习中心",
-      target: "learn",
-      icon: Target,
-      cardBg: "bg-indigo-50/70 border-indigo-100",
-      iconBg: "bg-indigo-100",
-      iconText: "text-indigo-600",
-      btnBg: "bg-indigo-600 hover:bg-indigo-700",
-      btnText: "text-white",
-    },
-    {
-      title: "每周 1 个个人学习计划",
-      detail:
-        "推荐保持每周 1 个 ≤1 小时的个人学习计划，积累 6 周你会进入尖子生梯队。",
-      action: "去学习计划",
-      target: "plans",
-      icon: Route,
-      cardBg: "bg-violet-50/70 border-violet-100",
-      iconBg: "bg-violet-100",
-      iconText: "text-violet-600",
-      btnBg: "bg-violet-600 hover:bg-violet-700",
-      btnText: "text-white",
-    },
-    {
-      title: "预约一次 3D 打印实操",
-      detail:
-        "把最近建的模型打一次实物，成品能极大增强学习动力，也是非常棒的学生作品展示。",
-      action: "去实训中心",
-      target: "lab",
-      icon: Cpu,
-      cardBg: "bg-emerald-50/70 border-emerald-100",
-      iconBg: "bg-emerald-100",
-      iconText: "text-emerald-600",
-      btnBg: "bg-emerald-600 hover:bg-emerald-700",
-      btnText: "text-white",
-    },
-  ];
 }
 
 // ======== 知识掌握程度面板 ========

@@ -1,22 +1,21 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   Film, FileText, Image as ImageIcon,
   Music, Code2, Database, ListChecks, Sparkles, Pencil,
-  ChevronDown, ChevronRight, Layers, Network,
-  ClipboardList, Brain,
+  Network,
   Upload, ArrowLeft, GraduationCap,
 } from "lucide-react";
 import {
   professions,
-  l1Edges, l1NodesByProfession, l1NodeById,
-  l2StandardCoursePlans, l2PlanById,
-  l3Nodes, l3Edges, l3NodeById,
+  l1Edges, l1NodesByProfession,
   kgSourceMaterials,
+  nodesByProfession,
+  edgesByProfession,
 } from "@mock";
 import type {
-  L1Node, L1Edge, L2StandardCoursePlan,
-  L3Node, L3Edge, L3NodeKind,
+  L1Node, L1Edge,
   L1NodeTypeCode, KGSourceMaterial,
+  GraphEdge, GraphNode,
   ResourceType,
   Resource,
 } from "@mock";
@@ -30,6 +29,12 @@ import {
 } from "../data/lookups";
 import { PageHeader, AiBadge, type Role } from "./Layout";
 import { AssociatedKnowledgeNodes } from "./AssociatedKnowledgeNodes";
+import {
+  KnowledgeGraphCanvas,
+} from "./knowledgeGraph/KnowledgeGraphCanvas";
+import { GraphNodeShapeBrowse } from "./knowledgeGraph/GraphNodeShapes";
+import { truncateGraphLabel } from "./knowledgeGraph/labels";
+import { colorOfGraphNodeLayer } from "../data/graphLayout";
 
 function wizardDelay(ms: number, cancelled?: () => boolean) {
   return new Promise<void>((resolve) => {
@@ -40,16 +45,9 @@ function wizardDelay(ms: number, cancelled?: () => boolean) {
 }
 
 // ============================================================
-// 颜色常量
+// 颜色常量（向导草案列表标签）
 // ============================================================
-const L1_TYPE_COLOR: Record<L1NodeTypeCode, string> = {
-  industry_demand:  "#4f46e5", // 靛蓝
-  job_competency:   "#7c3aed", // 紫
-  core_literacy:    "#db2777", // 粉
-  ability:          "#2563eb", // 蓝
-  training_goal:    "#059669", // 绿
-  course_standard:  "#d97706", // 琥珀
-};
+
 const L1_TYPE_LABEL: Record<L1NodeTypeCode, string> = {
   industry_demand:  "产业需求",
   job_competency:   "岗位能力",
@@ -58,382 +56,6 @@ const L1_TYPE_LABEL: Record<L1NodeTypeCode, string> = {
   training_goal:    "培养目标",
   course_standard:  "课程标准",
 };
-
-const L3_KIND_COLOR: Record<L3NodeKind, string> = {
-  knowledge_point: "#0f766e",
-  skill_point:     "#0284c7",
-  literacy_point:  "#9333ea",
-};
-
-// ============================================================
-// 简单力学布局（按 cluster 环形排布节点）
-// ============================================================
-type NodePos = { id: string; x: number; y: number; };
-
-function layoutNodes<T extends { id: string; cluster?: string }>(
-  nodes: T[],
-  w: number,
-  h: number,
-): NodePos[] {
-  if (nodes.length === 0) return [];
-  const clusters: Record<string, T[]> = {};
-  for (const n of nodes) {
-    const c = n.cluster ?? "default";
-    if (!clusters[c]) clusters[c] = [];
-    clusters[c].push(n);
-  }
-  const clusterNames = Object.keys(clusters);
-  const cx = w / 2;
-  const cy = h / 2;
-  const macroR = Math.min(w, h) * 0.34;
-  const result: NodePos[] = [];
-
-  clusterNames.forEach((cname, ci) => {
-    const cNodes = clusters[cname]!;
-    const macroAngle = (2 * Math.PI * ci) / clusterNames.length - Math.PI / 2;
-    const clusterCx = clusterNames.length === 1 ? cx : cx + macroR * Math.cos(macroAngle);
-    const clusterCy = clusterNames.length === 1 ? cy : cy + macroR * Math.sin(macroAngle);
-    const microR = Math.max(28, Math.min(60, 28 * cNodes.length));
-    cNodes.forEach((n, ni) => {
-      const angle = (2 * Math.PI * ni) / cNodes.length - Math.PI / 2;
-      const x = cNodes.length === 1 ? clusterCx : clusterCx + microR * Math.cos(angle);
-      const y = cNodes.length === 1 ? clusterCy : clusterCy + microR * Math.sin(angle);
-      result.push({ id: n.id, x: Math.max(18, Math.min(w - 18, x)), y: Math.max(18, Math.min(h - 18, y)) });
-    });
-  });
-  return result;
-}
-
-// ============================================================
-// 层标题条组件
-// ============================================================
-function LayerBar({
-  layer, label, icon, expanded, nodeCount, onToggle, extra,
-}: {
-  layer: "L1" | "L2" | "L3";
-  label: string;
-  icon: React.ReactNode;
-  expanded: boolean;
-  nodeCount: number;
-  onToggle: () => void;
-  extra?: React.ReactNode;
-}) {
-  const bg: Record<string, string> = {
-    L1: "bg-indigo-50 border-indigo-200",
-    L2: "bg-violet-50 border-violet-200",
-    L3: "bg-teal-50 border-teal-200",
-  };
-  const text: Record<string, string> = {
-    L1: "text-indigo-800",
-    L2: "text-violet-800",
-    L3: "text-teal-800",
-  };
-  const countBadge =
-    layer === "L2" ? `${nodeCount} 份` : `${nodeCount} 项`;
-  return (
-    <div className={`flex items-center gap-2 px-4 py-2.5 border-b ${bg[layer]} cursor-pointer select-none`} onClick={onToggle}>
-      <span className={`${text[layer]}`}>{icon}</span>
-      <span className={`font-semibold text-sm ${text[layer]}`}>{label}</span>
-      <span className={`ml-1 text-xs px-1.5 py-0.5 rounded-full bg-white/60 ${text[layer]}`}>{countBadge}</span>
-      {extra && <span className="ml-auto flex items-center gap-2">{extra}</span>}
-      <span className={`${extra ? "" : "ml-auto"} ${text[layer]}`}>
-        {expanded ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
-      </span>
-    </div>
-  );
-}
-
-// ============================================================
-// L1 画布
-// ============================================================
-function L1Canvas({
-  nodes, edges, spineOnly, width, height,
-}: {
-  nodes: L1Node[];
-  edges: L1Edge[];
-  spineOnly: boolean;
-  width: number;
-  height: number;
-}) {
-  const displayNodes = useMemo(
-    () => spineOnly ? nodes.filter((n) => n.onSpine) : nodes,
-    [nodes, spineOnly],
-  );
-  const displayEdges = useMemo(() => {
-    const ids = new Set(displayNodes.map((n) => n.id));
-    return edges.filter((e) => {
-      const pass = ids.has(e.from) && ids.has(e.to);
-      return spineOnly ? pass && e.isSpine : pass;
-    });
-  }, [edges, displayNodes, spineOnly]);
-
-  const positions = useMemo(
-    () => layoutNodes(displayNodes, width, height),
-    [displayNodes, width, height],
-  );
-  const posById = useMemo(
-    () => Object.fromEntries(positions.map((p) => [p.id, p])),
-    [positions],
-  );
-
-  return (
-    <svg
-      width={width}
-      height={height}
-      className="w-full h-full"
-    >
-      <defs>
-        <marker id="l1-arrow" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
-          <path d="M0,0 L0,6 L6,3 z" fill="#94a3b8" />
-        </marker>
-      </defs>
-      {/* 边 */}
-      {displayEdges.map((e) => {
-        const from = posById[e.from];
-        const to = posById[e.to];
-        if (!from || !to) return null;
-        const isSpineEdge = e.isSpine;
-        return (
-          <g key={e.id}>
-            <line
-              x1={from.x} y1={from.y} x2={to.x} y2={to.y}
-              stroke={isSpineEdge ? "#6366f1" : "#cbd5e1"}
-              strokeWidth={isSpineEdge ? 2 : 1}
-              strokeDasharray={isSpineEdge ? undefined : "4 3"}
-              markerEnd="url(#l1-arrow)"
-              opacity={isSpineEdge ? 0.9 : 0.5}
-            />
-            <text
-              x={(from.x + to.x) / 2}
-              y={(from.y + to.y) / 2 - 3}
-              textAnchor="middle"
-              fontSize={9}
-              fill="#94a3b8"
-              className="pointer-events-none"
-            >
-              {e.relation}
-            </text>
-          </g>
-        );
-      })}
-      {/* 节点 */}
-      {displayNodes.map((node) => {
-        const pos = posById[node.id];
-        if (!pos) return null;
-        const color = L1_TYPE_COLOR[node.schemaTypeCode];
-        const isSpineNode = node.onSpine;
-        const dim = (!spineOnly && !isSpineNode) ? 0.45 : 1;
-        return (
-          <g
-            key={node.id}
-            transform={`translate(${pos.x},${pos.y})`}
-          >
-            {/* 菱形 */}
-            <path
-              d="M0,-12 L12,0 L0,12 L-12,0 Z"
-              fill={color}
-              fillOpacity={dim}
-            />
-            {node.status === "ai_draft" && (
-              <circle cx={10} cy={-10} r={5} fill="#7c3aed" />
-            )}
-            {node.status === "ai_draft" && (
-              <text x={10} y={-7} textAnchor="middle" fontSize={6} fill="white">AI</text>
-            )}
-            <text
-              y={18}
-              textAnchor="middle"
-              fontSize={9.5}
-              fill="#334155"
-              fillOpacity={dim}
-              className="pointer-events-none"
-            >
-              {node.name.length > 8 ? node.name.slice(0, 8) + "…" : node.name}
-            </text>
-          </g>
-        );
-      })}
-    </svg>
-  );
-}
-
-// ============================================================
-// L3 画布
-// ============================================================
-function L3Canvas({
-  nodes, edges, width, height,
-}: {
-  nodes: L3Node[];
-  edges: L3Edge[];
-  width: number;
-  height: number;
-}) {
-  const positions = useMemo(
-    () => layoutNodes(nodes, width, height),
-    [nodes, width, height],
-  );
-  const posById = useMemo(
-    () => Object.fromEntries(positions.map((p) => [p.id, p])),
-    [positions],
-  );
-  const nodeIds = useMemo(() => new Set(nodes.map((n) => n.id)), [nodes]);
-  const visEdges = useMemo(
-    () => edges.filter((e) => nodeIds.has(e.from) && nodeIds.has(e.to)),
-    [edges, nodeIds],
-  );
-
-  return (
-    <svg
-      width={width}
-      height={height}
-      className="w-full h-full"
-    >
-      <defs>
-        <marker id="l3-arrow" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
-          <path d="M0,0 L0,6 L6,3 z" fill="#94a3b8" />
-        </marker>
-      </defs>
-      {/* 边 */}
-      {visEdges.map((e) => {
-        const from = posById[e.from];
-        const to = posById[e.to];
-        if (!from || !to) return null;
-        const dashMap: Record<string, string | undefined> = {
-          "先修": undefined, "关联": "4 3", "同质": "2 2", "支撑": "6 2",
-        };
-        return (
-          <line
-            key={e.id}
-            x1={from.x} y1={from.y} x2={to.x} y2={to.y}
-            stroke="#94a3b8"
-            strokeWidth={1.5}
-            strokeDasharray={dashMap[e.relation]}
-            markerEnd="url(#l3-arrow)"
-            opacity={0.65}
-          />
-        );
-      })}
-      {/* 节点 */}
-      {nodes.map((node) => {
-        const pos = posById[node.id];
-        if (!pos) return null;
-        const color = L3_KIND_COLOR[node.kind];
-        const R = 11;
-        return (
-          <g
-            key={node.id}
-            transform={`translate(${pos.x},${pos.y})`}
-          >
-            {node.kind === "knowledge_point" && (
-              <circle r={R} fill={color} fillOpacity={0.85} />
-            )}
-            {node.kind === "skill_point" && (
-              <rect x={-R} y={-R} width={R * 2} height={R * 2} rx={2} fill={color} fillOpacity={0.85} />
-            )}
-            {node.kind === "literacy_point" && (
-              <path d={`M0,${-R} L${R},${R} L${-R},${R} Z`} fill={color} fillOpacity={0.85} />
-            )}
-            <text
-              y={R + 11}
-              textAnchor="middle"
-              fontSize={9}
-              fill="#334155"
-              className="pointer-events-none"
-            >
-              {node.name.length > 7 ? node.name.slice(0, 7) + "…" : node.name}
-            </text>
-          </g>
-        );
-      })}
-    </svg>
-  );
-}
-
-// ============================================================
-// L2 课程计划卡片列表
-// ============================================================
-const l2StatusLabel: Record<L2StandardCoursePlan["status"], string> = {
-  draft: "草稿",
-  released: "已发布",
-};
-
-function L2Cards({ plans }: { plans: L2StandardCoursePlan[] }) {
-  const [expandedPlanId, setExpandedPlanId] = useState<string | null>(null);
-
-  return (
-    <div className="px-4 py-3">
-      <div className="flex gap-3 overflow-x-auto pb-2">
-        {plans.map((plan) => {
-          const isExpanded = expandedPlanId === plan.id;
-          return (
-            <div
-              key={plan.id}
-              className="shrink-0 w-64 rounded-xl border border-slate-200 bg-white transition hover:border-violet-300 hover:shadow-sm"
-            >
-              <div className="p-4">
-                <div className="flex items-start gap-2">
-                  <ClipboardList size={16} className="text-violet-500 shrink-0 mt-0.5" />
-                  <div className="min-w-0 flex-1">
-                    <div className="text-sm font-medium text-slate-900 leading-tight line-clamp-2">
-                      {plan.title}
-                    </div>
-                    <div className="mt-1.5 flex flex-wrap gap-1">
-                      <span className={`text-[0.625rem] px-1.5 py-0.5 rounded font-medium ${
-                        plan.status === "released"
-                          ? "bg-emerald-50 text-emerald-700"
-                          : "bg-slate-100 text-slate-600"
-                      }`}>
-                        {l2StatusLabel[plan.status]}
-                      </span>
-                      {plan.generatedBy === "ai_synthesis" && (
-                        <span className="text-[0.625rem] px-1.5 py-0.5 rounded bg-violet-50 text-violet-700 font-medium flex items-center gap-0.5">
-                          <Sparkles size={8} />AI 合成
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-                <div className="mt-2.5 flex gap-3 text-[0.6875rem] text-slate-500">
-                  <span>{plan.totalHours} 学时</span>
-                  <span>{plan.chapters.length} 章</span>
-                </div>
-              </div>
-              {/* 章节展开 */}
-              <div className="border-t border-slate-100">
-                <button
-                  type="button"
-                  className="w-full flex items-center justify-between px-4 py-2 text-[0.6875rem] text-slate-500 hover:text-slate-700 hover:bg-slate-50"
-                  onClick={() => setExpandedPlanId(isExpanded ? null : plan.id)}
-                >
-                  <span>章节大纲</span>
-                  {isExpanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-                </button>
-                {isExpanded && (
-                  <div className="px-4 pb-3 space-y-1 max-h-48 overflow-y-auto">
-                    {plan.chapters.map((ch) => (
-                      <div key={ch.id}>
-                        <div className="text-[0.6875rem] font-medium text-slate-700">{ch.title}</div>
-                        {ch.sections.map((sec) => (
-                          <div key={sec.id} className="text-[0.625rem] text-slate-500 pl-2 py-0.5 border-l border-slate-100">
-                            {sec.title}
-                            <span className="ml-1 text-slate-400">{sec.durationMinutes}min</span>
-                          </div>
-                        ))}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          );
-        })}
-        {plans.length === 0 && (
-          <div className="text-slate-400 text-sm py-4">该专业暂无标准课程计划</div>
-        )}
-      </div>
-    </div>
-  );
-}
 
 // ============================================================
 // 创建专业培养图谱 · 引导式向导（体验流程，非说明文案）
@@ -809,6 +431,336 @@ function ProfessionalGraphWizard({
     </div>
   );
 }
+
+function sortGraphNodesByName(nodes: GraphNode[]): GraphNode[] {
+  return [...nodes].sort((a, b) => a.name.localeCompare(b.name, "zh-Hans-CN"));
+}
+
+function KnowledgeGraphNodeDetail({
+  node,
+  professionEdges,
+  professionNodes,
+  onPickNode,
+  onOpenCourse,
+  onOpenTraining,
+}: {
+  node: GraphNode | null;
+  professionEdges: GraphEdge[];
+  professionNodes: GraphNode[];
+  onPickNode: (id: string) => void;
+  onOpenCourse?: (courseId: string) => void;
+  onOpenTraining?: (trainingId: string) => void;
+}) {
+  const nodeMap = useMemo(
+    () => new Map(professionNodes.map((n) => [n.id, n] as const)),
+    [professionNodes],
+  );
+
+  const parsed = useMemo(() => {
+    if (!node) return null;
+
+    const edges = professionEdges;
+    const containParents = (nid: string) =>
+      edges.filter((e) => e.relation === "contain" && e.to === nid).map((e) => e.from);
+    const containChildren = (nid: string) =>
+      edges.filter((e) => e.relation === "contain" && e.from === nid).map((e) => e.to);
+
+    if (node.layer === "knowledge") {
+      const abilityIds = containParents(node.id).filter(
+        (id) => nodeMap.get(id)?.layer === "ability",
+      );
+      const coreIds = new Set<string>();
+      for (const aid of abilityIds) {
+        for (const cid of containParents(aid)) {
+          if (nodeMap.get(cid)?.layer === "core") coreIds.add(cid);
+        }
+      }
+      const ctFromIds = edges
+        .filter((e) => e.relation === "Map to" && e.to === node.id)
+        .map((e) => e.from);
+      const courses = sortGraphNodesByName(
+        ctFromIds
+          .map((id) => nodeMap.get(id))
+          .filter((n): n is GraphNode => !!n && n.kind === "course"),
+      );
+      const trainings = sortGraphNodesByName(
+        ctFromIds
+          .map((id) => nodeMap.get(id))
+          .filter((n): n is GraphNode => !!n && n.kind === "training"),
+      );
+      return {
+        kind: "knowledge" as const,
+        abilities: abilityIds
+          .map((id) => nodeMap.get(id))
+          .filter((n): n is GraphNode => !!n),
+        cores: sortGraphNodesByName(
+          [...coreIds].map((id) => nodeMap.get(id)).filter((n): n is GraphNode => !!n),
+        ),
+        courses,
+        trainings,
+      };
+    }
+
+    if (node.layer === "ability") {
+      const cores = containParents(node.id)
+        .filter((id) => nodeMap.get(id)?.layer === "core")
+        .map((id) => nodeMap.get(id))
+        .filter((n): n is GraphNode => !!n);
+      const knowledge = sortGraphNodesByName(
+        containChildren(node.id)
+          .filter((id) => nodeMap.get(id)?.layer === "knowledge")
+          .map((id) => nodeMap.get(id))
+          .filter((n): n is GraphNode => !!n),
+      );
+      const ctSet = new Set<string>();
+      for (const kn of knowledge) {
+        for (const e of edges) {
+          if (e.relation === "Map to" && e.to === kn.id) ctSet.add(e.from);
+        }
+      }
+      const relatedCt = sortGraphNodesByName(
+        [...ctSet].map((id) => nodeMap.get(id)).filter((n): n is GraphNode => !!n),
+      );
+      return {
+        kind: "ability" as const,
+        cores: sortGraphNodesByName(cores),
+        knowledge,
+        relatedCt,
+      };
+    }
+
+    if (node.layer === "core") {
+      const abilities = sortGraphNodesByName(
+        containChildren(node.id)
+          .filter((id) => nodeMap.get(id)?.layer === "ability")
+          .map((id) => nodeMap.get(id))
+          .filter((n): n is GraphNode => !!n),
+      );
+      return { kind: "core" as const, abilities };
+    }
+
+    return { kind: "other" as const };
+  }, [node, professionEdges, nodeMap]);
+
+  const chipNavCls =
+    "inline-flex max-w-full cursor-pointer items-center gap-1 rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-left text-xs text-slate-800 hover:border-indigo-300 hover:bg-indigo-50/50";
+
+  if (!node) {
+    return (
+      <div className="p-4 text-sm leading-relaxed text-slate-500">
+        点击左侧图谱中的节点，查看核心素养、能力、知识点，以及知识点绑定的课程与实训。
+      </div>
+    );
+  }
+
+  if (!parsed || parsed.kind === "other") {
+    return (
+      <div className="p-4 text-sm text-slate-500">
+        该节点不在当前主图范围内。
+      </div>
+    );
+  }
+
+  const Section = ({
+    title,
+    children,
+  }: {
+    title: string;
+    children: ReactNode;
+  }) => (
+    <div className="space-y-2">
+      <div className="text-[0.6875rem] font-semibold uppercase tracking-wide text-slate-500">
+        {title}
+      </div>
+      {children}
+    </div>
+  );
+
+  return (
+    <div className="flex flex-col gap-4 p-4">
+      <div>
+        <div className="text-xs font-medium text-slate-500">{node.nodeType}</div>
+        <h3 className="mt-1 text-sm font-semibold leading-snug text-slate-900">
+          {node.name}
+        </h3>
+        {node.description ? (
+          <p className="mt-2 text-xs leading-relaxed text-slate-600">{node.description}</p>
+        ) : null}
+      </div>
+
+      {parsed.kind === "knowledge" && (
+        <>
+          <Section title="所属能力">
+            <div className="flex flex-wrap gap-1.5">
+              {parsed.abilities.map((n) => (
+                <button key={n.id} type="button" className={chipNavCls} onClick={() => onPickNode(n.id)}>
+                  <span className="truncate">{n.name}</span>
+                </button>
+              ))}
+              {parsed.abilities.length === 0 && (
+                <span className="text-xs text-slate-400">暂无</span>
+              )}
+            </div>
+          </Section>
+          <Section title="所属素养">
+            <div className="flex flex-wrap gap-1.5">
+              {parsed.cores.map((n) => (
+                <button key={n.id} type="button" className={chipNavCls} onClick={() => onPickNode(n.id)}>
+                  <span className="truncate">{n.name}</span>
+                </button>
+              ))}
+              {parsed.cores.length === 0 && (
+                <span className="text-xs text-slate-400">暂无</span>
+              )}
+            </div>
+          </Section>
+          <Section title="绑定课程">
+            <div className="flex flex-wrap gap-1.5">
+              {parsed.courses.map((n) => {
+                const cid = n.refCourseId ?? n.id;
+                const btn = (
+                  <span className="truncate">{n.name}</span>
+                );
+                if (onOpenCourse) {
+                  return (
+                    <button
+                      key={n.id}
+                      type="button"
+                      className={chipNavCls}
+                      onClick={() => onOpenCourse(cid)}
+                    >
+                      {btn}
+                    </button>
+                  );
+                }
+                return (
+                  <span key={n.id} className={`${chipNavCls} cursor-default hover:border-slate-200 hover:bg-slate-50`}>
+                    {btn}
+                  </span>
+                );
+              })}
+              {parsed.courses.length === 0 && (
+                <span className="text-xs text-slate-400">暂无</span>
+              )}
+            </div>
+          </Section>
+          <Section title="绑定实训">
+            <div className="flex flex-wrap gap-1.5">
+              {parsed.trainings.map((n) => {
+                const tid = n.refTrainingId ?? n.id;
+                const btn = <span className="truncate">{n.name}</span>;
+                if (onOpenTraining) {
+                  return (
+                    <button
+                      key={n.id}
+                      type="button"
+                      className={chipNavCls}
+                      onClick={() => onOpenTraining(tid)}
+                    >
+                      {btn}
+                    </button>
+                  );
+                }
+                return (
+                  <span key={n.id} className={`${chipNavCls} cursor-default hover:border-slate-200 hover:bg-slate-50`}>
+                    {btn}
+                  </span>
+                );
+              })}
+              {parsed.trainings.length === 0 && (
+                <span className="text-xs text-slate-400">暂无</span>
+              )}
+            </div>
+          </Section>
+        </>
+      )}
+
+      {parsed.kind === "ability" && (
+        <>
+          <Section title="所属素养">
+            <div className="flex flex-wrap gap-1.5">
+              {parsed.cores.map((n) => (
+                <button key={n.id} type="button" className={chipNavCls} onClick={() => onPickNode(n.id)}>
+                  <span className="truncate">{n.name}</span>
+                </button>
+              ))}
+              {parsed.cores.length === 0 && (
+                <span className="text-xs text-slate-400">暂无</span>
+              )}
+            </div>
+          </Section>
+          <Section title="包含知识点">
+            <div className="flex flex-wrap gap-1.5">
+              {parsed.knowledge.map((n) => (
+                <button key={n.id} type="button" className={chipNavCls} onClick={() => onPickNode(n.id)}>
+                  <span className="truncate">{n.name}</span>
+                </button>
+              ))}
+              {parsed.knowledge.length === 0 && (
+                <span className="text-xs text-slate-400">暂无</span>
+              )}
+            </div>
+          </Section>
+          <Section title="相关课程 / 实训（经知识点映射）">
+            <div className="flex flex-wrap gap-1.5">
+              {parsed.relatedCt.map((n) => {
+                const inner = <span className="truncate">{n.name}</span>;
+                if (n.kind === "course" && onOpenCourse) {
+                  return (
+                    <button
+                      key={n.id}
+                      type="button"
+                      className={chipNavCls}
+                      onClick={() => onOpenCourse(n.refCourseId ?? n.id)}
+                    >
+                      {inner}
+                    </button>
+                  );
+                }
+                if (n.kind === "training" && onOpenTraining) {
+                  return (
+                    <button
+                      key={n.id}
+                      type="button"
+                      className={chipNavCls}
+                      onClick={() => onOpenTraining(n.refTrainingId ?? n.id)}
+                    >
+                      {inner}
+                    </button>
+                  );
+                }
+                return (
+                  <span key={n.id} className={`${chipNavCls} cursor-default hover:border-slate-200 hover:bg-slate-50`}>
+                    {inner}
+                  </span>
+                );
+              })}
+              {parsed.relatedCt.length === 0 && (
+                <span className="text-xs text-slate-400">暂无</span>
+              )}
+            </div>
+          </Section>
+        </>
+      )}
+
+      {parsed.kind === "core" && (
+        <Section title="下属能力">
+          <div className="flex flex-wrap gap-1.5">
+            {parsed.abilities.map((n) => (
+              <button key={n.id} type="button" className={chipNavCls} onClick={() => onPickNode(n.id)}>
+                <span className="truncate">{n.name}</span>
+              </button>
+            ))}
+            {parsed.abilities.length === 0 && (
+              <span className="text-xs text-slate-400">暂无</span>
+            )}
+          </div>
+        </Section>
+      )}
+    </div>
+  );
+}
+
 // ============================================================
 // GraphBrowse 主组件
 // ============================================================
@@ -828,36 +780,21 @@ export function GraphBrowse({
   currentTeacherId?: string;
 }) {
   void onOpenResource;
-  void onOpenCourse;
-  void onOpenTraining;
   void currentTeacherId;
 
   const [profId, setProfId] = useState("prof-mech");
-  const [layerExpanded, setLayerExpanded] = useState({ L1: true, L2: true, L3: true });
-  const [spineOnly, setSpineOnly] = useState(false);
   const [l1WizardActive, setL1WizardActive] = useState(false);
-  const canvasRef = useRef<HTMLDivElement>(null);
-  const [canvasW, setCanvasW] = useState(620);
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const wizardShellRef = useRef<HTMLDivElement>(null);
+  const canvasPaneRef = useRef<HTMLDivElement>(null);
+  const [canvasBox, setCanvasBox] = useState({ w: 720, h: 520 });
 
-  // 按专业过滤数据
   const curL1Nodes = useMemo(
     () => (l1NodesByProfession[profId] ?? []),
     [profId],
   );
   const curL1Edges = useMemo(
     () => l1Edges.filter((e) => e.professionId === profId),
-    [profId],
-  );
-  const curL2Plans = useMemo(
-    () => l2StandardCoursePlans.filter((p) => p.professionId === profId),
-    [profId],
-  );
-  const curL3Nodes = useMemo(
-    () => l3Nodes.filter((n) => n.professionId === profId),
-    [profId],
-  );
-  const curL3Edges = useMemo(
-    () => l3Edges.filter((e) => e.professionId === profId),
     [profId],
   );
   const l1MaterialsForWorkflow = useMemo(
@@ -871,59 +808,90 @@ export function GraphBrowse({
     [profId],
   );
 
+  const professionNodes = useMemo(
+    () => nodesByProfession[profId] ?? [],
+    [profId],
+  );
+  const professionEdges = useMemo(
+    () => edgesByProfession[profId] ?? [],
+    [profId],
+  );
+
+  const canvasNodes = useMemo(
+    () =>
+      professionNodes.filter(
+        (n) =>
+          n.layer === "core" ||
+          n.layer === "ability" ||
+          n.layer === "knowledge",
+      ),
+    [professionNodes],
+  );
+
+  const canvasIdSet = useMemo(
+    () => new Set(canvasNodes.map((n) => n.id)),
+    [canvasNodes],
+  );
+
+  const canvasEdges = useMemo(
+    () =>
+      professionEdges.filter(
+        (e) =>
+          canvasIdSet.has(e.from) &&
+          canvasIdSet.has(e.to) &&
+          (e.relation === "contain" || e.relation === "Influence"),
+      ),
+    [professionEdges, canvasIdSet],
+  );
+
   const prof = professions.find((p) => p.id === profId);
   const hasL1Data = curL1Nodes.length > 0;
+  const hasMainGraph = professionNodes.length > 0;
 
   useEffect(() => {
-    const nodes = l1NodesByProfession[profId] ?? [];
-    setL1WizardActive(nodes.length === 0);
-  }, [profId]);
+    setL1WizardActive(!hasMainGraph);
+  }, [profId, hasMainGraph]);
+
   useEffect(() => {
-    const el = canvasRef.current;
-    if (!el) return;
+    setSelectedNodeId(null);
+  }, [profId]);
+
+  useEffect(() => {
+    const el = canvasPaneRef.current;
+    if (!el || l1WizardActive) return;
     const ro = new ResizeObserver((entries) => {
       for (const e of entries) {
-        const w = e.contentRect.width;
-        if (w > 20) setCanvasW(Math.round(w));
+        const { width, height } = e.contentRect;
+        if (width > 48 && height > 48) {
+          setCanvasBox({ w: Math.floor(width), h: Math.floor(height) });
+        }
       }
     });
     ro.observe(el);
-    setCanvasW(el.clientWidth || 620);
+    const { width, height } = el.getBoundingClientRect();
+    if (width > 48 && height > 48) {
+      setCanvasBox({ w: Math.floor(width), h: Math.floor(height) });
+    }
     return () => ro.disconnect();
-  }, []);
+  }, [l1WizardActive, profId]);
 
-  // 支持从外页 deep link 定位（进入浏览态）
   useEffect(() => {
     if (!focusNodeId) return;
+    const n = graphNodeById(focusNodeId);
+    if (!n) return;
     setL1WizardActive(false);
-    const l1n = l1NodeById[focusNodeId];
-    if (l1n) {
-      setProfId(l1n.professionId);
-      setLayerExpanded((p) => ({ ...p, L1: true }));
-      return;
-    }
-    const l2p = l2PlanById[focusNodeId];
-    if (l2p) {
-      setProfId(l2p.professionId);
-      setLayerExpanded((p) => ({ ...p, L2: true }));
-      return;
-    }
-    const l3n = l3NodeById[focusNodeId];
-    if (l3n) {
-      setProfId(l3n.professionId);
-      setLayerExpanded((p) => ({ ...p, L3: true }));
-      return;
-    }
-    const legacy = graphNodeById(focusNodeId);
-    if (legacy) setProfId(legacy.professionId);
+    setProfId(n.professionId);
+    setSelectedNodeId(focusNodeId);
   }, [focusNodeId]);
 
-  const toggleLayer = useCallback((layer: "L1" | "L2" | "L3") => {
-    setLayerExpanded((p) => ({ ...p, [layer]: !p[layer] }));
-  }, []);
-
-  const L1_H = 320;
-  const L3_H = 300;
+  const selectedNode = selectedNodeId ? graphNodeById(selectedNodeId) ?? null : null;
+  const canvasFocusId =
+    selectedNode &&
+    (selectedNode.layer === "core" ||
+      selectedNode.layer === "ability" ||
+      selectedNode.layer === "knowledge")
+      ? selectedNode.id
+      : null;
 
   return (
     <div>
@@ -936,32 +904,20 @@ export function GraphBrowse({
               onChange={(e) => {
                 setProfId(e.target.value);
               }}
-              className="bg-white border border-slate-200 rounded-md px-2 py-1 text-sm"
+              className="rounded-md border border-slate-200 bg-white px-2 py-1 text-sm"
             >
               {professions.map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.name}{l1NodesByProfession[p.id]?.length === 0 ? "（待建第一层）" : ""}
+                  {p.name}
+                  {(nodesByProfession[p.id]?.length ?? 0) === 0 ? "（暂无图谱）" : ""}
                 </option>
               ))}
             </select>
-            <button
-              type="button"
-              onClick={() => setSpineOnly((s) => !s)}
-              disabled={l1WizardActive || !hasL1Data}
-              className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border text-sm transition disabled:cursor-not-allowed disabled:opacity-40 ${
-                spineOnly
-                  ? "border-indigo-400 bg-indigo-50 text-indigo-800"
-                  : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
-              }`}
-            >
-              <Layers size={14} />
-              {spineOnly ? "主线视图" : "完整视图"}
-            </button>
             {hasL1Data && !l1WizardActive && (
               <button
                 type="button"
                 onClick={() => setL1WizardActive(true)}
-                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border border-indigo-200 bg-indigo-50 text-sm text-indigo-900 hover:bg-indigo-100"
+                className="inline-flex items-center gap-1.5 rounded-md border border-indigo-200 bg-indigo-50 px-2.5 py-1.5 text-sm text-indigo-900 hover:bg-indigo-100"
               >
                 <Sparkles size={14} />
                 创建专业培养图谱
@@ -970,7 +926,7 @@ export function GraphBrowse({
             {role === "college_admin" && (
               <button
                 type="button"
-                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-indigo-600 text-white hover:bg-indigo-700 text-sm"
+                className="inline-flex items-center gap-1.5 rounded-md bg-indigo-600 px-2.5 py-1.5 text-sm text-white hover:bg-indigo-700"
               >
                 <Pencil size={14} />
                 编辑图谱
@@ -986,7 +942,7 @@ export function GraphBrowse({
         <div className="px-0 py-4 sm:py-6">
           <div
             className="flex h-[min(920px,calc(100dvh-10rem))] min-h-[min(560px,calc(100dvh-12rem))] flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm"
-            ref={canvasRef}
+            ref={wizardShellRef}
           >
             <ProfessionalGraphWizard
               key={profId}
@@ -1005,82 +961,72 @@ export function GraphBrowse({
         </div>
       ) : (
         <div className="p-6">
-          <div
-            className="flex flex-col gap-0 overflow-hidden rounded-xl border border-slate-200 bg-white"
-            ref={canvasRef}
-          >
-            <LayerBar
-              layer="L1"
-              label="产业培养图谱"
-              icon={<Network size={15} />}
-              expanded={layerExpanded.L1}
-              nodeCount={curL1Nodes.length}
-              onToggle={() => toggleLayer("L1")}
-              extra={
-                <span className="text-[0.6rem] font-normal text-indigo-400">
-                  产业需求 · 岗位能力 · 核心素养 · 能力 · 培养目标 · 课程标准
-                </span>
-              }
-            />
-            {layerExpanded.L1 &&
-              (hasL1Data ? (
-                <div style={{ height: L1_H }}>
-                  <L1Canvas
-                    nodes={curL1Nodes}
-                    edges={curL1Edges}
-                    spineOnly={spineOnly}
-                    width={canvasW}
-                    height={L1_H}
-                  />
+          <div className="flex min-h-[min(560px,calc(100dvh-12rem))] flex-col gap-0 overflow-hidden rounded-xl border border-slate-200 bg-white lg:flex-row">
+            <div
+              ref={canvasPaneRef}
+              className="min-h-[min(480px,55vh)] min-w-0 flex-1 lg:min-h-[560px]"
+            >
+              {canvasNodes.length === 0 ? (
+                <div className="flex h-full flex-col items-center justify-center gap-4 px-6 py-16 text-center">
+                  <p className="max-w-md text-sm text-slate-600">
+                    本专业暂无图谱节点数据。
+                  </p>
                 </div>
               ) : (
-                <div className="flex flex-col items-center justify-center gap-4 border-b border-slate-100 px-6 py-16">
-                  <p className="max-w-md text-center text-sm text-slate-600">
-                    尚未创建第一层产业培养图谱。点击「创建专业培养图谱」，系统将协助您完成资料与约定图谱描述、草案核对。
+                <KnowledgeGraphCanvas
+                  nodes={canvasNodes}
+                  edges={canvasEdges}
+                  width={canvasBox.w}
+                  height={canvasBox.h}
+                  edgeStrokeMode="byRelation"
+                  focusNodeId={canvasFocusId}
+                  onNodeClick={(n) => setSelectedNodeId(n.id)}
+                  renderNode={({ node: n, x, y }) => (
+                    <g>
+                      <GraphNodeShapeBrowse
+                        type={n.nodeType}
+                        x={x}
+                        y={y}
+                        color={colorOfGraphNodeLayer(n)}
+                        selected={n.id === selectedNodeId}
+                        status={n.status}
+                      />
+                      <text
+                        x={x}
+                        y={y + 22}
+                        textAnchor="middle"
+                        fontSize={10}
+                        fill="#334155"
+                        className="pointer-events-none"
+                      >
+                        {truncateGraphLabel(n.name, 10)}
+                      </text>
+                    </g>
+                  )}
+                />
+              )}
+            </div>
+            <aside className="shrink-0 border-t border-slate-200 lg:w-[min(100%,320px)] lg:border-l lg:border-t-0 lg:border-slate-200">
+              <div className="sticky top-0 max-h-[min(70vh,560px)] overflow-y-auto overscroll-contain border-slate-100 lg:max-h-none">
+                <div className="border-b border-slate-100 px-4 py-3">
+                  <div className="flex items-center gap-2 text-sm font-medium text-slate-800">
+                    <Network size={16} className="text-indigo-600" />
+                    节点详情
+                  </div>
+                  <p className="mt-1 text-[0.6875rem] text-slate-500">
+                    中心为核心素养与能力，外层为知识点；课程与实训在详情中查看。
                   </p>
-                  <button
-                    type="button"
-                    onClick={() => setL1WizardActive(true)}
-                    className="rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-indigo-700"
-                  >
-                    创建专业培养图谱
-                  </button>
                 </div>
-              ))}
-
-            <LayerBar
-              layer="L2"
-              label="标准课程计划"
-              icon={<ClipboardList size={15} />}
-              expanded={layerExpanded.L2}
-              nodeCount={curL2Plans.length}
-              onToggle={() => toggleLayer("L2")}
-            />
-            {layerExpanded.L2 && <L2Cards plans={curL2Plans} />}
-
-            <LayerBar
-              layer="L3"
-              label="教学单元图谱"
-              icon={<Brain size={15} />}
-              expanded={layerExpanded.L3}
-              nodeCount={curL3Nodes.length}
-              onToggle={() => toggleLayer("L3")}
-              extra={
-                <span className="text-[0.6rem] font-normal text-teal-500">
-                  ● 知识点 &nbsp;■ 技能点 &nbsp;▲ 素养点
-                </span>
-              }
-            />
-            {layerExpanded.L3 && (
-              <div style={{ height: L3_H }}>
-                <L3Canvas
-                  nodes={curL3Nodes}
-                  edges={curL3Edges}
-                  width={canvasW}
-                  height={L3_H}
+                <KnowledgeGraphNodeDetail
+                  node={selectedNode}
+                  professionEdges={professionEdges}
+                  professionNodes={professionNodes}
+                  onPickNode={(id) => setSelectedNodeId(id)}
+                  onOpenCourse={onOpenCourse}
+                  onOpenTraining={onOpenTraining}
                 />
               </div>
-            )}
+            </aside>
           </div>
         </div>
       )}

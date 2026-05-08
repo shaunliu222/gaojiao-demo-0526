@@ -29,6 +29,7 @@ import {
   type LearnCenterReviewRow,
 } from "../../data/learnCenterSession";
 import type { StudentLearnNavigateInput } from "./MyPlans";
+import { LearnCenterWrongRecordsPanel } from "./LearnCenterWrongRecordsPanel";
 
 type ReviewChapterGroup = {
   key: string;
@@ -171,21 +172,30 @@ function personalDifficultyClass(d: PersonalPlan["difficulty"]) {
   return "bg-rose-50 text-rose-700";
 }
 
-type LearnHubSectionId = "prep" | "homework" | "review" | "personal" | "exam";
+export type LearnCenterHubSectionId =
+  | "course"
+  | "homework"
+  | "exam"
+  | "personal"
+  | "wrongbook";
 
 function LearnCenterHub({
   studentId,
   plans,
   activePlanId,
+  initialHubSection,
   onEnterClassStudy,
   onEnterHomeworkWorkbench,
   onEnterExamWeak,
   onOpenStudentLearningPlans,
   onContinuePersonalLearn,
+  onPracticeKnowledge,
 }: {
   studentId: string;
   plans: TeachingPlan[];
   activePlanId: string;
+  /** 自其它页深链进入时切换到指定页签（如学情分析 → 本题库错题本） */
+  initialHubSection?: LearnCenterHubSectionId;
   onEnterClassStudy: (args: {
     planId: string;
     sectionId: string;
@@ -198,6 +208,8 @@ function LearnCenterHub({
   onOpenStudentLearningPlans: () => void;
   /** 个人计划直接进入课堂壳（可按知识点挂靠） */
   onContinuePersonalLearn: (opts: StudentLearnNavigateInput) => void;
+  /** 错题记录「针对性练习」：`planId` 与页眉当前教学计划对齐 */
+  onPracticeKnowledge: (planId: string, goalNodeIds: string[]) => void;
 }) {
   const activePlan = useMemo(
     () => plans.find((p) => p.id === activePlanId),
@@ -251,11 +263,9 @@ function LearnCenterHub({
 
   const personalPlans = useMemo(() => personalPlansByStudent(studentId), [studentId]);
 
-  const [hubSection, setHubSection] = useState<LearnHubSectionId>("prep");
-
-  useEffect(() => {
-    setHubSection("prep");
-  }, [activePlanId]);
+  const [hubSection, setHubSection] = useState<LearnCenterHubSectionId>(
+    initialHubSection ?? "course",
+  );
 
   const [openReviewChapters, setOpenReviewChapters] = useState<Record<string, boolean>>({});
 
@@ -279,11 +289,11 @@ function LearnCenterHub({
         >
             {(
               [
-                ["prep", "预习"],
+                ["course", "课程"],
                 ["homework", "作业"],
-                ["review", "复习"],
-                ["personal", "自建计划"],
                 ["exam", "考试"],
+                ["personal", "自建计划"],
+                ["wrongbook", "错题本"],
               ] as const
             ).map(([id, label]) => {
               const active = hubSection === id;
@@ -306,7 +316,7 @@ function LearnCenterHub({
             })}
           </div>
 
-        {pushes.length > 0 && (
+        {hubSection === "course" && pushes.length > 0 && (
           <div className="rounded-xl border border-slate-200/80 bg-white px-3 py-2">
             <div className="text-slate-500 text-[0.6875rem] mb-1.5 flex items-center gap-1 font-medium">
               <Sparkles size={12} className="text-indigo-500 shrink-0" /> AI 提示
@@ -326,7 +336,7 @@ function LearnCenterHub({
         )}
 
         <div className="pt-3 min-h-[min(22rem,52vh)]">
-            {hubSection === "prep" && (
+            {hubSection === "course" && (
               <>
           {!activePlanId || plans.length === 0 ? (
             <div className="rounded-xl border border-dashed border-slate-200 bg-white p-8 text-center text-slate-400 text-sm">
@@ -334,96 +344,215 @@ function LearnCenterHub({
                 ? "暂无进行中的班级课程计划"
                 : "请选择上方课程"}
             </div>
-          ) : !prepCard ? (
-            <div className="rounded-xl border border-dashed border-slate-200 bg-white p-8 text-center text-slate-400 text-sm">
-              该课程暂无法生成预习入口
-            </div>
           ) : (
-            <div className="max-w-2xl">
-              {(() => {
-                const prep = prepCard;
-                const summary = getPlanProgressSummary(studentId, prep.planId);
-                const denom = Math.max(summary.total, 1);
-                return (
-                  <div className="rounded-xl border border-slate-100 bg-slate-50/70 p-4 space-y-3">
-                    <div>
-                      <div className="text-indigo-600 text-[0.6875rem] font-medium">
-                        {prep.courseLabel}
-                      </div>
-                      <div className="text-slate-900 font-medium mt-0.5">{prep.planTitle}</div>
-                      <div className="text-slate-600 text-[0.75rem] mt-2 leading-relaxed">
-                        {prep.chapterTitle && (
-                          <span className="text-slate-500">{prep.chapterTitle} · </span>
-                        )}
-                        <span>{prep.sectionTitle}</span>
-                      </div>
-                      {prep.fallbackNote && (
-                        <p className="text-amber-800/90 text-[0.75rem] mt-2 leading-relaxed">
-                          {prep.fallbackNote}
-                        </p>
-                      )}
-                      {prep.noNextLesson && (
-                        <p className="text-slate-600 text-[0.75rem] mt-2">
-                          本学期该课计划内的新课小节已全部排定，请以复习与查漏补缺为主。
-                        </p>
-                      )}
-                      {prep.personalResumeSectionId &&
-                        prep.personalResumeSectionId !== prep.sectionId && (
-                        <div className="text-slate-500 text-[0.75rem] mt-2">
-                          个人续学：
-                          {prep.personalResumeTitle ?? prep.personalResumeSectionId}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 min-h-0">
+              <div className="flex flex-col rounded-2xl border border-slate-200 bg-white overflow-hidden min-h-0 max-h-[min(28rem,56vh)] lg:max-h-[min(32rem,70vh)]">
+                <div className="shrink-0 px-4 py-2.5 border-b border-slate-100 bg-sky-50/60">
+                  <span className="text-slate-900 font-medium text-[0.875rem]">即将开始</span>
+                </div>
+                <div className="flex-1 min-h-0 overflow-y-auto p-3">
+                  {!prepCard ? (
+                    <p className="text-slate-400 text-sm text-center py-8">暂无即将开始的预习章节</p>
+                  ) : (
+                    (() => {
+                      const prep = prepCard;
+                      const summary = getPlanProgressSummary(studentId, prep.planId);
+                      const denom = Math.max(summary.total, 1);
+                      return (
+                        <div className="rounded-xl border border-slate-100 bg-slate-50/70 p-3 space-y-3">
+                          <div>
+                            <div className="text-indigo-600 text-[0.6875rem] font-medium">
+                              {prep.courseLabel}
+                            </div>
+                            <div className="text-slate-900 font-medium mt-0.5">{prep.planTitle}</div>
+                            <div className="text-slate-600 text-[0.75rem] mt-2 leading-relaxed">
+                              {prep.chapterTitle && (
+                                <span className="text-slate-500">{prep.chapterTitle} · </span>
+                              )}
+                              <span>{prep.sectionTitle}</span>
+                            </div>
+                            {prep.fallbackNote && (
+                              <p className="text-amber-800/90 text-[0.75rem] mt-2 leading-relaxed">
+                                {prep.fallbackNote}
+                              </p>
+                            )}
+                            {prep.noNextLesson && (
+                              <p className="text-slate-600 text-[0.75rem] mt-2">
+                                本学期该课计划内的新课小节已全部排定，请以复习与查漏补缺为主。
+                              </p>
+                            )}
+                            {prep.personalResumeSectionId &&
+                              prep.personalResumeSectionId !== prep.sectionId && (
+                              <div className="text-slate-500 text-[0.75rem] mt-2">
+                                个人续学：
+                                {prep.personalResumeTitle ?? prep.personalResumeSectionId}
+                              </div>
+                            )}
+                          </div>
+                          <div className="space-y-1.5 border-t border-slate-100 pt-3">
+                            <div className="flex items-center justify-between text-[0.6875rem] text-slate-500">
+                              <span>掌握概览 · 《{prep.courseLabel}》</span>
+                            </div>
+                            <div className="flex h-2 rounded-full overflow-hidden bg-slate-100">
+                              <div
+                                className="bg-emerald-500 h-full transition-all"
+                                style={{ width: `${(summary.mastered / denom) * 100}%` }}
+                              />
+                              <div
+                                className="bg-indigo-400 h-full transition-all"
+                                style={{ width: `${(summary.inProgress / denom) * 100}%` }}
+                              />
+                              <div
+                                className="bg-rose-400 h-full transition-all"
+                                style={{ width: `${(summary.weak / denom) * 100}%` }}
+                              />
+                              <div
+                                className="bg-slate-200 h-full transition-all"
+                                style={{ width: `${(summary.pending / denom) * 100}%` }}
+                              />
+                            </div>
+                            <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[0.6875rem] text-slate-500">
+                              <span>已掌握 {summary.mastered}</span>
+                              <span>进行中 {summary.inProgress}</span>
+                              <span>薄弱 {summary.weak}</span>
+                              <span>未开始 {summary.pending}</span>
+                            </div>
+                          </div>
+                          <div className="flex flex-wrap gap-2 pt-1">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const section = findPlanSection(prep.planId, prep.sectionId).section;
+                                onEnterClassStudy({
+                                  planId: prep.planId,
+                                  sectionId: prep.sectionId,
+                                  focus: "课堂",
+                                  goalNodeIds: section?.knowledgeNodeIds,
+                                });
+                              }}
+                              className="inline-flex items-center gap-1 rounded-lg bg-indigo-600 text-white px-3 py-1.5 text-[0.8125rem] hover:bg-indigo-700"
+                            >
+                              进入课堂
+                            </button>
+                          </div>
                         </div>
-                      )}
-                    </div>
-                    <div className="space-y-1.5 border-t border-slate-100 pt-3">
-                      <div className="flex items-center justify-between text-[0.6875rem] text-slate-500">
-                        <span>掌握概览 · 《{prep.courseLabel}》</span>
-                      </div>
-                      <div className="flex h-2 rounded-full overflow-hidden bg-slate-100">
+                      );
+                    })()
+                  )}
+                </div>
+              </div>
+
+              <div className="flex flex-col rounded-2xl border border-slate-200 bg-white overflow-hidden min-h-0 max-h-[min(28rem,56vh)] lg:max-h-[min(32rem,70vh)]">
+                <div className="shrink-0 px-4 py-2.5 border-b border-slate-100 bg-emerald-50/50">
+                  <span className="text-slate-900 font-medium text-[0.875rem]">已掌握</span>
+                </div>
+                <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-1">
+                  {scopedReviewRows.length === 0 ? (
+                    <p className="text-slate-400 text-sm text-center py-8">暂无已掌握小节</p>
+                  ) : reviewSplit.masteredGroups.length === 0 ? (
+                    <p className="text-slate-400 text-sm text-center py-8">暂无已掌握小节</p>
+                  ) : (
+                    reviewSplit.masteredGroups.map((g) => {
+                      const sid = `m:${g.key}`;
+                      const open = openReviewChapters[sid] ?? false;
+                      return (
                         <div
-                          className="bg-emerald-500 h-full transition-all"
-                          style={{ width: `${(summary.mastered / denom) * 100}%` }}
-                        />
+                          key={g.key}
+                          className="border border-slate-100 rounded-lg overflow-hidden bg-white"
+                        >
+                          <button
+                            type="button"
+                            onClick={() => toggleReviewChapter("m", g.key)}
+                            className="w-full flex items-center gap-2 px-3 py-2.5 text-left hover:bg-slate-50"
+                          >
+                            <ChevronRight
+                              size={16}
+                              className={`shrink-0 text-slate-500 transition-transform ${open ? "rotate-90" : ""}`}
+                            />
+                            <div className="min-w-0 flex-1">
+                              <div className="font-medium text-slate-800 text-[0.8125rem] truncate">
+                                {g.chapterTitle}
+                              </div>
+                              <div className="text-slate-400 text-[0.65rem] truncate">{g.courseLabel}</div>
+                            </div>
+                            <span className="text-slate-400 text-[0.7rem] shrink-0 tabular-nums">
+                              {g.rows.length} 小节
+                            </span>
+                          </button>
+                          {open ? (
+                            <div className="px-2 pb-3 pt-1 space-y-2 border-t border-slate-50 bg-slate-50/40">
+                              {g.rows.map((row) => (
+                                <ReviewRowCard
+                                  key={`${row.planId}:${row.sectionId}`}
+                                  row={row}
+                                  onEnterClassStudy={onEnterClassStudy}
+                                />
+                              ))}
+                            </div>
+                          ) : null}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+
+              <div className="flex flex-col rounded-2xl border border-slate-200 bg-white overflow-hidden min-h-0 max-h-[min(28rem,56vh)] lg:max-h-[min(32rem,70vh)]">
+                <div className="shrink-0 px-4 py-2.5 border-b border-slate-100 bg-violet-50/50">
+                  <span className="text-slate-900 font-medium text-[0.875rem]">
+                    建议巩固 · 待复习
+                  </span>
+                </div>
+                <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-1">
+                  {scopedReviewRows.length === 0 ? (
+                    <p className="text-slate-400 text-sm text-center py-8">暂无待巩固小节</p>
+                  ) : reviewSplit.focusGroups.length === 0 ? (
+                    <p className="text-slate-400 text-sm text-center py-8">暂无待巩固小节</p>
+                  ) : (
+                    reviewSplit.focusGroups.map((g) => {
+                      const sid = `f:${g.key}`;
+                      const open = openReviewChapters[sid] ?? false;
+                      return (
                         <div
-                          className="bg-indigo-400 h-full transition-all"
-                          style={{ width: `${(summary.inProgress / denom) * 100}%` }}
-                        />
-                        <div
-                          className="bg-rose-400 h-full transition-all"
-                          style={{ width: `${(summary.weak / denom) * 100}%` }}
-                        />
-                        <div
-                          className="bg-slate-200 h-full transition-all"
-                          style={{ width: `${(summary.pending / denom) * 100}%` }}
-                        />
-                      </div>
-                      <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-[0.6875rem] text-slate-500">
-                        <span>已掌握 {summary.mastered}</span>
-                        <span>进行中 {summary.inProgress}</span>
-                        <span>薄弱 {summary.weak}</span>
-                        <span>未开始 {summary.pending}</span>
-                      </div>
-                    </div>
-                    <div className="flex flex-wrap gap-2 pt-1">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const section = findPlanSection(prep.planId, prep.sectionId).section;
-                          onEnterClassStudy({
-                            planId: prep.planId,
-                            sectionId: prep.sectionId,
-                            focus: "课堂",
-                            goalNodeIds: section?.knowledgeNodeIds,
-                          });
-                        }}
-                        className="inline-flex items-center gap-1 rounded-lg bg-indigo-600 text-white px-3 py-1.5 text-[0.8125rem] hover:bg-indigo-700"
-                      >
-                        进入课堂
-                      </button>
-                    </div>
-                  </div>
-                );
-              })()}
+                          key={g.key}
+                          className="border border-slate-100 rounded-lg overflow-hidden bg-white"
+                        >
+                          <button
+                            type="button"
+                            onClick={() => toggleReviewChapter("f", g.key)}
+                            className="w-full flex items-center gap-2 px-3 py-2.5 text-left hover:bg-slate-50"
+                          >
+                            <ChevronRight
+                              size={16}
+                              className={`shrink-0 text-slate-500 transition-transform ${open ? "rotate-90" : ""}`}
+                            />
+                            <div className="min-w-0 flex-1">
+                              <div className="font-medium text-slate-800 text-[0.8125rem] truncate">
+                                {g.chapterTitle}
+                              </div>
+                              <div className="text-slate-400 text-[0.65rem] truncate">{g.courseLabel}</div>
+                            </div>
+                            <span className="text-slate-400 text-[0.7rem] shrink-0 tabular-nums">
+                              {g.rows.length} 小节
+                            </span>
+                          </button>
+                          {open ? (
+                            <div className="px-2 pb-3 pt-1 space-y-2 border-t border-slate-50 bg-slate-50/40">
+                              {g.rows.map((row) => (
+                                <ReviewRowCard
+                                  key={`${row.planId}:${row.sectionId}`}
+                                  row={row}
+                                  onEnterClassStudy={onEnterClassStudy}
+                                />
+                              ))}
+                            </div>
+                          ) : null}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
             </div>
           )}
               </>
@@ -474,130 +603,6 @@ function LearnCenterHub({
                         onEnterHomeworkWorkbench={onEnterHomeworkWorkbench}
                       />
                     ))
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-              </>
-            )}
-
-            {hubSection === "review" && (
-              <>
-          {!activePlanId ? (
-            <div className="rounded-xl border border-dashed border-slate-200 bg-white p-8 text-center text-slate-400 text-sm">
-              请选择上方课程
-            </div>
-          ) : scopedReviewRows.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-slate-200 bg-white p-8 text-center text-slate-400 text-sm">
-              该课程暂无可复习小节
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 min-h-0">
-              <div className="flex flex-col rounded-2xl border border-slate-200 bg-white overflow-hidden min-h-0 max-h-[min(28rem,56vh)]">
-                <div className="shrink-0 px-4 py-2.5 border-b border-slate-100 bg-emerald-50/50">
-                  <span className="text-slate-900 font-medium text-[0.875rem]">已掌握</span>
-                </div>
-                <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-1">
-                  {reviewSplit.masteredGroups.length === 0 ? (
-                    <p className="text-slate-400 text-sm text-center py-8">暂无已掌握小节</p>
-                  ) : (
-                    reviewSplit.masteredGroups.map((g) => {
-                      const sid = `m:${g.key}`;
-                      const open = openReviewChapters[sid] ?? false;
-                      return (
-                        <div
-                          key={g.key}
-                          className="border border-slate-100 rounded-lg overflow-hidden bg-white"
-                        >
-                          <button
-                            type="button"
-                            onClick={() => toggleReviewChapter("m", g.key)}
-                            className="w-full flex items-center gap-2 px-3 py-2.5 text-left hover:bg-slate-50"
-                          >
-                            <ChevronRight
-                              size={16}
-                              className={`shrink-0 text-slate-500 transition-transform ${open ? "rotate-90" : ""}`}
-                            />
-                            <div className="min-w-0 flex-1">
-                              <div className="font-medium text-slate-800 text-[0.8125rem] truncate">
-                                {g.chapterTitle}
-                              </div>
-                              <div className="text-slate-400 text-[0.65rem] truncate">{g.courseLabel}</div>
-                            </div>
-                            <span className="text-slate-400 text-[0.7rem] shrink-0 tabular-nums">
-                              {g.rows.length} 小节
-                            </span>
-                          </button>
-                          {open ? (
-                            <div className="px-2 pb-3 pt-1 space-y-2 border-t border-slate-50 bg-slate-50/40">
-                              {g.rows.map((row) => (
-                                <ReviewRowCard
-                                  key={`${row.planId}:${row.sectionId}`}
-                                  row={row}
-                                  onEnterClassStudy={onEnterClassStudy}
-                                />
-                              ))}
-                            </div>
-                          ) : null}
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-              </div>
-
-              <div className="flex flex-col rounded-2xl border border-slate-200 bg-white overflow-hidden min-h-0 max-h-[min(28rem,56vh)]">
-                <div className="shrink-0 px-4 py-2.5 border-b border-slate-100 bg-violet-50/50">
-                  <span className="text-slate-900 font-medium text-[0.875rem]">
-                    建议巩固 · 待复习
-                  </span>
-                </div>
-                <div className="flex-1 min-h-0 overflow-y-auto p-3 space-y-1">
-                  {reviewSplit.focusGroups.length === 0 ? (
-                    <p className="text-slate-400 text-sm text-center py-8">暂无待巩固小节</p>
-                  ) : (
-                    reviewSplit.focusGroups.map((g) => {
-                      const sid = `f:${g.key}`;
-                      const open = openReviewChapters[sid] ?? false;
-                      return (
-                        <div
-                          key={g.key}
-                          className="border border-slate-100 rounded-lg overflow-hidden bg-white"
-                        >
-                          <button
-                            type="button"
-                            onClick={() => toggleReviewChapter("f", g.key)}
-                            className="w-full flex items-center gap-2 px-3 py-2.5 text-left hover:bg-slate-50"
-                          >
-                            <ChevronRight
-                              size={16}
-                              className={`shrink-0 text-slate-500 transition-transform ${open ? "rotate-90" : ""}`}
-                            />
-                            <div className="min-w-0 flex-1">
-                              <div className="font-medium text-slate-800 text-[0.8125rem] truncate">
-                                {g.chapterTitle}
-                              </div>
-                              <div className="text-slate-400 text-[0.65rem] truncate">{g.courseLabel}</div>
-                            </div>
-                            <span className="text-slate-400 text-[0.7rem] shrink-0 tabular-nums">
-                              {g.rows.length} 小节
-                            </span>
-                          </button>
-                          {open ? (
-                            <div className="px-2 pb-3 pt-1 space-y-2 border-t border-slate-50 bg-slate-50/40">
-                              {g.rows.map((row) => (
-                                <ReviewRowCard
-                                  key={`${row.planId}:${row.sectionId}`}
-                                  row={row}
-                                  onEnterClassStudy={onEnterClassStudy}
-                                />
-                              ))}
-                            </div>
-                          ) : null}
-                        </div>
-                      );
-                    })
                   )}
                 </div>
               </div>
@@ -751,6 +756,16 @@ function LearnCenterHub({
           )}
               </>
             )}
+
+            {hubSection === "wrongbook" && (
+              <LearnCenterWrongRecordsPanel
+                studentId={studentId}
+                activePlanId={activePlanId}
+                plans={plans}
+                onPracticeKnowledge={onPracticeKnowledge}
+                onEnterHomeworkWorkbench={onEnterHomeworkWorkbench}
+              />
+            )}
         </div>
         </div>
       </div>
@@ -804,12 +819,18 @@ function LearnCenterPlanTabs({
 
 export function LearnCenter({
   studentId,
+  initialPlanId,
+  initialHubSection,
   onEnterClassStudy,
   onEnterHomeworkWorkbench,
   onOpenStudentLearningPlans,
   onContinuePersonalLearn,
+  onPracticeKnowledge,
 }: {
   studentId: string;
+  /** 深链进入时选中对应授课计划（如本题库错题本） */
+  initialPlanId?: string;
+  initialHubSection?: LearnCenterHubSectionId;
   onEnterClassStudy: (args: {
     planId: string;
     sectionId: string;
@@ -819,6 +840,7 @@ export function LearnCenter({
   onEnterHomeworkWorkbench: (homeworkId: string) => void;
   onOpenStudentLearningPlans: () => void;
   onContinuePersonalLearn: (opts: StudentLearnNavigateInput) => void;
+  onPracticeKnowledge: (planId: string, goalNodeIds: string[]) => void;
 }) {
   const plans = useMemo(() => getStudentPlans(studentId), [studentId]);
   const [activePlanId, setActivePlanId] = useState<string>("");
@@ -829,6 +851,12 @@ export function LearnCenter({
       return plans[0]?.id ?? "";
     });
   }, [plans]);
+
+  useEffect(() => {
+    if (initialPlanId && plans.some((p) => p.id === initialPlanId)) {
+      setActivePlanId(initialPlanId);
+    }
+  }, [initialPlanId, plans]);
 
   const enterExamWeakFromHub = (exam: ExamEvalSummary) => {
     const plan = plans.find((p) => p.courseId === exam.courseId);
@@ -864,11 +892,13 @@ export function LearnCenter({
         studentId={studentId}
         plans={plans}
         activePlanId={activePlanId}
+        initialHubSection={initialHubSection}
         onEnterClassStudy={onEnterClassStudy}
         onEnterHomeworkWorkbench={onEnterHomeworkWorkbench}
         onEnterExamWeak={enterExamWeakFromHub}
         onOpenStudentLearningPlans={onOpenStudentLearningPlans}
         onContinuePersonalLearn={onContinuePersonalLearn}
+        onPracticeKnowledge={onPracticeKnowledge}
       />
     </div>
   );

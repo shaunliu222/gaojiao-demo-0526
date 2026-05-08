@@ -37,7 +37,7 @@ import {
   MyPlanDetail,
   type StudentLearnNavigateInput,
 } from "./components/student/MyPlans";
-import { LearnCenter } from "./components/student/LearnCenter";
+import { LearnCenter, type LearnCenterHubSectionId } from "./components/student/LearnCenter";
 import { ClassStudy } from "./components/student/ClassStudy";
 import { HomeworkWorkbench } from "./components/student/HomeworkWorkbench";
 import { TrainingWorkbench } from "./components/student/TrainingWorkbench";
@@ -100,7 +100,11 @@ type TeacherView =
 type StudentView =
   | { k: "my-plans-list" }
   | { k: "my-plan-detail"; id: string; kind: "course" | "personal" }
-  | { k: "learn-center" }
+  | {
+      k: "learn-center";
+      initialPlanId?: string;
+      hubSection?: LearnCenterHubSectionId;
+    }
   | {
       k: "class-study";
       planId: string;
@@ -132,6 +136,20 @@ function resolveClassStudyEntry(
       planId: opts.planId,
       sectionId: opts.sectionId,
       goalNodeIds: normalizedGoals ?? opts.goalNodeIds,
+    };
+  }
+  if (opts?.planId) {
+    const plan = getStudentPlans(studentId).find((p) => p.id === opts.planId);
+    if (!plan) return null;
+    const nodeId = normalizedGoals?.[0];
+    const sectionId =
+      findSectionIdByKnowledgeNode(plan, nodeId) ?? findResumeSectionId(studentId, plan);
+    if (!sectionId) return null;
+    const section = findPlanSection(plan.id, sectionId).section;
+    return {
+      planId: plan.id,
+      sectionId,
+      goalNodeIds: normalizedGoals?.length ? normalizedGoals : section?.knowledgeNodeIds,
     };
   }
   const plans = getStudentPlans(studentId);
@@ -817,7 +835,14 @@ export default function App() {
       case "learn-center":
         return (
           <LearnCenter
+            key={
+              view.hubSection ?? view.initialPlanId
+                ? `${view.initialPlanId ?? ""}::${view.hubSection ?? ""}`
+                : "learn-center"
+            }
             studentId={studentId}
+            initialPlanId={view.initialPlanId}
+            initialHubSection={view.hubSection}
             onEnterClassStudy={({ planId, sectionId, focus, goalNodeIds }) =>
               setView({ k: "class-study", planId, sectionId, focus, goalNodeIds })
             }
@@ -830,6 +855,17 @@ export default function App() {
             }}
             onContinuePersonalLearn={(opts: StudentLearnNavigateInput) => {
               const entry = resolveClassStudyEntry(studentId, opts);
+              if (!entry) return;
+              setView({
+                k: "class-study",
+                planId: entry.planId,
+                sectionId: entry.sectionId,
+                focus: "课堂",
+                goalNodeIds: entry.goalNodeIds,
+              });
+            }}
+            onPracticeKnowledge={(planId, goalNodeIds) => {
+              const entry = resolveClassStudyEntry(studentId, { planId, goalNodeIds });
               if (!entry) return;
               setView({
                 k: "class-study",
@@ -909,6 +945,14 @@ export default function App() {
               } else {
                 setView({ k: "learn-center" });
               }
+            }}
+            onGoLearnCenterWrongBook={(planId) => {
+              setNav("learn-center");
+              setView({
+                k: "learn-center",
+                initialPlanId: planId,
+                hubSection: "wrongbook",
+              });
             }}
             onGoPlans={() => {
               setNav("my-plans");

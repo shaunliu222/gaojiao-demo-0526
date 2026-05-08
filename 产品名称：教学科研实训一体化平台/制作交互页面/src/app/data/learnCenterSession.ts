@@ -647,6 +647,20 @@ export function findSectionIdByKnowledgeNode(
   return undefined;
 }
 
+/** 错题等场景：按知识点找到含有该点的教学计划（多门课时取第一个匹配；无匹配则取学生首门课计划） */
+export function resolveStudentPlanIdForKnowledgeNode(
+  studentId: string,
+  knowledgePointId?: string,
+): string | undefined {
+  const plans = getStudentPlans(studentId);
+  if (plans.length === 0) return undefined;
+  if (!knowledgePointId) return plans[0]!.id;
+  for (const plan of plans) {
+    if (findSectionIdByKnowledgeNode(plan, knowledgePointId)) return plan.id;
+  }
+  return plans[0]!.id;
+}
+
 export function findPlanSection(
   planId?: string,
   sectionId?: string,

@@ -12,8 +12,9 @@ import type {
 /**
  * 机械工程知识图谱主图
  *
- * 叙事：**核心素养（中央）→ 能力（围层）→ 知识点（挂靠能力外向发散）→ 课程/实训（最外圈可读）**
- * 知识点已合并为大颗粒（18 条），避免「知识点极多、落地课程看起来很少」的假数据观感。
+ * 叙事：**核心素养（中央）→ 能力 → 知识点（能力直连）；课程/实训只绑知识点（Map to），不与能力直连**
+ * 主画布仅渲染素养 + 能力 + 知识点；课程/实训节点供详情面板反查。
+ * 知识点已合并为大颗粒（18 条）。
  */
 
 const PROF = "prof-mech";
@@ -25,7 +26,7 @@ function source(fileName: string, locator: string, excerpt: string): GraphNodeSo
 const sourceByLayer: Record<GraphNodeLayer, GraphNodeSource> = {
   core: source("机械工程专业人才培养方案（2026版）", "毕业要求 1-5", "围绕工程表达、结构分析、制造实践、数字化协同与职业规范形成核心素养。"),
   ability: source("机械工程岗位JD样本集", "能力要求归并", "岗位要求可拆解为制图读图、数字化建模、检测质量与智能工具等多组能力簇。"),
-  knowledge: source("《机械制图与CAD》等课程大纲合集", "能力→知识点挂载", "每个知识点挂载在少量能力点上，再由课程与实训映射落地。"),
+  knowledge: source("《机械制图与CAD》等课程大纲合集", "能力→知识点挂载", "知识点挂载在能力点上；课程与实训直接映射知识点。"),
   courseOrTraining: source("机械工程课程体系与实训项目清单", "课程-实训矩阵", "课程与实训作为知识点载体，每条课程/实训与若干合并后的知识点相关联。"),
 };
 
@@ -101,7 +102,7 @@ const abilitySpecs = [
   ["sk-mech-012", "工业机器人与回路认知能力", "能在工作站、示教、液压与安全互锁间建立链路。", "智能制造能力"],
 ] as const;
 
-/** 合并后 18 条知识点：粒度与一门课内「章」对齐，挂靠能力再通过 contain 分发 */
+/** 合并后 18 条知识点：粒度与一门课内「章」对齐，由能力 contain 挂载 */
 const knowledgeSpecs = [
   ["kn-mech-001", "制图与国标注解基础（幅面—图线—尺寸）", "制图标准框架与基础规定；作为多数制图课的共同起点。", "制图基础"],
   ["kn-mech-002", "几何作图与生活测绘入门", "基本几何构造、草图与现实物体测绘的一体化。", "几何作图"],
@@ -158,7 +159,7 @@ const coreAbilityMap: Record<string, string[]> = {
 };
 
 const abilityKnowledgeMap: Record<string, string[]> = {
-  /** 先导「专业图谱与路径」挂在制图表达入口能力上，形成 contain→Support 链路 */
+  /** 先导「专业图谱与路径」挂在制图表达入口能力上 */
   "sk-mech-001": ["kn-mech-001", "kn-mech-002", "kn-mech-018"],
   "sk-mech-002": ["kn-mech-009", "kn-mech-010", "kn-mech-011"],
   "sk-mech-003": ["kn-mech-005", "kn-mech-006", "kn-mech-012"],
@@ -208,21 +209,6 @@ const trainingCoverage: Record<string, string[]> = {
   "train-m-009": ["kn-mech-015"],
   "train-m-010": ["kn-mech-017"],
   "train-m-011": ["kn-mech-016"],
-};
-
-const abilityTargetMap: Record<string, string[]> = {
-  "sk-mech-001": ["course-mech-draw", "train-m-001"],
-  "sk-mech-002": ["course-mech-draw", "train-m-003"],
-  "sk-mech-003": ["course-mech-draw", "course-mech-design", "train-m-004"],
-  "sk-mech-004": ["course-mech-draw", "train-m-001"],
-  "sk-mech-005": ["course-mech-draw", "course-mech-design", "train-m-005"],
-  "sk-mech-006": ["course-mech-tolerance", "course-mech-draw", "train-m-006"],
-  "sk-mech-007": ["course-mech-process", "course-mech-practice", "train-m-008", "train-m-009"],
-  "sk-mech-008": ["course-mech-ai-lab", "train-m-010"],
-  "sk-mech-009": ["course-mech-draw", "course-mech-design", "train-m-002"],
-  "sk-mech-010": ["course-mech-draw", "train-m-002"],
-  "sk-mech-011": ["course-mech-process", "train-m-008"],
-  "sk-mech-012": ["course-mech-robotics", "course-mech-hydraulic", "train-m-007", "train-m-011"],
 };
 
 const knowledgeDepends = [
@@ -336,14 +322,6 @@ for (const [coreId, abilityIds] of Object.entries(coreAbilityMap)) {
 for (const [abilityId, knowledgeIds] of Object.entries(abilityKnowledgeMap)) {
   for (const knowledgeId of knowledgeIds) {
     edge(abilityId, knowledgeId, "contain");
-    edge(knowledgeId, abilityId, "Support");
-  }
-}
-
-for (const [abilityId, targetIds] of Object.entries(abilityTargetMap)) {
-  for (const targetId of targetIds) {
-    edge(abilityId, targetId, "guide");
-    edge(targetId, abilityId, "Cultivate");
   }
 }
 

@@ -19,7 +19,6 @@ import {
   Star,
   FileX2,
   BarChart3,
-  RefreshCw,
   ChevronDown,
   ChevronUp,
 } from "lucide-react";
@@ -53,6 +52,7 @@ import {
   type ChapterKnowledgeMastery,
   type KnowledgeDomain,
 } from "../../data/studentMock";
+import { resolveStudentPlanIdForKnowledgeNode } from "../../data/learnCenterSession";
 
 // ======== 三档分类 ========
 
@@ -104,11 +104,13 @@ function masteryBar(level: number): string {
 export function MyProfile({
   studentId,
   onGoLearn,
+  onGoLearnCenterWrongBook,
   onGoPlans,
   onGoLab,
 }: {
   studentId: string;
   onGoLearn: (presetGoalNodeIds?: string[]) => void;
+  onGoLearnCenterWrongBook: (planId: string) => void;
   onGoPlans: () => void;
   onGoLab: () => void;
 }) {
@@ -225,14 +227,6 @@ export function MyProfile({
           </div>
           <div className="flex flex-col gap-2">
             <button
-              onClick={() =>
-                onGoLearn(weakPoints.slice(0, 2).map((w) => w.knowledgePointId))
-              }
-              className="px-3 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 inline-flex items-center gap-1.5"
-            >
-              <Sparkles size={14} /> 去学习中心补短板
-            </button>
-            <button
               onClick={onGoPlans}
               className="px-3 py-2 rounded-lg border border-indigo-200 bg-white text-indigo-700 hover:bg-indigo-50 inline-flex items-center gap-1.5"
             >
@@ -284,7 +278,11 @@ export function MyProfile({
 
         {/* 错题本 */}
         <div className="col-span-12">
-          <WrongQuestionBook questions={wrongQuestions} onGoLearn={onGoLearn} />
+          <WrongQuestionBook
+            studentId={studentId}
+            questions={wrongQuestions}
+            onGoLearnCenterWrongBook={onGoLearnCenterWrongBook}
+          />
         </div>
 
         {/* 学习历程（默认折叠） */}
@@ -1045,11 +1043,13 @@ const wqTypeColor: Record<string, string> = {
 };
 
 function WrongQuestionBook({
+  studentId,
   questions,
-  onGoLearn,
+  onGoLearnCenterWrongBook,
 }: {
+  studentId: string;
   questions: WrongQuestion[];
-  onGoLearn: (nodeIds?: string[]) => void;
+  onGoLearnCenterWrongBook: (planId: string) => void;
 }) {
   const [activeStatus, setActiveStatus] = useState<WrongQuestionStatus | "all">("all");
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -1184,16 +1184,17 @@ function WrongQuestionBook({
                       </div>
                       <div className="flex gap-2">
                         <button
-                          onClick={() => onGoLearn([q.knowledgePointId])}
+                          type="button"
+                          onClick={() => {
+                            const planId = resolveStudentPlanIdForKnowledgeNode(
+                              studentId,
+                              q.knowledgePointId,
+                            );
+                            if (planId) onGoLearnCenterWrongBook(planId);
+                          }}
                           className="px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-[0.75rem] inline-flex items-center gap-1 hover:bg-indigo-700"
                         >
-                          <Sparkles size={12} /> 去学习中心练这个知识点
-                        </button>
-                        <button
-                          onClick={() => onGoLearn([q.knowledgePointId])}
-                          className="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 text-[0.75rem] inline-flex items-center gap-1 hover:bg-slate-50"
-                        >
-                          <RefreshCw size={12} /> 重做类似题
+                          <BookOpen size={12} /> 在学中心打开本题库错题本
                         </button>
                       </div>
                     </div>

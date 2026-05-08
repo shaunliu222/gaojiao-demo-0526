@@ -410,66 +410,43 @@ export function DesignWorkbench({
     <div className="flex flex-col h-full text-[13px]">
       <PageHeader
         back={onBack}
-        title={
-          <div className="flex items-center gap-4">
-            <span className="text-[14px]">{headerTitle}</span>
-            <div className="flex gap-1 bg-slate-100 rounded-lg p-0.5">
-              {TABS.map(({ key, label }) => {
-                const exists = designs.some((d) => d.tab === key);
-                return (
-                  <button
-                    key={key}
-                    onClick={() => setTab(key)}
-                    className={`px-3 py-0.5 rounded-md flex items-center gap-1 text-[13px] ${
-                      tab === key
-                        ? "bg-white text-indigo-700 shadow"
-                        : "text-slate-600 hover:text-slate-800"
-                    }`}
-                  >
-                    {label}
-                    {!exists && <span className="text-slate-300 text-[0.625rem]">·空</span>}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        }
+        title={<span className="text-[14px]">{headerTitle}</span>}
       />
 
-      {!currentDesign ? (
-        <EmptyDesignState
-          tabName={tab}
-          sectionTitle={section?.title}
-          onOpenDemo={onOpenDemoSection}
-        />
-      ) : (
-        <DesignBody
-          key={currentDesign.id}
-          tab={tab}
-          design={currentDesign}
-          extra={extraMsgs[currentDesign.id] ?? []}
-          input={input}
-          onChange={setInput}
-          onSend={send}
-          acceptanceNotice={acceptanceNotices[tab]}
-          onDismissAcceptanceNotice={() => dismissAcceptanceNotice(tab)}
-          onAcceptFusionOutput={acceptFusionOutput}
-          learningAdjustSimulateInitialReply={learningAdjust}
-          fusionEnabled={fusionEnabled}
-          onFusionEnabledChange={setFusionEnabledForCurrentTab}
-          fusionConfirmed={fusionConfirmedByTab[tab]}
-          pendingFusionId={pendingFusionByTab[tab]?.id}
-          chatCleared={Boolean(currentDesign && chatClearedByDesign[currentDesign.id])}
-          onConfirmFusion={confirmFusionForCurrentTab}
-        />
-      )}
+      <DesignBody
+        key={`${planId}-${sectionId}-${tab}-${currentDesign?.id ?? "none"}`}
+        tab={tab}
+        onSidebarTabChange={setTab}
+        designsInSection={designs}
+        design={currentDesign}
+        sectionTitle={section?.title}
+        onOpenDemoSection={onOpenDemoSection}
+        extra={currentDesign ? (extraMsgs[currentDesign.id] ?? []) : []}
+        input={input}
+        onChange={setInput}
+        onSend={send}
+        acceptanceNotice={acceptanceNotices[tab]}
+        onDismissAcceptanceNotice={() => dismissAcceptanceNotice(tab)}
+        onAcceptFusionOutput={acceptFusionOutput}
+        learningAdjustSimulateInitialReply={learningAdjust}
+        fusionEnabled={fusionEnabled}
+        onFusionEnabledChange={setFusionEnabledForCurrentTab}
+        fusionConfirmedByTab={fusionConfirmedByTab}
+        pendingFusionId={pendingFusionByTab[tab]?.id}
+        chatCleared={Boolean(currentDesign && chatClearedByDesign[currentDesign?.id ?? ""])}
+        onConfirmFusion={confirmFusionForCurrentTab}
+      />
     </div>
   );
 }
 
 function DesignBody({
   tab,
+  onSidebarTabChange,
+  designsInSection,
   design,
+  sectionTitle,
+  onOpenDemoSection,
   extra,
   input,
   onChange,
@@ -480,13 +457,18 @@ function DesignBody({
   learningAdjustSimulateInitialReply = false,
   fusionEnabled,
   onFusionEnabledChange,
-  fusionConfirmed,
+  fusionConfirmedByTab,
   pendingFusionId,
   chatCleared,
   onConfirmFusion,
 }: {
   tab: BusinessTabKey;
-  design: TeachingDesign;
+  onSidebarTabChange: (next: BusinessTabKey) => void;
+  designsInSection: TeachingDesign[];
+  /** 当前右侧「文件类型」对应的教学设计；无则为空会话 */
+  design: TeachingDesign | undefined;
+  sectionTitle?: string;
+  onOpenDemoSection?: () => void;
   extra: LocalMessage[];
   input: string;
   onChange: (v: string) => void;
@@ -494,28 +476,34 @@ function DesignBody({
   acceptanceNotice?: { id: string; content: string; anchorOutputId?: string };
   onDismissAcceptanceNotice?: () => void;
   onAcceptFusionOutput: (target: Exclude<TabKey, "AI融合">, source: DesignOutput) => void;
-  /** 学情入口：先展示首条用户消息，1s 后再展示首条 AI 回复 */
   learningAdjustSimulateInitialReply?: boolean;
   fusionEnabled: boolean;
   onFusionEnabledChange: (next: boolean) => void;
-  fusionConfirmed: boolean;
+  fusionConfirmedByTab: Record<BusinessTabKey, boolean>;
   pendingFusionId?: string;
   chatCleared: boolean;
   onConfirmFusion: (confirmId: string) => void;
 }) {
-  const persona = personaById(design.personaId);
-  const skills = design.skillIds.map(skillOrMcpById).filter(Boolean);
-  const mcps = design.mcpIds.map(skillOrMcpById).filter(Boolean);
+  const persona = design ? personaById(design.personaId) : undefined;
+  const skills = design ? design.skillIds.map(skillOrMcpById).filter(Boolean) : [];
+  const mcps = design ? design.mcpIds.map(skillOrMcpById).filter(Boolean) : [];
 
-  const firstUser = design.chatHistory.find((m) => m.role === "user");
-  const firstAssistant = design.chatHistory.find((m) => m.role === "assistant");
+  const firstUser = design?.chatHistory.find((m) => m.role === "user");
+  const firstAssistant = design?.chatHistory.find((m) => m.role === "assistant");
 
   const [initialAssistantReady, setInitialAssistantReady] = useState(
-    !learningAdjustSimulateInitialReply,
+    !learningAdjustSimulateInitialReply || !design,
   );
-  const [initialLoading, setInitialLoading] = useState(learningAdjustSimulateInitialReply);
+  const [initialLoading, setInitialLoading] = useState(
+    learningAdjustSimulateInitialReply && Boolean(design),
+  );
 
   useEffect(() => {
+    if (!design) {
+      setInitialAssistantReady(true);
+      setInitialLoading(false);
+      return;
+    }
     if (!learningAdjustSimulateInitialReply) {
       setInitialAssistantReady(true);
       setInitialLoading(false);
@@ -528,9 +516,10 @@ function DesignBody({
       setInitialAssistantReady(true);
     }, 1000);
     return () => clearTimeout(t);
-  }, [learningAdjustSimulateInitialReply, design.id]);
+  }, [learningAdjustSimulateInitialReply, design?.id]);
 
   const messages: LocalMessage[] = useMemo(() => {
+    if (!design) return [];
     if (chatCleared) return extra;
     if (learningAdjustSimulateInitialReply && firstUser) {
       const out: LocalMessage[] = [{ ...firstUser } as LocalMessage];
@@ -550,34 +539,38 @@ function DesignBody({
     }
     return [...design.chatHistory, ...extra];
   }, [
+    design,
     learningAdjustSimulateInitialReply,
     firstUser,
     firstAssistant,
     initialLoading,
     initialAssistantReady,
-    design.chatHistory,
-    design.id,
+    design?.chatHistory,
     extra,
     chatCleared,
   ]);
 
+  const odForTab = useMemo(() => designsInSection.find((x) => x.tab === tab), [designsInSection, tab]);
+
   const visibleOutputs: DesignOutput[] = useMemo(() => {
-    return !learningAdjustSimulateInitialReply
-      ? design.outputs
-      : initialLoading
-        ? design.outputsBeforeInitialAiReply ?? []
-        : design.outputs;
+    const d = odForTab;
+    if (!d) return [];
+    const isActiveDesignSession = Boolean(design && d.id === design.id);
+    if (!learningAdjustSimulateInitialReply || !isActiveDesignSession) return d.outputs;
+    return initialLoading ? d.outputsBeforeInitialAiReply ?? [] : d.outputs;
   }, [
+    odForTab,
+    design,
     learningAdjustSimulateInitialReply,
     initialLoading,
-    design.outputs,
-    design.outputsBeforeInitialAiReply,
   ]);
 
   const showLearningOutputsPending =
+    Boolean(design && odForTab && design.id === odForTab.id) &&
     learningAdjustSimulateInitialReply &&
     initialLoading &&
-    design.outputs.length > visibleOutputs.length;
+    !!odForTab.outputs.length &&
+    visibleOutputs.length < odForTab.outputs.length;
 
   const bubbleAnchorOutputId = useMemo(() => {
     if (!acceptanceNotice?.anchorOutputId || !visibleOutputs.length) {
@@ -589,44 +582,64 @@ function DesignBody({
 
   const showAcceptanceBubble = Boolean(acceptanceNotice && onDismissAcceptanceNotice && bubbleAnchorOutputId);
 
-  const templates = TEMPLATES_BY_TAB[tab];
-  const fusionConfig = AI_FUSION_BY_TAB[tab];
-
   return (
     <div className="flex-1 grid grid-cols-12 min-h-0 text-[12px]">
       <aside className="col-span-2 border-r border-slate-200 bg-white overflow-auto p-3 space-y-4">
-        <Section icon={User} title="人设">
-          <div className="px-2 py-1.5 rounded-md bg-indigo-50 text-indigo-800">
-            {persona?.name ?? "—"} ✓
+        {!design ? (
+          <div className="text-slate-500 text-[11.5px] leading-relaxed">
+            请在右侧选择<strong className="text-slate-700">文件类型</strong>（讲义 / 课堂 / 作业）。
+            <br />
+            <span className="text-slate-400 mt-2 block">
+              若该类型暂无设计数据，可先切换其他类型或点击下方生成初稿。
+            </span>
           </div>
-          {persona?.description && (
-            <div className="text-slate-500 mt-1 line-clamp-3 text-[11px]">{persona.description}</div>
-          )}
-          <button className="text-indigo-600 mt-1 text-[11px]">切换 →</button>
-        </Section>
-        <Section icon={Folder} title={`知识文件（${design.knowledgeFiles.length}）`}>
-          {design.knowledgeFiles.map((f) => (
-            <FileRow key={f.refId} name={f.name} sourceLabel={fileSourceLabel(f.source)} />
-          ))}
-          {design.knowledgeFiles.length === 0 && (
-            <div className="text-slate-400 text-[11px]">未添加</div>
-          )}
-        </Section>
-        <Section icon={Wrench} title={`技能（${skills.length}）`}>
-          {skills.map((s) => (
-            <Chip key={s!.id} text={s!.name} />
-          ))}
-          {skills.length === 0 && <div className="text-slate-400 text-[11px]">未选择</div>}
-        </Section>
-        <Section icon={Plug} title={`MCP（${mcps.length}）`}>
-          {mcps.map((s) => (
-            <Chip key={s!.id} text={s!.name} />
-          ))}
-          {mcps.length === 0 && <div className="text-slate-400 text-[11px]">未连接</div>}
-        </Section>
+        ) : (
+          <>
+            <Section icon={User} title="人设">
+              <div className="px-2 py-1.5 rounded-md bg-indigo-50 text-indigo-800">
+                {persona?.name ?? "—"} ✓
+              </div>
+              {persona?.description && (
+                <div className="text-slate-500 mt-1 line-clamp-3 text-[11px]">{persona.description}</div>
+              )}
+              <button className="text-indigo-600 mt-1 text-[11px]">切换 →</button>
+            </Section>
+            <Section icon={Folder} title={`知识文件（${design.knowledgeFiles.length}）`}>
+              {design.knowledgeFiles.map((f) => (
+                <FileRow key={f.refId} name={f.name} sourceLabel={fileSourceLabel(f.source)} />
+              ))}
+              {design.knowledgeFiles.length === 0 && (
+                <div className="text-slate-400 text-[11px]">未添加</div>
+              )}
+            </Section>
+            <Section icon={Wrench} title={`技能（${skills.length}）`}>
+              {skills.map((s) => (
+                <Chip key={s!.id} text={s!.name} />
+              ))}
+              {skills.length === 0 && <div className="text-slate-400 text-[11px]">未选择</div>}
+            </Section>
+            <Section icon={Plug} title={`MCP（${mcps.length}）`}>
+              {mcps.map((s) => (
+                <Chip key={s!.id} text={s!.name} />
+              ))}
+              {mcps.length === 0 && <div className="text-slate-400 text-[11px]">未连接</div>}
+            </Section>
+          </>
+        )}
       </aside>
 
       <div className="col-span-7 flex flex-col bg-slate-50 min-h-0">
+        {!design ? (
+          <div className="flex-1 overflow-auto flex items-center justify-center p-6">
+            <EmptyDesignState
+              tabName={tab}
+              sectionTitle={sectionTitle}
+              onOpenDemo={onOpenDemoSection}
+              embedded
+            />
+          </div>
+        ) : (
+          <>
         <div className="flex-1 overflow-auto p-5 space-y-3">
           {messages.map((m) =>
             m.loadingPlaceholder ? (
@@ -703,24 +716,54 @@ function DesignBody({
               }}
               placeholder={
                 fusionEnabled
-                  ? "描述需求，AI 会融合右侧建议生成内容，Cmd+Enter 发送..."
-                  : "描述你想生成的内容，Cmd+Enter 发送..."
+                  ? "描述需求，AI 将按右侧当前文件类型的语境生成并可写入融合内容，Cmd+Enter 发送…"
+                  : "描述你想生成的内容，可与右侧「可生成的文件类型」对照；Cmd+Enter 发送…"
               }
               className="flex-1 bg-transparent outline-none resize-none py-1.5 min-h-[36px] max-h-28 text-[12.5px]"
             />
             <button
               onClick={onSend}
-              className="flex items-center gap-1 bg-indigo-600 text-white px-3 py-1.5 rounded-lg hover:bg-indigo-700 text-[12.5px]"
+              disabled={!design}
+              className="flex items-center gap-1 bg-indigo-600 text-white px-3 py-1.5 rounded-lg hover:bg-indigo-700 text-[12.5px] disabled:opacity-50 disabled:pointer-events-none"
             >
               <Send size={12} /> 发送
             </button>
           </div>
         </div>
+          </>
+        )}
       </div>
 
-      <aside className="col-span-3 border-l border-slate-200 bg-white overflow-auto p-3">
+      <aside className="col-span-3 border-l border-slate-200 bg-white overflow-auto flex flex-col min-h-0 p-3">
+        <div
+          role="tablist"
+          aria-label="文件类型"
+          className="flex gap-1 bg-slate-100 rounded-lg p-0.5 mb-3 shrink-0"
+        >
+          {TABS.map(({ key: k, label }) => {
+            const exists = designsInSection.some((d) => d.tab === k);
+            return (
+              <button
+                key={k}
+                type="button"
+                role="tab"
+                aria-selected={tab === k}
+                onClick={() => onSidebarTabChange(k)}
+                className={`flex-1 min-w-0 px-2 py-1 rounded-md flex items-center justify-center gap-0.5 text-[12px] ${
+                  tab === k ? "bg-white text-indigo-700 shadow" : "text-slate-600 hover:text-slate-800"
+                }`}
+              >
+                <span className="truncate">{label}</span>
+                {!exists && <span className="text-slate-300 text-[0.625rem] shrink-0">·空</span>}
+              </button>
+            );
+          })}
+        </div>
+
         <div
           className={`mb-2.5 rounded-xl border px-2.5 py-2 transition ${
+            !design ? "opacity-50 pointer-events-none" : ""
+          } ${
             fusionEnabled
               ? "border-violet-200 bg-violet-50/70"
               : "border-slate-200 bg-slate-50/60"
@@ -732,14 +775,18 @@ function DesignBody({
                 <Sparkles size={13} className={fusionEnabled ? "text-violet-600" : "text-slate-400"} />
                 AI融合建议
               </div>
+              {!design && (
+                <div className="text-[10px] text-slate-500 mt-0.5 truncate">请先具备当前类型的设计会话</div>
+              )}
             </div>
             <button
               type="button"
               aria-pressed={fusionEnabled}
-              onClick={() => onFusionEnabledChange(!fusionEnabled)}
+              disabled={!design}
+              onClick={() => design && onFusionEnabledChange(!fusionEnabled)}
               className={`relative h-5 w-9 shrink-0 rounded-full transition ${
                 fusionEnabled ? "bg-violet-600" : "bg-slate-300"
-              }`}
+              } disabled:opacity-40`}
             >
               <span
                 className={`absolute top-0.5 size-4 rounded-full bg-white shadow transition ${
@@ -750,53 +797,54 @@ function DesignBody({
           </div>
         </div>
 
-        <div className="mb-2.5">
-          <div className="grid grid-cols-3 gap-1.5">
-            {templates.map((t) => {
-              const Icon = t.icon;
-              return (
-                <button
-                  key={t.key}
-                  type="button"
-                  className="flex flex-col items-center gap-1 px-1.5 py-2 rounded-lg border border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/40 transition"
-                >
-                  <span className={`size-7 rounded-md flex items-center justify-center ${t.accent}`}>
-                    <Icon size={14} />
-                  </span>
-                  <span className="text-slate-700 text-[11px] leading-tight text-center">{t.label}</span>
-                </button>
-              );
-            })}
-          </div>
+        <div className="mb-2 text-[10.5px] font-medium text-slate-500 uppercase tracking-wide">
+          可生成的文件类型 · {tab}
+        </div>
+        <div className="grid grid-cols-3 gap-1.5 mb-2.5">
+          {TEMPLATES_BY_TAB[tab].map((templ) => {
+            const Icon = templ.icon;
+            return (
+              <button
+                key={templ.key}
+                type="button"
+                className="flex flex-col items-center gap-1 px-1.5 py-2 rounded-lg border border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/40 transition"
+              >
+                <span className={`size-7 rounded-md flex items-center justify-center ${templ.accent}`}>
+                  <Icon size={14} />
+                </span>
+                <span className="text-slate-700 text-[11px] leading-tight text-center">{templ.label}</span>
+              </button>
+            );
+          })}
         </div>
 
-        <div className="h-px bg-slate-100 my-2.5" />
+        <div className="h-px bg-slate-100 my-2.5 shrink-0" />
 
-        <div className="space-y-2">
+        <div className="text-[10.5px] font-medium text-slate-500 uppercase tracking-wide mb-1.5">
+          当前类型产物
+        </div>
+        <div className="space-y-2 min-h-0">
           {visibleOutputs.map((o) => {
             const Icon = iconForOutput(o.type);
+            const od = odForTab;
             const draftTone =
               learningAdjustSimulateInitialReply &&
               initialLoading &&
-              design.outputsBeforeInitialAiReply?.some((d) => d.id === o.id);
+              od?.outputsBeforeInitialAiReply?.some((d) => d.id === o.id);
+            const ownerFusion = AI_FUSION_BY_TAB[tab];
             const fusionEnhanced =
-              fusionConfirmed && fusionConfig.enhancedOutputIds.includes(o.id);
+              fusionConfirmedByTab[tab] && ownerFusion.enhancedOutputIds.includes(o.id);
             const isBubbleAnchor = showAcceptanceBubble && bubbleAnchorOutputId === o.id;
             return (
-              <div
-                key={o.id}
-                className={`relative ${isBubbleAnchor ? "z-40" : "z-0"}`}
-              >
+              <div key={o.id} className={`relative ${isBubbleAnchor ? "z-40" : "z-0"}`}>
                 <div
                   className={`border rounded-lg p-2.5 transition ${
                     draftTone
                       ? "border-amber-200 bg-amber-50/40 hover:border-amber-300"
                       : fusionEnhanced
                         ? "border-violet-200 bg-violet-50/40 hover:border-violet-300"
-                      : "border-slate-200 hover:border-indigo-300"
-                  } ${
-                    isBubbleAnchor ? "ring-2 ring-indigo-500/70 ring-offset-2 ring-offset-white" : ""
-                  }`}
+                        : "border-slate-200 hover:border-indigo-300"
+                  } ${isBubbleAnchor ? "ring-2 ring-indigo-500/70 ring-offset-2 ring-offset-white" : ""}`}
                 >
                   <div className="flex items-center gap-2">
                     <div className="size-8 rounded-md bg-indigo-50 text-indigo-600 flex items-center justify-center">
@@ -865,9 +913,7 @@ function DesignBody({
             </div>
           )}
           {visibleOutputs.length === 0 && !showLearningOutputsPending && (
-            <div className="text-slate-400 text-center py-5 text-[11.5px]">
-              暂无产物，发送指令让 AI 生成
-            </div>
+            <div className="text-slate-400 text-[11px] py-1 pl-0.5">暂无产物</div>
           )}
         </div>
       </aside>
@@ -906,20 +952,36 @@ function EmptyDesignState({
   tabName,
   sectionTitle,
   onOpenDemo,
+  embedded = false,
 }: {
   tabName: TabKey;
   sectionTitle?: string;
   onOpenDemo?: () => void;
+  /** 嵌入主栏时使用更紧凑留白 */
+  embedded?: boolean;
 }) {
   const goDemo = () => onOpenDemo?.();
+  const wrapClass = embedded
+    ? ""
+    : "flex-1 flex items-center justify-center p-8 bg-slate-50";
+
+  const innerClass = embedded
+    ? "bg-white rounded-2xl border border-slate-200 p-8 max-w-md w-full mx-auto text-center"
+    : "bg-white rounded-2xl border border-slate-200 p-10 max-w-xl text-center";
+
+  const iconWrapClass = embedded ? "size-12 rounded-xl mb-3" : "size-16 rounded-2xl mb-4";
+  const iconSize = embedded ? 22 : 28;
+
   return (
-    <div className="flex-1 flex items-center justify-center p-8 bg-slate-50">
-      <div className="bg-white rounded-2xl border border-slate-200 p-10 max-w-xl text-center">
-        <div className="mx-auto size-16 rounded-2xl bg-indigo-50 text-indigo-500 flex items-center justify-center mb-4">
-          <Sparkles size={28} />
+    <div className={wrapClass}>
+      <div className={innerClass}>
+        <div
+          className={`mx-auto ${iconWrapClass} bg-indigo-50 text-indigo-500 flex items-center justify-center`}
+        >
+          <Sparkles size={iconSize} />
         </div>
         <div className="text-slate-900 mb-1">{sectionTitle ?? "该小节"} · {tabName}设计尚未生成</div>
-        <p className="text-slate-500 leading-relaxed">
+        <p className="text-slate-500 leading-relaxed text-[12px]">
           该小节还未生成教学设计。你可以从人设、知识文件、技能工具入手，再让 AI 生成{tabName}初稿。
         </p>
         <div className="mt-5 flex items-center justify-center">

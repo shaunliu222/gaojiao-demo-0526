@@ -1,10 +1,13 @@
 # 构建并发布到 GitHub Pages（仓库 Settings → Pages → Build: GitHub Actions）
 # 访问地址：https://<用户名>.github.io/smart-teaching/
+#
+# 【河南科技大学】仅此分支触发；与主版本 main 解耦。合并到 main 前须为明确需求。
 name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [main]
+    branches:
+      - "河南科技大学"
   workflow_dispatch:
 
 permissions:

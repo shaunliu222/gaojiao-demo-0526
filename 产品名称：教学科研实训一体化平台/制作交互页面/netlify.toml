@@ -1,3 +1,4 @@
+# 【河南科技大学】与根目录 netlify.toml 一致；生产：https://haustsmartteaching.netlify.app/
 [build]
   command = "npm ci && npm run build"
   publish = "dist"

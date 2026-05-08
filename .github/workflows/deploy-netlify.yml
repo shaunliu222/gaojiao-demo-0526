@@ -1,15 +1,20 @@
 # 构建并发布到 Netlify（仓库侧全自动；你只需在 GitHub 填一次密钥）
 #
+# 【河南科技大学】仅此分支触发；生产站点：https://haustsmartteaching.netlify.app/
+# 禁止改用 main 触发，除非已明确要求合并主版本并完成协调（避免与主版本产生非预期交集）。
+#
 # GitHub：Settings → Secrets and variables → Actions → New repository secret
 #   NETLIFY_AUTH_TOKEN — Netlify → User settings → Applications → Personal access tokens
 #   NETLIFY_SITE_ID     — 站点 → Site configuration → General → Site details → Site ID
 #
 # 若 Netlify 已连接同一仓库自动构建，会部署两次；可只在 Netlify 里 Disconnect Git，仅保留本工作流。
+# Netlify 后台请将「要构建的分支」设为：河南科技大学
 name: Deploy to Netlify
 
 on:
   push:
-    branches: [main]
+    branches:
+      - "河南科技大学"
   workflow_dispatch:
 
 jobs:

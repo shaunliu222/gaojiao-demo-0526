@@ -1,3 +1,9 @@
+# =============================================================================
+# 【河南科技大学】部署绑定（勿改 main / 勿在未明确要求时合并主版本）
+# - Netlify 生产站点：https://haustsmartteaching.netlify.app/
+# - GitHub 工作分支：河南科技大学（remote.origin.fetch 仅同步该分支）
+# Netlify「Branch to deploy」须为：河南科技大学
+# =============================================================================
 # 仓库根目录配置：避免未设置 Base directory 时发布错目录导致整站 404
 # Netlify 会先进入 base，再执行 command；publish 相对于 base
 [build]

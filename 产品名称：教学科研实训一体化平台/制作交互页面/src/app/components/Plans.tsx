@@ -13,6 +13,8 @@ import {
   teacherById,
   courseById,
   teacherSeesAllScopedContent,
+  flattenPlanLessons,
+  graphNodeById,
 } from "../data/lookups";
 import { PageHeader, StatusTag, AiBadge } from "./Layout";
 
@@ -23,7 +25,7 @@ const statusLabel: Record<TeachingPlan["status"], "草稿" | "进行中" | "已�
   completed: "已完成",
 };
 
-/** 进度 = 已做设计的小节数 / 总小节数（× 100） */
+/** 进度 = 已做设计的课时数 / 总课时数（× 100） */
 function computeProgress(p: TeachingPlan): number {
   let done = 0;
   let total = 0;
@@ -268,7 +270,7 @@ export function PlanDetail({
 }: {
   id: string;
   currentTeacherId: string;
-  /** 从作业评价等入口进入时，自动切到「教学路径」并滚动高亮该小节 */
+  /** 从作业评价等入口进入时，自动切到「课时进度」并滚动高亮该课时 */
   focusSectionId?: string;
   onBack: () => void;
   onOpenSection: (planId: string, sectionId: string) => void;
@@ -345,7 +347,7 @@ export function PlanDetail({
           {(
             [
               ["info", "基础信息"],
-              ["path", "教学路径"],
+              ["path", "课时进度"],
             ] as const
           ).map(([k, l]) => (
             <button
@@ -425,48 +427,99 @@ export function PlanDetail({
         {tab === "path" && (
           <div className="space-y-4">
             <div className="text-slate-500">
-              点击小节先查看「本节课程资源」，再可选择进入教学设计工作台。
+              按计划内授课顺序分课时展示；每课时列出已挂载的图谱知识点/课程实训节点。点击进入「本节课程资源」，再可选择进入教学设计工作台。
             </div>
-            {p.chapters.map((c) => (
-              <div key={c.id} className="bg-white rounded-xl border border-slate-200 p-4">
-                <div className="text-slate-900 mb-3 flex items-center gap-2">
-                  {c.title}
-                </div>
-                {c.summary && <div className="text-slate-500 mb-2">{c.summary}</div>}
-                <div className="flex items-center gap-2 flex-wrap">
-                  {c.sections.map((s, i) => {
-                    const isFocus = s.id === "sec-3-2"; // 主线示例小节（样式强调）
-                    return (
-                      <div key={s.id} className="flex items-center">
-                        <button
-                          type="button"
-                          id={`plan-section-${s.id}`}
-                          onClick={() => onOpenSection(p.id, s.id)}
-                          className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition ${
-                            focusSectionId === s.id
-                              ? "border-amber-400 bg-amber-50 text-amber-900 ring-2 ring-amber-200"
-                              : isFocus
-                              ? "border-indigo-400 bg-indigo-50 text-indigo-800 ring-2 ring-indigo-100"
-                              : s.hasDesign
-                              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                              : "border-slate-200 bg-slate-50 text-slate-600"
-                          }`}
-                        >
-                          <span
-                            className={`size-2 rounded-full ${
-                              isFocus ? "bg-indigo-500" : s.hasDesign ? "bg-emerald-500" : "bg-slate-300"
-                            }`}
-                          />
-                          <span>{s.title}</span>
-                          <span className="text-slate-400">{s.plannedDate}</span>
-                        </button>
-                        {i < c.sections.length - 1 && <span className="text-slate-300 mx-1">—</span>}
+            <div className="space-y-3">
+              {flattenPlanLessons(p).map(({ lessonIndex, section: s }) => {
+                const isFocus = s.id === "sec-3-2"; // 主线示例课时（样式强调）
+                const hasOverride = !!(p.overrides ?? []).some((o) => o.sectionId === s.id);
+                const themeTitle = s.title.replace(/^\s*第\s*\d+\s*课时\s*[·\-：:]\s*/u, "").trim() || s.title;
+                return (
+                  <div
+                    key={s.id}
+                    id={`plan-section-${s.id}`}
+                    className={`bg-white rounded-xl border p-4 transition ${
+                      focusSectionId === s.id
+                        ? "border-amber-400 ring-2 ring-amber-200"
+                        : isFocus
+                          ? "border-indigo-300 ring-2 ring-indigo-100"
+                          : "border-slate-200 hover:border-indigo-200"
+                    }`}
+                  >
+                    <div className="flex flex-wrap items-start gap-3 justify-between">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-[0.6875rem] font-semibold uppercase tracking-wide text-indigo-600 shrink-0">
+                            第 {lessonIndex} 课时
+                          </span>
+                          {hasOverride && (
+                            <span className="text-[0.625rem] px-2 py-0.5 rounded-md bg-amber-50 border border-amber-200 text-amber-800">
+                              相对标准计划有调整
+                            </span>
+                          )}
+                          <span className="text-[0.6875rem] text-slate-400">
+                            {s.plannedDate} · {s.durationMinutes} min
+                          </span>
+                          {s.hasDesign && (
+                            <span className="text-[0.625rem] px-2 py-0.5 rounded-md bg-emerald-50 border border-emerald-200 text-emerald-700">
+                              教学设计已完成
+                            </span>
+                          )}
+                        </div>
+                        <div className="mt-1 text-slate-900">{themeTitle}</div>
+                        <div className="mt-2">
+                          <div className="text-[0.6875rem] text-slate-500 mb-1">图谱挂载</div>
+                          {s.knowledgeNodeIds?.length ? (
+                            <div className="flex flex-wrap gap-1.5">
+                              {s.knowledgeNodeIds.map((nid) => {
+                                const gn = graphNodeById(nid);
+                                const layerTone =
+                                  gn?.layer === "knowledge"
+                                    ? "border-sky-200 bg-sky-50 text-sky-800"
+                                    : gn?.layer === "courseOrTraining"
+                                      ? "border-violet-200 bg-violet-50 text-violet-800"
+                                      : gn?.layer === "ability"
+                                        ? "border-indigo-200 bg-indigo-50 text-indigo-800"
+                                        : "border-slate-200 bg-slate-50 text-slate-700";
+                                return (
+                                  <span
+                                    key={`${s.id}-${nid}`}
+                                    title={nid}
+                                    className={`text-[0.6875rem] px-2 py-0.5 rounded-md border max-w-[16rem] truncate ${layerTone}`}
+                                  >
+                                    {gn?.name ?? nid}
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <div className="text-[0.8125rem] text-slate-400">本课时暂未挂载图谱节点</div>
+                          )}
+                        </div>
+                        {(s.objectives?.length ?? 0) > 0 && (
+                          <ul className="mt-2 text-[0.8125rem] text-slate-600 list-disc list-inside space-y-0.5">
+                            {s.objectives.slice(0, 5).map((obj, i) => (
+                              <li key={i}>{obj}</li>
+                            ))}
+                          </ul>
+                        )}
                       </div>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
+                      <button
+                        type="button"
+                        onClick={() => onOpenSection(p.id, s.id)}
+                        className={`shrink-0 px-4 py-2 rounded-lg border text-[0.8125rem] ${
+                          s.hasDesign
+                            ? "border-emerald-200 bg-emerald-50 text-emerald-800 hover:bg-emerald-100"
+                            : "border-indigo-200 bg-indigo-50 text-indigo-800 hover:bg-indigo-100"
+                        }`}
+                      >
+                        本节资源与设计
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
       </div>

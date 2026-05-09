@@ -42,6 +42,7 @@ import type {
   TrainingProject,
   TeachingStrategy,
   TeachingPlan,
+  PlanSection,
   TeachingDesign,
   ClassProfile,
   StudentProfile,
@@ -192,6 +193,24 @@ export function flattenPlanSections(plan: TeachingPlan): FlatPlanSectionRef[] {
         title: sec.title,
         chapterTitle: ch.title,
       });
+    }
+  }
+  return out;
+}
+
+/** 按计划内授课顺序展开的「课时」列表（与 {@link flattenPlanSections} 顺序一致，从 1 起编号） */
+export interface FlatPlanLesson {
+  lessonIndex: number;
+  section: PlanSection;
+}
+
+export function flattenPlanLessons(plan: TeachingPlan): FlatPlanLesson[] {
+  const out: FlatPlanLesson[] = [];
+  let lessonIndex = 0;
+  for (const ch of plan.chapters) {
+    for (const sec of ch.sections) {
+      lessonIndex += 1;
+      out.push({ lessonIndex, section: sec });
     }
   }
   return out;

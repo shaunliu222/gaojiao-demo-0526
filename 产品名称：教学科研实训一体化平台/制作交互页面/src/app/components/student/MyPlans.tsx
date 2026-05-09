@@ -20,6 +20,8 @@ import {
   studentById,
   teacherById,
   courseById,
+  flattenPlanLessons,
+  graphNodeById,
 } from "../../data/lookups";
 import {
   getSectionProgress,
@@ -438,85 +440,81 @@ function CoursePlanDetail({
 
         <div className="space-y-4">
           <div className="text-slate-500">
-            点击任一小节 → 进入「课堂壳」围绕本节资源学习。
+            按计划内<strong className="text-slate-600">课时顺序</strong>学习；卡片内可查看本节挂载知识点，点击进入课堂。
           </div>
-          {plan.chapters.map((ch) => (
-            <div
-              key={ch.id}
-              className="bg-white rounded-xl border border-slate-200 p-4"
-            >
-              <div className="text-slate-900 mb-3 flex items-center gap-2">
-                {ch.title}
-              </div>
-              {ch.summary && (
-                <div className="text-slate-500 mb-3">{ch.summary}</div>
-              )}
-              <div className="flex items-center gap-2 flex-wrap">
-                {ch.sections.map((s, i) => {
-                  const prog = getSectionProgress(studentId, planId, s.id);
-                  const status: SectionProgressStatus = prog?.status ?? "pending";
-                  const palette = statusPalette[status];
-                  const isFocus = s.id === "sec-3-2";
-                  return (
-                    <div key={s.id} className="flex items-center flex-wrap gap-1">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          onGoLearn({
-                            planId,
-                            sectionId: s.id,
-                            goalNodeIds: s.knowledgeNodeIds,
-                          })
-                        }
-                        className={`flex items-center gap-2 px-3 py-2 rounded-lg border transition ${
-                          palette.border
-                        } ${palette.bg} ${palette.text} ${
-                          isFocus ? "ring-2 ring-indigo-100" : ""
-                        } hover:shadow-sm`}
-                      >
-                        <span
-                          className={`size-2 rounded-full ${palette.dot}`}
-                        />
-                        <span>{s.title}</span>
-                        {prog?.masteryScore !== undefined &&
-                          prog.masteryScore > 0 && (
-                            <span className="text-[0.6875rem] opacity-80">
-                              {prog.masteryScore}
-                            </span>
-                          )}
-                      </button>
-                      {i < ch.sections.length - 1 && (
-                        <span className="text-slate-300 mx-1">—</span>
+          <div className="space-y-3">
+            {flattenPlanLessons(plan).map(({ lessonIndex, section: s }) => {
+              const prog = getSectionProgress(studentId, planId, s.id);
+              const status: SectionProgressStatus = prog?.status ?? "pending";
+              const palette = statusPalette[status];
+              const isFocus = s.id === "sec-3-2";
+              const themeTitle = s.title.replace(/^\s*第\s*\d+\s*课时\s*[·\-：:]\s*/u, "").trim() || s.title;
+              return (
+                <div
+                  key={s.id}
+                  className={`rounded-xl border p-4 ${palette.bg} ${palette.border} ${
+                    isFocus ? "ring-2 ring-indigo-100" : ""
+                  }`}
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-[0.6875rem] font-semibold text-indigo-600">
+                          第 {lessonIndex} 课时 · {palette.label}
+                        </span>
+                        <span className="text-[0.6875rem] text-slate-500">
+                          {s.plannedDate} · {s.durationMinutes} min
+                        </span>
+                        {prog?.masteryScore !== undefined && prog.masteryScore > 0 && (
+                          <span className="text-[0.6875rem] text-slate-500">
+                            掌握度 {prog.masteryScore}
+                          </span>
+                        )}
+                      </div>
+                      <div className={`mt-1 ${palette.text}`}>{themeTitle}</div>
+                      <div className="mt-2">
+                        <div className="text-[0.6875rem] text-slate-500 mb-1">图谱挂载</div>
+                        {s.knowledgeNodeIds?.length ? (
+                          <div className="flex flex-wrap gap-1.5">
+                            {s.knowledgeNodeIds.map((nid) => (
+                              <span
+                                key={`${s.id}-${nid}`}
+                                title={nid}
+                                className="text-[0.6875rem] px-2 py-0.5 rounded-md bg-white/80 border border-white/70 text-slate-700 max-w-[14rem] truncate"
+                              >
+                                {graphNodeById(nid)?.name ?? nid}
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-[0.8125rem] text-slate-400">本节暂无挂载</div>
+                        )}
+                      </div>
+                      {prog?.note && (
+                        <div className="mt-2 flex gap-2 text-[0.8125rem] text-slate-600">
+                          <Sparkles size={14} className="mt-0.5 shrink-0 text-indigo-400" />
+                          <span>{prog.note}</span>
+                        </div>
                       )}
                     </div>
-                  );
-                })}
-              </div>
-              {/* 章节内带有 note 的小节（AI 提醒） */}
-              {ch.sections
-                .map((s) => ({
-                  s,
-                  prog: getSectionProgress(studentId, planId, s.id),
-                }))
-                .filter((x) => !!x.prog?.note)
-                .map(({ s, prog }) => (
-                  <div
-                    key={`${s.id}-note`}
-                    className={`mt-3 rounded-lg px-3 py-2 flex gap-2 text-[0.8125rem] ${
-                      prog!.status === "weak"
-                        ? "bg-rose-50 border border-rose-200 text-rose-700"
-                        : "bg-indigo-50 border border-indigo-200 text-indigo-700"
-                    }`}
-                  >
-                    <Sparkles size={14} className="mt-0.5 shrink-0" />
-                    <div>
-                      <b className="mr-1">{s.title}：</b>
-                      {prog!.note}
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        onGoLearn({
+                          planId,
+                          sectionId: s.id,
+                          goalNodeIds: s.knowledgeNodeIds,
+                        })
+                      }
+                      className={`shrink-0 px-4 py-2 rounded-lg border text-[0.8125rem] ${palette.border} ${palette.text} bg-white hover:shadow-sm`}
+                    >
+                      进入课堂 <ChevronRight size={14} className="inline -mt-px" aria-hidden />
+                    </button>
                   </div>
-                ))}
-            </div>
-          ))}
+                </div>
+              );
+            })}
+          </div>
         </div>
       </div>
     </div>

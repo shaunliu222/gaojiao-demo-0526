@@ -1,27 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  AlertTriangle,
   ArrowDown,
   ArrowUp,
   Check,
   Clock,
-  Layers,
   Loader2,
   Plus,
   Sparkles,
   Trash2,
-  X,
 } from "lucide-react";
 import {
-  Radar,
-  RadarChart,
-  PolarGrid,
-  PolarAngleAxis,
-  ResponsiveContainer,
-} from "recharts";
-import {
-  classes,
-  classProfiles,
   courses,
   professions,
   subjects,
@@ -29,25 +17,18 @@ import {
   teachingStrategies,
 } from "@mock";
 import type {
-  ClassProfile,
   Course,
-  PlanChapter,
+  TeachingPlan,
   TeachingStrategy,
 } from "@mock";
 import {
   classById,
   classProfileByClassId,
+  graphNodeById,
   professionById,
   teacherById,
 } from "../data/lookups";
 import { AiBadge, PageHeader } from "./Layout";
-
-/** 向导状态中，单个班级画像的本地编辑副本（若未编辑则为 undefined） */
-interface ClassProfileOverride {
-  strengths: string[];
-  weaknesses: string[];
-  aiSummary: string;
-}
 
 /** 向导状态中，策略被教师二次修改后的本地值 */
 interface StrategyOverride {
@@ -70,23 +51,23 @@ const GENERATION_TASKS: Array<{
     durationMs: 600,
   },
   {
-    title: "融合班级学情向量",
-    detail: "结合所选班级的薄弱维度调整节奏",
+    title: "对齐教学目标与学时节奏",
+    detail: "将学期总学时拆解为历次授课课时，并形成顺序骨架",
     durationMs: 580,
   },
   {
     title: "套用教学策略曲线",
-    detail: "按难度曲线与授课节奏划分单元",
+    detail: "按难度曲线与授课节奏分配到各课时",
     durationMs: 600,
   },
   {
-    title: "生成章节与小节骨架",
-    detail: "产出章节、小节标题与建议课时时长",
+    title: "挂载知识点图谱",
+    detail: "为每次课推断应覆盖的图谱节点（知识点/课程/实训等）与时序匹配",
     durationMs: 610,
   },
   {
-    title: "估算课时与授课日程",
-    detail: "按学期日历自动铺排授课时间",
+    title: "推算授课日程",
+    detail: "按学期日历与各课时时长自动铺排计划日期",
     durationMs: 610,
   },
 ];
@@ -97,17 +78,10 @@ interface DraftSection {
   title: string;
   plannedDate: string;
   durationMinutes: number;
-  /** 本小节关联知识点 id（预留，界面不展示） */
+  /** 关联图谱节点 id（预览中展示挂载情况） */
   knowledgeNodeIds: string[];
   /** AI 基于学情对此小节的调整说明（用于展示紫色徽标），可为空 */
   aiAdjustment?: string;
-}
-
-interface DraftChapter {
-  id: string;
-  title: string;
-  summary?: string;
-  sections: DraftSection[];
 }
 
 export function PlanWizard({
@@ -122,26 +96,14 @@ export function PlanWizard({
   const [subjectId, setSubjectId] = useState<string>("subj-mech-drawing");
   const [courseId, setCourseId] = useState<string>("course-mech-draw");
 
-  // ==================== 班级 + 学情（Step2） ====================
-  const [selectedClassIds, setSelectedClassIds] = useState<string[]>([
-    "cls-mech-2301",
-    "cls-mech-2302",
-  ]);
-  /** 本地编辑覆盖，key 是 classId */
-  const [profileOverrides, setProfileOverrides] = useState<
-    Record<string, ClassProfileOverride>
-  >({});
-  const [editingProfileId, setEditingProfileId] = useState<string | null>(null);
-
   // ==================== 策略（Step3） ====================
   const [strategyId, setStrategyId] = useState<string>("strat-li-personal");
   const [strategyOverride, setStrategyOverride] = useState<StrategyOverride | null>(
     null,
   );
 
-  // ==================== 骨架（Step4） ====================
-  const [draftChapters, setDraftChapters] = useState<DraftChapter[] | null>(null);
-  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  // ==================== 骨架（按课时平铺，Step2 预览可编辑）====================
+  const [draftLessons, setDraftLessons] = useState<DraftSection[] | null>(null);
 
   // ==================== 步骤切换（1 计划设置 · 2 预览并生成）====================
   const [step, setStep] = useState<1 | 2>(1);
@@ -163,20 +125,6 @@ export function PlanWizard({
     [courseId],
   );
 
-  /** 取画像（考虑本地编辑覆盖） */
-  const getEffectiveProfile = (classId: string): ClassProfile | undefined => {
-    const base = classProfileByClassId(classId);
-    if (!base) return undefined;
-    const override = profileOverrides[classId];
-    if (!override) return base;
-    return {
-      ...base,
-      strengths: override.strengths,
-      weaknesses: override.weaknesses,
-      aiSummary: override.aiSummary,
-    };
-  };
-
   /** 选中策略的原始数据 */
   const baseStrategy = useMemo(
     () => teachingStrategies.find((s) => s.id === strategyId),
@@ -191,20 +139,20 @@ export function PlanWizard({
       paceSuggestion: base?.paceSuggestion ?? "",
       difficultyCurve: base?.difficultyCurve ?? "",
       activitySuggestion: base?.activitySuggestion ?? "",
-      strategyBrief: synthStrategyBrief(strategyId, selectedClassIds),
+      strategyBrief: synthStrategyBrief(strategyId, []),
     };
-  }, [strategyOverride, baseStrategy, strategyId, selectedClassIds]);
+  }, [strategyOverride, baseStrategy, strategyId]);
 
   // 进入预览步时初始化骨架
   const ensureDraftBuilt = () => {
-    if (draftChapters) return;
-    const base = buildSkeletonFromCourse(courseId, selectedClassIds);
-    setDraftChapters(base);
+    if (draftLessons) return;
+    const base = buildSkeletonFromCourse(courseId, []);
+    setDraftLessons(base);
   };
 
   const canNext = (): boolean => {
     if (step === 1) {
-      return !!course && selectedClassIds.length > 0 && !!strategyId;
+      return !!course && !!strategyId;
     }
     return true;
   };
@@ -298,7 +246,6 @@ export function PlanWizard({
                     (c) => c.professionId === id && c.subjectId === firstSubj?.id,
                   );
                   setCourseId(firstCourse?.id ?? "");
-                  setSelectedClassIds([]);
                 }}
                 onChangeSubject={(id) => {
                   setSubjectId(id);
@@ -311,23 +258,6 @@ export function PlanWizard({
               />
             </section>
             <section className="space-y-3">
-              <div className="text-slate-900 font-medium">班级与学情</div>
-              <Step2
-                professionId={professionId}
-                selectedClassIds={selectedClassIds}
-                onToggleClass={(id) =>
-                  setSelectedClassIds((prev) =>
-                    prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
-                  )
-                }
-                profileOverrides={profileOverrides}
-                setProfileOverrides={setProfileOverrides}
-                editingProfileId={editingProfileId}
-                setEditingProfileId={setEditingProfileId}
-                getEffectiveProfile={getEffectiveProfile}
-              />
-            </section>
-            <section className="space-y-3">
               <div className="text-slate-900 font-medium">教学策略</div>
               <Step3
                 strategyId={strategyId}
@@ -335,7 +265,6 @@ export function PlanWizard({
                   setStrategyId(id);
                   setStrategyOverride(null);
                 }}
-                selectedClassIds={selectedClassIds}
                 effective={effectiveStrategy}
                 onEdit={(patch) =>
                   setStrategyOverride((prev) => ({
@@ -349,12 +278,7 @@ export function PlanWizard({
           </div>
         )}
         {step === 2 && (
-          <Step5
-            draftChapters={draftChapters ?? []}
-            setDraftChapters={setDraftChapters}
-            collapsed={collapsed}
-            setCollapsed={setCollapsed}
-          />
+          <Step5 draftLessons={draftLessons ?? []} setDraftLessons={setDraftLessons} />
         )}
       </div>
       <WizardFooter
@@ -369,8 +293,7 @@ export function PlanWizard({
           progress={genProgress}
           taskIdx={genTaskIdx}
           course={course}
-          draftChapters={draftChapters ?? []}
-          selectedClassIds={selectedClassIds}
+          draftLessonCount={(draftLessons ?? []).length}
         />
       )}
     </div>
@@ -508,19 +431,14 @@ function GenerationOverlay({
   progress,
   taskIdx,
   course,
-  draftChapters,
-  selectedClassIds,
+  draftLessonCount,
 }: {
   progress: number;
   taskIdx: number;
   course: Course | undefined;
-  draftChapters: DraftChapter[];
-  selectedClassIds: string[];
+  draftLessonCount: number;
 }) {
-  const sectionCount = useMemo(
-    () => draftChapters.reduce((acc, ch) => acc + ch.sections.length, 0),
-    [draftChapters],
-  );
+  const sectionCount = draftLessonCount;
 
   return (
     <div
@@ -544,9 +462,7 @@ function GenerationOverlay({
                 <DotLoader />
               </div>
               <div className="text-slate-500 text-[0.6875rem] mt-0.5">
-                依据《{course?.name ?? "课程"}》· 结合{" "}
-                <span className="text-indigo-600">{selectedClassIds.length}</span>{" "}
-                个班级学情生成教学安排
+                依据《{course?.name ?? "课程"}》与所选策略生成教学骨架与日程安排
               </div>
             </div>
           </div>
@@ -628,7 +544,7 @@ function GenerationOverlay({
         <div className="px-6 pb-5 pt-1 flex items-center gap-2 text-[0.6875rem] text-slate-400">
           <Sparkles size={12} className="text-indigo-400" />
           <span>
-            已建议 {draftChapters.length} 个章节 · {sectionCount} 个小节，稍后可在预览页继续调整
+            已编排 {sectionCount} 个课时与各课时的图谱挂载建议，稍后可在预览页继续微调
           </span>
         </div>
       </div>
@@ -771,321 +687,17 @@ function InfoCell({ k, v }: { k: string; v: string }) {
 }
 
 // ==========================================================================
-// Step 2 · 班级 + 学情（可编辑）
-// ==========================================================================
-
-function Step2({
-  professionId,
-  selectedClassIds,
-  onToggleClass,
-  profileOverrides,
-  setProfileOverrides,
-  editingProfileId,
-  setEditingProfileId,
-  getEffectiveProfile,
-}: {
-  professionId: string;
-  selectedClassIds: string[];
-  onToggleClass: (id: string) => void;
-  profileOverrides: Record<string, ClassProfileOverride>;
-  setProfileOverrides: React.Dispatch<
-    React.SetStateAction<Record<string, ClassProfileOverride>>
-  >;
-  editingProfileId: string | null;
-  setEditingProfileId: (id: string | null) => void;
-  getEffectiveProfile: (id: string) => ClassProfile | undefined;
-}) {
-  const related = classes.filter((c) => c.professionId === professionId);
-
-  return (
-    <div className="grid grid-cols-12 gap-4">
-      <div className="col-span-4 bg-white rounded-xl border border-slate-200 p-4">
-        <div className="text-slate-500 mb-2 flex items-center justify-between">
-          <span>选择班级（可多选）</span>
-          <span className="text-slate-400 text-[0.6875rem]">
-            已选 {selectedClassIds.length}
-          </span>
-        </div>
-        <ul className="space-y-2">
-          {related.map((c) => {
-            const profile = classProfileByClassId(c.id);
-            const checked = selectedClassIds.includes(c.id);
-            const risk = profile ? profile.scoreDistribution.stdDev >= 14 : false;
-            return (
-              <li key={c.id}>
-                <label
-                  className={`flex items-start gap-3 px-3 py-2.5 rounded-lg border cursor-pointer transition ${
-                    checked
-                      ? "border-indigo-300 bg-indigo-50/50"
-                      : "border-slate-200 hover:bg-slate-50"
-                  }`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    onChange={() => onToggleClass(c.id)}
-                    className="mt-0.5 accent-indigo-600"
-                  />
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-900">{c.name}</span>
-                      {risk && (
-                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-rose-50 text-rose-600">
-                          <AlertTriangle size={10} /> 两极分化
-                        </span>
-                      )}
-                    </div>
-                    <div className="text-slate-500 mt-0.5">
-                      {c.studentCount} 人 ·{" "}
-                      {profile?.styleTag ?? "画像待生成"}
-                      {profile && (
-                        <>
-                          {" · 均分 "}
-                          {profile.scoreDistribution.averageScore}
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </label>
-              </li>
-            );
-          })}
-          {related.length === 0 && (
-            <li className="text-slate-400 text-center py-8">该专业暂无班级</li>
-          )}
-        </ul>
-      </div>
-      <div className="col-span-8 space-y-3">
-        {selectedClassIds.length === 0 && (
-          <div className="bg-slate-50 border border-dashed border-slate-300 rounded-xl h-48 flex items-center justify-center text-slate-400">
-            请从左侧选择至少一个班级，系统会自动加载学情预览
-          </div>
-        )}
-        {selectedClassIds.map((cid) => {
-          const cls = classById(cid);
-          const profile = getEffectiveProfile(cid);
-          if (!cls || !profile) return null;
-          const risk = profile.scoreDistribution.stdDev >= 14;
-          const editing = editingProfileId === cid;
-          return (
-            <div
-              key={cid}
-              className="bg-white rounded-xl border border-slate-200 overflow-hidden"
-            >
-              {risk && (
-                <div className="px-4 py-2 bg-rose-50 border-b border-rose-100 text-rose-700 flex items-center gap-2">
-                  <AlertTriangle size={14} />
-                  {cls.name} 呈明显两极分化（σ=
-                  {profile.scoreDistribution.stdDev}），建议在策略中启用「分层教学」
-                </div>
-              )}
-              <div className="p-4 grid grid-cols-12 gap-4">
-                <div className="col-span-4">
-                  <div className="text-slate-500 mb-1">六维雷达</div>
-                  <div className="h-40">
-                    <ResponsiveContainer>
-                      <RadarChart data={profile.radar} outerRadius={60}>
-                        <PolarGrid stroke="#e2e8f0" />
-                        <PolarAngleAxis
-                          dataKey="name"
-                          tick={{ fontSize: 10, fill: "#64748b" }}
-                        />
-                        <Radar
-                          dataKey="score"
-                          stroke={risk ? "#f43f5e" : "#6366f1"}
-                          fill={risk ? "#f43f5e" : "#6366f1"}
-                          fillOpacity={0.3}
-                        />
-                      </RadarChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-                <div className="col-span-8">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <span className="text-slate-900">{cls.name}</span>
-                      <span className="ml-2 text-slate-500">
-                        {cls.studentCount} 人 · 均分{" "}
-                        {profile.scoreDistribution.averageScore} · σ{" "}
-                        {profile.scoreDistribution.stdDev}
-                      </span>
-                      <span
-                        className={`ml-2 px-2 py-0.5 rounded-md ${
-                          risk
-                            ? "bg-rose-50 text-rose-700"
-                            : "bg-indigo-50 text-indigo-700"
-                        }`}
-                      >
-                        {profile.styleTag}
-                      </span>
-                    </div>
-                    <button
-                      onClick={() =>
-                        setEditingProfileId(editing ? null : cid)
-                      }
-                      className="text-indigo-600 hover:underline"
-                    >
-                      {editing ? "完成编辑" : "编辑画像"}
-                    </button>
-                  </div>
-                  <div className="mt-3">
-                    <div className="flex items-center gap-2 mb-1.5">
-                      <AiBadge>AI 画像摘要</AiBadge>
-                      {editing && (
-                        <span className="text-slate-400 text-[0.6875rem]">
-                          可修改下方摘要与强弱项标签
-                        </span>
-                      )}
-                    </div>
-                    {editing ? (
-                      <textarea
-                        value={profile.aiSummary}
-                        onChange={(e) =>
-                          setProfileOverrides((prev) => ({
-                            ...prev,
-                            [cid]: {
-                              ...ensureOverride(prev[cid], profile),
-                              aiSummary: e.target.value,
-                            },
-                          }))
-                        }
-                        className="w-full text-slate-700 border border-slate-200 rounded-md p-2 min-h-[80px] leading-relaxed"
-                      />
-                    ) : (
-                      <p className="text-slate-700 leading-relaxed">
-                        {profile.aiSummary}
-                      </p>
-                    )}
-                  </div>
-                  <div className="grid grid-cols-2 gap-3 mt-3">
-                    <TagEditor
-                      label="强项"
-                      color="emerald"
-                      editing={editing}
-                      items={profile.strengths}
-                      onChange={(items) =>
-                        setProfileOverrides((prev) => ({
-                          ...prev,
-                          [cid]: {
-                            ...ensureOverride(prev[cid], profile),
-                            strengths: items,
-                          },
-                        }))
-                      }
-                    />
-                    <TagEditor
-                      label="弱项"
-                      color="rose"
-                      editing={editing}
-                      items={profile.weaknesses}
-                      onChange={(items) =>
-                        setProfileOverrides((prev) => ({
-                          ...prev,
-                          [cid]: {
-                            ...ensureOverride(prev[cid], profile),
-                            weaknesses: items,
-                          },
-                        }))
-                      }
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-function ensureOverride(
-  current: ClassProfileOverride | undefined,
-  base: ClassProfile,
-): ClassProfileOverride {
-  if (current) return current;
-  return {
-    strengths: [...base.strengths],
-    weaknesses: [...base.weaknesses],
-    aiSummary: base.aiSummary,
-  };
-}
-
-function TagEditor({
-  label,
-  color,
-  items,
-  editing,
-  onChange,
-}: {
-  label: string;
-  color: "emerald" | "rose";
-  items: string[];
-  editing: boolean;
-  onChange: (items: string[]) => void;
-}) {
-  const [draft, setDraft] = useState("");
-  const chipCls =
-    color === "emerald"
-      ? "bg-emerald-50 text-emerald-700"
-      : "bg-rose-50 text-rose-700";
-  return (
-    <div>
-      <div className="text-slate-500 mb-1.5">{label}</div>
-      <div className="flex flex-wrap gap-1.5">
-        {items.length === 0 && <span className="text-slate-400">—</span>}
-        {items.map((s) => (
-          <span
-            key={s}
-            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md ${chipCls}`}
-          >
-            {s}
-            {editing && (
-              <button
-                onClick={() => onChange(items.filter((x) => x !== s))}
-                className="hover:text-slate-800"
-                aria-label="删除"
-              >
-                <X size={12} />
-              </button>
-            )}
-          </span>
-        ))}
-        {editing && (
-          <span className="inline-flex items-center gap-1">
-            <input
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && draft.trim()) {
-                  onChange([...items, draft.trim()]);
-                  setDraft("");
-                }
-              }}
-              placeholder="输入后回车"
-              className="border border-slate-200 rounded-md px-2 py-0.5 w-28"
-            />
-          </span>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ==========================================================================
 // Step 3 · 教学策略（可编辑）
 // ==========================================================================
 
 function Step3({
   strategyId,
   onSelectStrategy,
-  selectedClassIds,
   effective,
   onEdit,
 }: {
   strategyId: string;
   onSelectStrategy: (id: string) => void;
-  selectedClassIds: string[];
   effective: StrategyOverride;
   onEdit: (patch: Partial<StrategyOverride>) => void;
 }) {
@@ -1093,10 +705,10 @@ function Step3({
     return teachingStrategies
       .map((s) => ({
         strategy: s,
-        score: computeStrategyMatch(s, selectedClassIds),
+        score: computeStrategyMatch(s, []),
       }))
       .sort((a, b) => b.score - a.score);
-  }, [selectedClassIds]);
+  }, []);
 
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -1105,7 +717,7 @@ function Step3({
       <div>
         <div className="flex items-center gap-2 mb-3">
           <div className="text-slate-900">候选策略</div>
-          <AiBadge>AI 匹配度基于所选班级学情计算</AiBadge>
+          <AiBadge>AI 匹配度基于课程适用性估算</AiBadge>
         </div>
         <div className="grid grid-cols-3 gap-3">
           {matches.map(({ strategy, score }) => {
@@ -1233,213 +845,186 @@ function EditableBlock({
 }
 
 // ==========================================================================
-// Step 5 · 骨架预览（可编辑）
+// Step 5 · 按课时预览骨架（可编辑）
 // ==========================================================================
 
 function Step5({
-  draftChapters,
-  setDraftChapters,
-  collapsed,
-  setCollapsed,
+  draftLessons,
+  setDraftLessons,
 }: {
-  draftChapters: DraftChapter[];
-  setDraftChapters: React.Dispatch<React.SetStateAction<DraftChapter[] | null>>;
-  collapsed: Record<string, boolean>;
-  setCollapsed: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
+  draftLessons: DraftSection[];
+  setDraftLessons: React.Dispatch<React.SetStateAction<DraftSection[] | null>>;
 }) {
-  const totalMinutes = draftChapters.reduce(
-    (sum, ch) => sum + ch.sections.reduce((s, sec) => s + sec.durationMinutes, 0),
-    0,
-  );
-  const totalSections = draftChapters.reduce(
-    (sum, ch) => sum + ch.sections.length,
-    0,
-  );
+  const totalMinutes = draftLessons.reduce((sum, l) => sum + l.durationMinutes, 0);
   const totalHours = Math.round(totalMinutes / 45);
 
-  const moveSection = (chIdx: number, secIdx: number, delta: -1 | 1) => {
-    setDraftChapters((prev) => {
+  const moveLesson = (idx: number, delta: -1 | 1) => {
+    setDraftLessons((prev) => {
       if (!prev) return prev;
-      const chapters = prev.map((c) => ({ ...c, sections: [...c.sections] }));
-      const target = chapters[chIdx];
-      const ni = secIdx + delta;
-      if (ni < 0 || ni >= target.sections.length) return prev;
-      const [moved] = target.sections.splice(secIdx, 1);
-      target.sections.splice(ni, 0, moved);
-      return chapters;
+      const lessons = [...prev];
+      const ni = idx + delta;
+      if (ni < 0 || ni >= lessons.length) return prev;
+      const [moved] = lessons.splice(idx, 1);
+      lessons.splice(ni, 0, moved);
+      return lessons;
     });
   };
 
-  const deleteSection = (chIdx: number, secIdx: number) => {
-    setDraftChapters((prev) => {
+  const deleteLesson = (idx: number) => {
+    setDraftLessons((prev) => {
       if (!prev) return prev;
-      const chapters = prev.map((c) => ({ ...c, sections: [...c.sections] }));
-      chapters[chIdx].sections.splice(secIdx, 1);
-      return chapters;
+      const lessons = [...prev];
+      lessons.splice(idx, 1);
+      return lessons;
     });
   };
 
-  const updateSection = (
-    chIdx: number,
-    secIdx: number,
-    patch: Partial<DraftSection>,
-  ) => {
-    setDraftChapters((prev) => {
+  const updateLesson = (idx: number, patch: Partial<DraftSection>) => {
+    setDraftLessons((prev) => {
       if (!prev) return prev;
-      const chapters = prev.map((c) => ({ ...c, sections: [...c.sections] }));
-      chapters[chIdx].sections[secIdx] = {
-        ...chapters[chIdx].sections[secIdx],
-        ...patch,
-      };
-      return chapters;
+      const lessons = [...prev];
+      lessons[idx] = { ...lessons[idx]!, ...patch };
+      return lessons;
     });
   };
 
-  const addSection = (chIdx: number) => {
-    setDraftChapters((prev) => {
-      if (!prev) return prev;
-      const chapters = prev.map((c) => ({ ...c, sections: [...c.sections] }));
-      const newId = `draft-${Date.now()}`;
-      chapters[chIdx].sections.push({
+  const addLesson = () => {
+    setDraftLessons((prev) => {
+      const lessons = [...(prev ?? [])];
+      const maxNum =
+        lessons.length > 0
+          ? Math.max(
+              ...lessons.map((l) => {
+                const m = l.title.match(/第\s*(\d+)\s*课时/u);
+                return m?.[1] ? parseInt(m[1]!, 10) : 0;
+              }),
+            )
+          : 0;
+      const nextN = maxNum + 1;
+      const newId = `draft-lesson-${Date.now()}`;
+      lessons.push({
         id: newId,
-        title: "新小节",
-        plannedDate: "2026-01-01",
+        title: `第${nextN}课时 · 新授课主题`,
+        plannedDate: "2026-02-23",
         durationMinutes: 90,
         knowledgeNodeIds: [],
       });
-      return chapters;
+      return lessons;
     });
   };
 
   return (
     <div className="space-y-3">
-      <div className="bg-white rounded-xl border border-slate-200 p-4 flex items-center gap-6">
-        <Stat icon={<Layers size={14} />} label="章节" value={`${draftChapters.length}`} />
-        <Stat icon={<Layers size={14} />} label="小节" value={`${totalSections}`} />
-        <Stat icon={<Clock size={14} />} label="学时" value={`${totalHours}`} />
+      <div className="bg-white rounded-xl border border-slate-200 p-4 flex items-center gap-6 flex-wrap">
+        <Stat icon={<Clock size={14} />} label="课时数" value={`${draftLessons.length}`} />
+        <Stat icon={<Clock size={14} />} label="学时(约)" value={`${totalHours}`} />
         <Stat
           icon={<Sparkles size={14} />}
-          label="AI 调整"
-          value={`${draftChapters
-            .flatMap((c) => c.sections)
-            .filter((s) => !!s.aiAdjustment).length}`}
+          label="AI 调整说明"
+          value={`${draftLessons.filter((s) => !!s.aiAdjustment).length}`}
         />
         <div className="flex-1" />
-        <AiBadge>已根据所选班级学情自动调整</AiBadge>
+        <AiBadge>可按课时排序，检视图谱挂载</AiBadge>
       </div>
-      {draftChapters.map((ch, chIdx) => {
-          const isCollapsed = collapsed[ch.id];
-          return (
-            <div
-              key={ch.id}
-              className="bg-white rounded-xl border border-slate-200 overflow-hidden"
-            >
-              <div className="flex items-center px-4 py-3 border-b border-slate-100 bg-slate-50/60">
-                <button
-                  onClick={() =>
-                    setCollapsed((prev) => ({ ...prev, [ch.id]: !prev[ch.id] }))
+
+      <div className="space-y-2">
+        {draftLessons.map((sec, idx) => (
+          <div
+            key={sec.id}
+            className="bg-white rounded-xl border border-slate-200 p-4 hover:border-indigo-200 transition"
+          >
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-[0.6875rem] font-semibold text-indigo-600 whitespace-nowrap">
+                第 {idx + 1} 课时
+              </span>
+              <input
+                value={sec.title}
+                onChange={(e) => updateLesson(idx, { title: e.target.value })}
+                className="flex-1 min-w-[12rem] border border-transparent hover:border-slate-200 focus:border-indigo-300 rounded-md px-2 py-1 text-slate-900 outline-none"
+              />
+              <input
+                type="date"
+                value={sec.plannedDate}
+                onChange={(e) => updateLesson(idx, { plannedDate: e.target.value })}
+                className="border border-slate-200 rounded-md px-2 py-1 text-slate-700"
+              />
+              <div className="flex items-center gap-1 border border-slate-200 rounded-md px-2 py-1">
+                <input
+                  type="number"
+                  value={sec.durationMinutes}
+                  onChange={(e) =>
+                    updateLesson(idx, { durationMinutes: Number(e.target.value) || 0 })
                   }
-                  className="text-slate-900 flex items-center gap-2"
-                >
-                  <span className="size-5 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center">
-                    {isCollapsed ? "+" : "−"}
-                  </span>
-                  {ch.title}
-                </button>
-                {ch.summary && (
-                  <span className="ml-3 text-slate-500">· {ch.summary}</span>
-                )}
-                <div className="flex-1" />
-                <span className="text-slate-400">
-                  {ch.sections.length} 小节
-                </span>
+                  className="w-14 text-right outline-none text-slate-700"
+                />
+                <span className="text-slate-400">min</span>
               </div>
-              {!isCollapsed && (
-                <div className="p-3 space-y-2">
-                  {ch.sections.map((sec, secIdx) => (
-                    <div
-                      key={sec.id}
-                      className="border border-slate-200 rounded-lg p-3 hover:border-indigo-200 transition"
-                    >
-                      <div className="flex items-center gap-2">
-                        <input
-                          value={sec.title}
-                          onChange={(e) =>
-                            updateSection(chIdx, secIdx, {
-                              title: e.target.value,
-                            })
-                          }
-                          className="flex-1 border border-transparent hover:border-slate-200 focus:border-indigo-300 rounded-md px-2 py-1 text-slate-900 outline-none"
-                        />
-                        <input
-                          type="date"
-                          value={sec.plannedDate}
-                          onChange={(e) =>
-                            updateSection(chIdx, secIdx, {
-                              plannedDate: e.target.value,
-                            })
-                          }
-                          className="border border-slate-200 rounded-md px-2 py-1 text-slate-700"
-                        />
-                        <div className="flex items-center gap-1 border border-slate-200 rounded-md px-2 py-1">
-                          <input
-                            type="number"
-                            value={sec.durationMinutes}
-                            onChange={(e) =>
-                              updateSection(chIdx, secIdx, {
-                                durationMinutes:
-                                  Number(e.target.value) || 0,
-                              })
-                            }
-                            className="w-14 text-right outline-none text-slate-700"
-                          />
-                          <span className="text-slate-400">min</span>
-                        </div>
-                        <button
-                          onClick={() => moveSection(chIdx, secIdx, -1)}
-                          disabled={secIdx === 0}
-                          className="size-7 rounded-md hover:bg-slate-100 disabled:opacity-30 text-slate-500 flex items-center justify-center"
-                          title="上移"
-                        >
-                          <ArrowUp size={14} />
-                        </button>
-                        <button
-                          onClick={() => moveSection(chIdx, secIdx, 1)}
-                          disabled={secIdx === ch.sections.length - 1}
-                          className="size-7 rounded-md hover:bg-slate-100 disabled:opacity-30 text-slate-500 flex items-center justify-center"
-                          title="下移"
-                        >
-                          <ArrowDown size={14} />
-                        </button>
-                        <button
-                          onClick={() => deleteSection(chIdx, secIdx)}
-                          className="size-7 rounded-md hover:bg-rose-50 text-rose-500 flex items-center justify-center"
-                          title="删除"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                      {sec.aiAdjustment && (
-                        <div className="mt-2 flex items-start gap-2">
-                          <AiBadge>AI 调整</AiBadge>
-                          <span className="text-slate-600 leading-relaxed">
-                            {sec.aiAdjustment}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                  <button
-                    onClick={() => addSection(chIdx)}
-                    className="w-full flex items-center justify-center gap-1 py-2 border border-dashed border-slate-300 rounded-lg text-slate-500 hover:bg-slate-50 hover:text-indigo-600 hover:border-indigo-300"
-                  >
-                    <Plus size={14} /> 添加小节
-                  </button>
+              <button
+                type="button"
+                onClick={() => moveLesson(idx, -1)}
+                disabled={idx === 0}
+                className="size-7 rounded-md hover:bg-slate-100 disabled:opacity-30 text-slate-500 flex items-center justify-center"
+                title="上移"
+              >
+                <ArrowUp size={14} />
+              </button>
+              <button
+                type="button"
+                onClick={() => moveLesson(idx, 1)}
+                disabled={idx === draftLessons.length - 1}
+                className="size-7 rounded-md hover:bg-slate-100 disabled:opacity-30 text-slate-500 flex items-center justify-center"
+                title="下移"
+              >
+                <ArrowDown size={14} />
+              </button>
+              <button
+                type="button"
+                onClick={() => deleteLesson(idx)}
+                className="size-7 rounded-md hover:bg-rose-50 text-rose-500 flex items-center justify-center"
+                title="删除本课时"
+              >
+                <Trash2 size={14} />
+              </button>
+            </div>
+
+            <div className="mt-3">
+              <div className="text-[0.6875rem] text-slate-500 mb-1">图谱挂载（本节关联节点）</div>
+              {sec.knowledgeNodeIds.length ? (
+                <div className="flex flex-wrap gap-1.5">
+                  {sec.knowledgeNodeIds.map((nid) => {
+                    const gn = graphNodeById(nid);
+                    return (
+                      <span
+                        key={`${sec.id}-${nid}`}
+                        title={nid}
+                        className="text-[0.6875rem] px-2 py-0.5 rounded-md border border-slate-200 bg-slate-50 text-slate-700 max-w-[14rem] truncate"
+                      >
+                        {gn?.name ?? nid}
+                      </span>
+                    );
+                  })}
                 </div>
+              ) : (
+                <div className="text-[0.8125rem] text-slate-400">暂未挂载图谱节点</div>
               )}
             </div>
-          );
-      })}
+
+            {sec.aiAdjustment && (
+              <div className="mt-2 flex items-start gap-2">
+                <AiBadge>AI 调整</AiBadge>
+                <span className="text-slate-600 leading-relaxed">{sec.aiAdjustment}</span>
+              </div>
+            )}
+          </div>
+        ))}
+        <button
+          type="button"
+          onClick={addLesson}
+          className="w-full flex items-center justify-center gap-1 py-2 border border-dashed border-slate-300 rounded-lg text-slate-500 hover:bg-slate-50 hover:text-indigo-600 hover:border-indigo-300"
+        >
+          <Plus size={14} /> 添加课时
+        </button>
+      </div>
     </div>
   );
 }
@@ -1537,6 +1122,17 @@ function computeStrategyMatch(
 /** 合成策略简述（策略区初值等） */
 function synthStrategyBrief(strategyId: string, classIds: string[]): string {
   const strategy = teachingStrategies.find((s) => s.id === strategyId);
+
+  if (classIds.length === 0) {
+    if (!strategy) return "请选择教学策略后自动生成简述。";
+    return (
+      `采用「${strategy.name}」策略。\n` +
+      `· 节奏：${strategy.paceSuggestion}\n` +
+      `· 难度：${strategy.difficultyCurve}\n` +
+      `· 活动：${strategy.activitySuggestion}\n`
+    );
+  }
+
   const names = classIds
     .map((id) => classById(id)?.name ?? id)
     .join("、");
@@ -1592,11 +1188,11 @@ function synthStrategyBrief(strategyId: string, classIds: string[]): string {
   );
 }
 
-/** 基于课程和所选班级，生成带 AI 调整标注的骨架 */
+/** 基于课程和所选班级，生成按课时扁平化、带图谱挂载字段的草稿 */
 function buildSkeletonFromCourse(
   courseId: string,
   classIds: string[],
-): DraftChapter[] {
+): DraftSection[] {
   const hasRiskClass = classIds.some(
     (cid) => (classProfileByClassId(cid)?.scoreDistribution.stdDev ?? 0) >= 14,
   );
@@ -1609,43 +1205,46 @@ function buildSkeletonFromCourse(
     })
     .filter((x): x is string => !!x)[0];
 
-  // 优先复用已有 plan 的 chapters
   const basePlan = teachingPlans.find(
     (p) => p.courseId === courseId && p.status !== "completed",
   );
   if (basePlan) {
-    return basePlan.chapters.map((ch) =>
-      cloneChapter(ch, hasRiskClass, riskClassName, courseId),
-    );
+    return draftSectionsFromPlan(basePlan, hasRiskClass, riskClassName, courseId);
   }
 
-  // 兜底：通用 3 章骨架
   return fallbackSkeleton();
 }
 
-function cloneChapter(
-  ch: PlanChapter,
+function draftSectionsFromPlan(
+  basePlan: TeachingPlan,
   hasRiskClass: boolean,
   riskClassName: string | undefined,
   courseId: string,
-): DraftChapter {
-  return {
-    id: ch.id,
-    title: ch.title,
-    summary: ch.summary,
-    sections: ch.sections.map((s) => {
+): DraftSection[] {
+  let n = 0;
+  const out: DraftSection[] = [];
+  for (const ch of basePlan.chapters) {
+    for (const s of ch.sections) {
+      n += 1;
+      let title = s.title;
+      const already = /^\s*第\s*\d+\s*课时\s*[·\-：:]/u.test(s.title);
+      if (!already) {
+        const stripped = s.title.replace(/^(\d+\.)+\s*\d+\s*/u, "").trim();
+        title = `第${n}课时 · ${stripped || s.title}`;
+      }
       const draft: DraftSection = {
         id: s.id,
-        title: s.title,
+        title,
         plannedDate: s.plannedDate,
         durationMinutes: s.durationMinutes,
         knowledgeNodeIds: [...s.knowledgeNodeIds],
       };
       const adj = pickAdjustment(s.id, courseId, hasRiskClass, riskClassName);
       if (adj) draft.aiAdjustment = adj;
-      return draft;
-    }),
-  };
+      out.push(draft);
+    }
+  }
+  return out;
 }
 
 function pickAdjustment(
@@ -1689,61 +1288,43 @@ function pickAdjustment(
   return undefined;
 }
 
-function fallbackSkeleton(): DraftChapter[] {
+function fallbackSkeleton(): DraftSection[] {
   return [
     {
-      id: "draft-ch-1",
-      title: "第1章 课程引入",
-      summary: "建立课程目标与基础概念",
-      sections: [
-        {
-          id: "draft-sec-1-1",
-          title: "1.1 课程概述",
-          plannedDate: "2026-02-23",
-          durationMinutes: 90,
-          knowledgeNodeIds: [],
-        },
-        {
-          id: "draft-sec-1-2",
-          title: "1.2 学习方法与评价体系",
-          plannedDate: "2026-02-25",
-          durationMinutes: 90,
-          knowledgeNodeIds: [],
-        },
-      ],
+      id: "draft-lesson-a",
+      title: "第1课时 · 课程导学与国家制图标准认知",
+      plannedDate: "2026-02-23",
+      durationMinutes: 90,
+      knowledgeNodeIds: ["kn-mech-001", "kn-mech-018"],
     },
     {
-      id: "draft-ch-2",
-      title: "第2章 核心专题",
-      sections: [
-        {
-          id: "draft-sec-2-1",
-          title: "2.1 主题一",
-          plannedDate: "2026-03-02",
-          durationMinutes: 90,
-          knowledgeNodeIds: [],
-        },
-        {
-          id: "draft-sec-2-2",
-          title: "2.2 主题二",
-          plannedDate: "2026-03-04",
-          durationMinutes: 90,
-          knowledgeNodeIds: [],
-        },
-      ],
+      id: "draft-lesson-b",
+      title: "第2课时 · 图线、字体与尺寸标注规范",
+      plannedDate: "2026-02-25",
+      durationMinutes: 90,
+      knowledgeNodeIds: ["kn-mech-001", "kn-mech-009"],
+      aiAdjustment: "随堂加入板演纠错，对齐作业常见标注错误 TOP5",
     },
     {
-      id: "draft-ch-3",
-      title: "第3章 综合应用",
-      sections: [
-        {
-          id: "draft-sec-3-1",
-          title: "3.1 综合实践",
-          plannedDate: "2026-03-11",
-          durationMinutes: 135,
-          knowledgeNodeIds: [],
-        },
-      ],
+      id: "draft-lesson-c",
+      title: "第3课时 · 正投影原理与视图对应关系",
+      plannedDate: "2026-03-02",
+      durationMinutes: 90,
+      knowledgeNodeIds: ["kn-mech-003", "kn-mech-004", "kn-mech-005"],
+    },
+    {
+      id: "draft-lesson-d",
+      title: "第4课时 · 回转体建模与制图表达",
+      plannedDate: "2026-03-05",
+      durationMinutes: 90,
+      knowledgeNodeIds: ["kn-mech-004", "sk-mech-010", "course-mech-draw"],
+    },
+    {
+      id: "draft-lesson-e",
+      title: "第5课时 · 章节综合与讲评",
+      plannedDate: "2026-03-09",
+      durationMinutes: 135,
+      knowledgeNodeIds: ["kn-mech-004", "train-m-002"],
     },
   ];
 }

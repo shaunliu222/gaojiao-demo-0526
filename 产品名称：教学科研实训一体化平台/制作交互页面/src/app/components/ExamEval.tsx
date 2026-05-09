@@ -123,7 +123,7 @@ export function ExamDetail({
   id: string;
   currentTeacherId: string;
   onBack: () => void;
-  /** 跳转到教学计划「教学路径」中的下一堂课小节（与考试知识点章节无关） */
+  /** 跳转到教学计划「课时进度」中的下一堂课（原小节 id） */
   onAdjustCourse?: (planId: string, sectionId: string) => void;
 }) {
   const [rangeFilter, setRangeFilter] = useState<string | null>(null);

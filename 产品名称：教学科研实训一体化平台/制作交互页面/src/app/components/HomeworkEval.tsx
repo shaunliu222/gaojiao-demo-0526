@@ -259,7 +259,7 @@ export function HwDetail({
   id: string;
   currentTeacherId: string;
   onBack: () => void;
-  /** 跳转教学计划详情「教学路径」，定位到对应小节以便增删调课时 */
+  /** 跳转教学计划详情「课时进度」，定位到对应课时（原小节 id）以便增删调学时 */
   onAdjustCourse?: (planId: string, sectionId: string) => void;
 }) {
   const [rangeFilter, setRangeFilter] = useState<string | null>(null);

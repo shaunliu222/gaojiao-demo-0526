@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   BarChart3,
-  FileUp,
   FolderOpen,
   GraduationCap,
   PenTool,
@@ -360,26 +359,27 @@ export function PlanSectionResourcesPage({
             </div>
           ) : (
             <div className="divide-y divide-slate-100 rounded-xl border border-slate-200 bg-white overflow-hidden">
-              {sorted.map((r) => (
+              {sorted.map((r) => {
+                const ext = r.displayName.split(".").pop()?.toUpperCase() ?? "";
+                const formatTag = ext || kindLabel[r.kind];
+                const sourceTag = r.resourceId ? "资源库" : "个人上传";
+                const sizeStr = typeof r.sizeMb === "number" ? (r.sizeMb >= 1 ? `${r.sizeMb} MB` : `${Math.round(r.sizeMb * 1024)} KB`) : "";
+                return (
                 <div
                   key={r.id}
                   className="px-4 py-3 flex flex-wrap gap-3 items-start hover:bg-slate-50/80 transition"
                 >
                   <div className="min-w-0 flex-1">
                     <div className="text-slate-900 font-medium">{r.title}</div>
-                    <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-1 text-[0.8125rem] text-slate-500">
-                      <span className="inline-flex items-center gap-1 text-slate-600">
-                        <FileUp size={12} className="opacity-70" />
-                        {r.displayName}
-                      </span>
-                      <span className="text-slate-300">·</span>
-                      <span>{kindLabel[r.kind]}</span>
-                      {typeof r.sizeMb === "number" ? (
-                        <>
-                          <span className="text-slate-300">·</span>
-                          <span>{r.sizeMb} MB</span>
-                        </>
-                      ) : null}
+                    <div className="flex flex-wrap items-center gap-1.5 mt-1 text-[0.8125rem]">
+                      <span className="text-slate-500 truncate max-w-[14rem]">{r.displayName}</span>
+                      <span className="px-1 py-px rounded bg-blue-50 text-blue-600 text-[9px] border border-blue-100">{formatTag}</span>
+                      <span className={`px-1 py-px rounded text-[9px] border ${
+                        r.resourceId
+                          ? "bg-violet-50 text-violet-600 border-violet-100"
+                          : "bg-emerald-50 text-emerald-600 border-emerald-100"
+                      }`}>{sourceTag}</span>
+                      {sizeStr && <span className="text-slate-400 text-[10px]">{sizeStr}</span>}
                     </div>
                   </div>
                   <div className="flex flex-wrap items-center gap-2 shrink-0">
@@ -412,7 +412,8 @@ export function PlanSectionResourcesPage({
                     ) : null}
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>

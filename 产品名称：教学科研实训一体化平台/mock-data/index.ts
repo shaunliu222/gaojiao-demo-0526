@@ -44,7 +44,7 @@ export { trainingProjects } from "./trainings";
 // 教学闭环
 export { personas } from "./personas";
 export { teachingStrategies } from "./strategies";
-export { teachingPlans, PLAN_WANG_HAIFENG_MOCK_ID } from "./teachingPlans";
+export { teachingPlans, teachingPlansV2, PLAN_WANG_HAIFENG_MOCK_ID } from "./teachingPlans";
 export {
   planKnowledgePathGraphs,
   getPlanKnowledgePathGraph,
@@ -52,7 +52,9 @@ export {
 export { PLAN_MAIN_NODE_IDS, buildPlanKnowledgePathGraph } from "./planPathFromMaster";
 export {
   teachingDesigns,
+  teachingDesignsV2,
   designsBySection,
+  designsByLessonV2,
   DEMO_DESIGN_PLAN_ID,
   DEMO_DESIGN_SECTION_ID,
 } from "./teachingDesigns";

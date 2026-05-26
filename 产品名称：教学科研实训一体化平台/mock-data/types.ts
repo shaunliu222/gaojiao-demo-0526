@@ -565,6 +565,119 @@ export interface TeachingDesign {
   updatedAt: ISODateTime;
 }
 
+// ============ v2.0 教学计划 & 教学设计类型 ============
+
+/** v2.0 教学计划 · 课时（最小教学组织单元，替代 PlanSection） */
+export interface PlanLesson {
+  id: ID;
+  planId: ID;
+  lessonNo: number; // 课时序号（从 1 起连续编号）
+  date: ISODate; // 计划授课日期
+  durationMinutes: number; // 课时时长（分钟）
+  /** 知识点 ID 列表 */
+  knowledgePointIds: ID[];
+  /** 知识点名称列表（冗余，方便列表直接展示） */
+  knowledgePointNames: string[];
+  /** 关联资源 ID */
+  resourceIds: ID[];
+  /** 资源类型标签 */
+  resourceTypes: ResourceType[];
+  /** AI 自动生成的课时备注/建议 */
+  aiNote?: string;
+  status: "planned" | "in_progress" | "completed" | "skipped";
+  /** 是否已完成教学设计 */
+  hasDesign: boolean;
+  /** 教学目标 */
+  objectives: string[];
+}
+
+/** v2.0 教学计划（去掉 classIds，lessons 平铺代替 chapters） */
+export interface TeachingPlanV2 {
+  id: ID;
+  title: string;
+  courseId: ID;
+  professionId: ID;
+  subjectId: ID;
+  creatorTeacherId: ID;
+  /** v2.0: 不再有 classIds — 一门课一份统一计划 */
+  strategyTag: ID; // 选用的策略模板 id
+  customStrategy?: string; // 教师自定义策略文本
+  strategyBrief: string;
+  semester: string;
+  startDate: ISODate;
+  endDate: ISODate;
+  status: "draft" | "in_progress" | "completed";
+  totalLessons: number;
+  /** v2.0: 课时列表（平铺，不再嵌套 chapters） */
+  lessons: PlanLesson[];
+  createdAt: ISODateTime;
+  updatedAt: ISODateTime;
+  aiAdvice: string;
+  derivedFromL2PlanId?: ID;
+}
+
+/** v2.0 教学设计输出类型枚举（7种产出物） */
+export type DesignOutputTypeV2 =
+  | "lecture_note" // 讲义
+  | "audio" // 音频讲解
+  | "ppt" // 课件PPT
+  | "mindmap" // 思维导图
+  | "micro_video" // 微课视频
+  | "lesson_plan" // 教案
+  | "homework"; // 作业题
+
+/** v2.0 教学设计输出产物 */
+export interface DesignOutputV2 {
+  id: ID;
+  type: DesignOutputTypeV2;
+  title: string;
+  previewUrl?: string;
+  sizeLabel?: string; // "3.2 MB"
+  durationLabel?: string; // "8 分钟"
+  createdAt: ISODateTime;
+  summary: string;
+  tags?: string[];
+}
+
+/** v2.0 教学设计（一个课时对应一个统一的设计会话，不再按 Tab 拆分） */
+export interface TeachingDesignV2 {
+  id: ID;
+  planId: ID;
+  /** v2.0: lessonId 替代 sectionId */
+  lessonId: ID;
+  /** 班级 ID（多班批量编辑时每个班一份） */
+  classId?: ID;
+  /** AI化开关 */
+  aiFlag: boolean;
+  /** 思政化开关 */
+  politicsFlag: boolean;
+  /** 知识文件引用 */
+  knowledgeFiles: Array<{
+    source: "local" | "knowledge_base" | "resource_library" | "internet";
+    refId: ID;
+    name: string;
+  }>;
+  chatHistory: ChatMessage[];
+  /** v2.0: 统一输出面板，7 种类型 */
+  outputs: DesignOutputV2[];
+  /**
+   * 学情首屏模拟：AI 首条回复「生成」前，右栏产物仅用本列表
+   */
+  outputsBeforeInitialAiReply?: DesignOutputV2[];
+  updatedAt: ISODateTime;
+}
+
+/** v2.0 课时详情中的班级作业评价行 */
+export interface LessonClassHomeworkEval {
+  classId: ID;
+  className: string;
+  homeworkContent: string;
+  submissionRate: number; // 0-1
+  averageScore: number;
+  weakKnowledgePoints: string[];
+  evalStatus: "evaluated" | "pending" | "not_assigned";
+}
+
 // ============ 协同评价：作业 & 考试 ============
 
 /** 集中错题（知识点或题目聚合） */

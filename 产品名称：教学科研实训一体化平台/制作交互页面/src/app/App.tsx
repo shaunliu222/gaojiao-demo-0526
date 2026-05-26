@@ -22,7 +22,7 @@ import {
 } from "./data/lookups";
 import { LearningAnalyticsHub } from "./components/ClassProfiles";
 import { PlansList, PlanDetail } from "./components/Plans";
-import { PlanWizard } from "./components/PlanWizard";
+import { PlanWizard, type WizardPlanSummary } from "./components/PlanWizard";
 import { DesignWorkbench } from "./components/DesignWorkbench";
 import { DesignLearningAdjustWorkbench } from "./components/DesignLearningAdjustWorkbench";
 import { DesignDashboard } from "./components/DesignDashboard";
@@ -54,13 +54,14 @@ import {
   DEMO_DESIGN_SECTION_ID,
   PLAN_WANG_HAIFENG_MOCK_ID,
   type Resource,
+  type TeachingPlanV2,
 } from "@mock";
 
 type TeacherView =
   | { k: "learning-analytics"; classId: string; selectedStudentId?: string }
   | { k: "plans-list" }
   | { k: "plan-wizard" }
-  | { k: "plan-detail"; id: string; focusSectionId?: string }
+  | { k: "plan-detail"; id: string; focusSectionId?: string; focusLessonId?: string }
   | {
       k: "section-resources";
       planId: string;
@@ -75,6 +76,10 @@ type TeacherView =
       k: "design";
       planId: string;
       sectionId: string;
+      /** v2.0: lessonId 替代 sectionId */
+      lessonId?: string;
+      /** v2.0: 选择的班级列表 */
+      classIds?: string[];
       fromPlanId?: string;
       fromDashboard?: boolean;
       /** 从「本节资源」页进入教学设计，返回时回到该页 */
@@ -246,6 +251,8 @@ export default function App() {
   const [view, setView] = useState<View>({ k: "plans-list" });
   /** 交互页内会话态：从资源库「新增」创建的条目（含线上课程），合并展示并与详情页贯通 */
   const [resourceSessionOverlay, setResourceSessionOverlay] = useState<Resource[]>([]);
+  /** 会话态：向导创建的教学计划（草稿/上架），合并展示到列表 */
+  const [sessionPlans, setSessionPlans] = useState<TeachingPlanV2[]>([]);
 
   const pageTitle = useMemo(
     () => titleForView(view, resourceSessionOverlay),
@@ -398,6 +405,7 @@ export default function App() {
         return (
           <PlansList
             currentTeacherId={teacherId}
+            sessionPlans={sessionPlans}
             onOpen={(id) => {
               setNav("plans");
               setView({ k: "plan-detail", id });
@@ -418,11 +426,30 @@ export default function App() {
               setNav("plans");
               setView({ k: "plans-list" });
             }}
-            onSubmit={() => {
+            onSubmit={(status, data) => {
+              const newPlan: TeachingPlanV2 = {
+                id: `plan-session-${Date.now()}`,
+                title: `《${courseById(data.courseId)?.name ?? "课程"}》教学计划`,
+                courseId: data.courseId,
+                professionId: data.professionId,
+                subjectId: data.subjectId,
+                creatorTeacherId: teacherId,
+                strategyTag: data.strategyId,
+                customStrategy: data.customStrategy || undefined,
+                strategyBrief: "",
+                semester: "2025-2026-2",
+                startDate: "2026-03-01",
+                endDate: "2026-07-15",
+                status,
+                totalLessons: data.totalLessons,
+                lessons: [],
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+                aiAdvice: "",
+              };
+              setSessionPlans((prev) => [newPlan, ...prev]);
               setNav("plans");
-              const planId =
-                teacherId === "t-wang" ? PLAN_WANG_HAIFENG_MOCK_ID : "plan-main";
-              setView({ k: "plan-detail", id: planId });
+              setView({ k: "plans-list" });
             }}
           />
         );
@@ -510,10 +537,10 @@ export default function App() {
             onOpenSection={(planId, sectionId) => {
               setNav("designs");
               setView({
-                k: "section-resources",
+                k: "design",
                 planId,
                 sectionId,
-                fromPlanId: planId,
+                lessonId: sectionId,
                 fromDashboard: true,
               });
             }}
@@ -571,6 +598,7 @@ export default function App() {
             <DesignLearningAdjustWorkbench
               planId={view.planId}
               sectionId={view.sectionId}
+              lessonId={view.lessonId}
               progressSectionId={view.progressSectionId}
               reviewSectionIds={view.reviewSectionIds}
               onBack={designBack}
@@ -582,6 +610,7 @@ export default function App() {
           <DesignWorkbench
             planId={view.planId}
             sectionId={view.sectionId}
+            lessonId={view.lessonId}
             onBack={designBack}
             onOpenDemoSection={openDesignDemo}
           />

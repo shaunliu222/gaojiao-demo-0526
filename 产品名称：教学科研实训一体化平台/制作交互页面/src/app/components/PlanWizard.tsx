@@ -10,23 +10,27 @@ import {
   Trash2,
 } from "lucide-react";
 import {
+  classes,
   courses,
   professions,
   subjects,
   teachingPlans,
+  teachingPlansV2,
   teachingStrategies,
 } from "@mock";
 import type {
   Course,
   TeachingPlan,
   TeachingStrategy,
+  TeachingPlanV2,
 } from "@mock";
 import {
   classById,
   classProfileByClassId,
   graphNodeById,
   professionById,
-  teacherById,
+  resourcesByCourse,
+  strategyById,
 } from "../data/lookups";
 import { AiBadge, PageHeader } from "./Layout";
 
@@ -84,17 +88,37 @@ interface DraftSection {
   aiAdjustment?: string;
 }
 
+export interface WizardPlanSummary {
+  courseId: string;
+  professionId: string;
+  subjectId: string;
+  classIds: string[];
+  totalLessons: number;
+  credit: number;
+  strategyId: string;
+  customStrategy: string;
+}
+
 export function PlanWizard({
   onCancel,
   onSubmit,
 }: {
   onCancel: () => void;
-  onSubmit: () => void;
+  onSubmit: (status: "draft" | "in_progress", data: WizardPlanSummary) => void;
 }) {
   // ==================== 基础选择（Step1） ====================
   const [professionId, setProfessionId] = useState<string>("prof-mech");
   const [subjectId, setSubjectId] = useState<string>("subj-mech-drawing");
   const [courseId, setCourseId] = useState<string>("course-mech-draw");
+  const [classIds, setClassIds] = useState<string[]>([]);
+  const [totalLessons, setTotalLessons] = useState<number>(0);
+  const [credit, setCredit] = useState<number>(0);
+
+  // Update credit default when course changes
+  useEffect(() => {
+    const c = courses.find((co) => co.id === courseId);
+    if (c) setCredit(c.credit);
+  }, [courseId]);
 
   // ==================== 策略（Step3） ====================
   const [strategyId, setStrategyId] = useState<string>("strat-li-personal");
@@ -105,8 +129,11 @@ export function PlanWizard({
   // ==================== 骨架（按课时平铺，Step2 预览可编辑）====================
   const [draftLessons, setDraftLessons] = useState<DraftSection[] | null>(null);
 
-  // ==================== 步骤切换（1 计划设置 · 2 预览并生成）====================
-  const [step, setStep] = useState<1 | 2>(1);
+  // ==================== 步骤切换（1 选择课程 · 2 教学策略 · 3 预览并生成）====================
+  const [step, setStep] = useState<1 | 2 | 3>(1);
+
+  // ==================== 个性化教学需求（v2.0 新增） ====================
+  const [customStrategy, setCustomStrategy] = useState<string>("");
 
   // 进入预览步前的 AI 生成假动画
   const [generating, setGenerating] = useState(false);
@@ -152,20 +179,27 @@ export function PlanWizard({
 
   const canNext = (): boolean => {
     if (step === 1) {
-      return !!course && !!strategyId;
+      return !!course;
+    }
+    if (step === 2) {
+      return !!strategyId;
     }
     return true;
   };
 
   const goNext = () => {
     if (step === 1) {
+      setStep(2);
+      return;
+    }
+    if (step === 2) {
       ensureDraftBuilt();
       runGenerateAnimation();
       return;
     }
   };
   const goPrev = () => {
-    if (step > 1) setStep((s) => (s - 1) as 1 | 2);
+    if (step > 1) setStep((s) => (s - 1) as 1 | 2 | 3);
   };
 
   const runGenerateAnimation = () => {
@@ -209,7 +243,7 @@ export function PlanWizard({
       setGenerating(false);
       setGenProgress(100);
       setGenTaskIdx(taskCount);
-      setStep(2);
+      setStep(3);
     }, totalMs + tailMs);
     genTimersRef.current.push(done);
   };
@@ -233,11 +267,14 @@ export function PlanWizard({
         {step === 1 && (
           <div className="space-y-10">
             <section className="space-y-3">
-              <div className="text-slate-900 font-medium">基础信息</div>
+              <div className="text-slate-900 font-medium">选择课程</div>
               <Step1Scope
                 professionId={professionId}
                 subjectId={subjectId}
                 courseId={courseId}
+                classIds={classIds}
+                totalLessons={totalLessons}
+                credit={credit}
                 onChangeProfession={(id) => {
                   setProfessionId(id);
                   const firstSubj = subjects.find((s) => s.professionId === id);
@@ -246,6 +283,7 @@ export function PlanWizard({
                     (c) => c.professionId === id && c.subjectId === firstSubj?.id,
                   );
                   setCourseId(firstCourse?.id ?? "");
+                  setClassIds([]);
                 }}
                 onChangeSubject={(id) => {
                   setSubjectId(id);
@@ -255,8 +293,15 @@ export function PlanWizard({
                   setCourseId(firstCourse?.id ?? "");
                 }}
                 onChangeCourse={(id) => setCourseId(id)}
+                onChangeClassIds={setClassIds}
+                onChangeTotalLessons={setTotalLessons}
+                onChangeCredit={setCredit}
               />
             </section>
+          </div>
+        )}
+        {step === 2 && (
+          <div className="space-y-10">
             <section className="space-y-3">
               <div className="text-slate-900 font-medium">教学策略</div>
               <Step3
@@ -275,10 +320,28 @@ export function PlanWizard({
                 }
               />
             </section>
+            <section className="space-y-3">
+              <div className="text-slate-900 font-medium">个性化教学需求</div>
+              <div className="bg-white rounded-xl border border-slate-200 p-5">
+                <textarea
+                  value={customStrategy}
+                  onChange={(e) => setCustomStrategy(e.target.value)}
+                  placeholder="例如：本班基础较弱，前5课时放慢节奏，多安排基础练习..."
+                  className="w-full min-h-[100px] border border-slate-200 rounded-md p-3 leading-relaxed text-slate-700"
+                />
+              </div>
+            </section>
           </div>
         )}
-        {step === 2 && (
-          <Step5 draftLessons={draftLessons ?? []} setDraftLessons={setDraftLessons} />
+        {step === 3 && (
+          <Step5
+            draftLessons={draftLessons ?? []}
+            setDraftLessons={setDraftLessons}
+            course={course}
+            classNames={classIds.map((cid) => classById(cid)?.name ?? cid).join("、")}
+            totalLessons={totalLessons}
+            credit={credit}
+          />
         )}
       </div>
       <WizardFooter
@@ -286,7 +349,32 @@ export function PlanWizard({
         canNext={canNext() && !generating}
         onPrev={goPrev}
         onNext={goNext}
-        onSubmit={onSubmit}
+        onSaveDraft={() =>
+          onSubmit("draft", {
+            courseId,
+            professionId,
+            subjectId,
+            classIds,
+            totalLessons,
+            credit,
+            strategyId,
+            customStrategy,
+          })
+        }
+        onPublish={() => {
+          const data: WizardPlanSummary = {
+            courseId,
+            professionId,
+            subjectId,
+            classIds,
+            totalLessons,
+            credit,
+            strategyId,
+            customStrategy,
+          };
+          runGenerateAnimation();
+          onSubmit("in_progress", data);
+        }}
       />
       {generating && (
         <GenerationOverlay
@@ -308,12 +396,13 @@ function Stepper({
   step,
   onJump,
 }: {
-  step: 1 | 2;
-  onJump: (s: 1 | 2) => void;
+  step: 1 | 2 | 3;
+  onJump: (s: 1 | 2 | 3) => void;
 }) {
-  const items: Array<{ k: 1 | 2; label: string }> = [
-    { k: 1, label: "计划设置" },
-    { k: 2, label: "预览并生成" },
+  const items: Array<{ k: 1 | 2 | 3; label: string }> = [
+    { k: 1, label: "选择课程" },
+    { k: 2, label: "教学策略" },
+    { k: 3, label: "预览并生成" },
   ];
   return (
     <div className="px-6 py-4 bg-white border-b border-slate-200">
@@ -370,17 +459,19 @@ function WizardFooter({
   canNext,
   onPrev,
   onNext,
-  onSubmit,
+  onSaveDraft,
+  onPublish,
 }: {
-  step: 1 | 2;
+  step: 1 | 2 | 3;
   canNext: boolean;
   onPrev: () => void;
   onNext: () => void;
-  onSubmit: () => void;
+  onSaveDraft: () => void;
+  onPublish: () => void;
 }) {
   return (
     <div className="sticky bottom-0 bg-white border-t border-slate-200 px-6 py-3 flex items-center justify-between">
-      <div className="text-slate-400">Step {step} / 2</div>
+      <div className="text-slate-400">Step {step} / 3</div>
       <div className="flex items-center gap-2">
         {step > 1 && (
           <button
@@ -390,7 +481,7 @@ function WizardFooter({
             上一步
           </button>
         )}
-        {step < 2 ? (
+        {step < 3 ? (
           <button
             disabled={!canNext}
             onClick={onNext}
@@ -400,21 +491,21 @@ function WizardFooter({
                 : "bg-slate-100 text-slate-400 cursor-not-allowed"
             }`}
           >
-            <Sparkles size={14} /> 生成教学计划
+            下一步
           </button>
         ) : (
           <>
             <button
-              onClick={onSubmit}
+              onClick={onSaveDraft}
               className="px-4 py-1.5 rounded-md border border-indigo-200 text-indigo-700 hover:bg-indigo-50"
             >
               保存为草稿
             </button>
             <button
-              onClick={onSubmit}
+              onClick={onPublish}
               className="px-4 py-1.5 rounded-md bg-indigo-600 text-white hover:bg-indigo-700 flex items-center gap-1"
             >
-              <Sparkles size={14} /> 立即开始
+              <Sparkles size={14} /> 立即上架
             </button>
           </>
         )}
@@ -570,34 +661,63 @@ function Step1Scope({
   professionId,
   subjectId,
   courseId,
+  classIds,
+  totalLessons,
+  credit,
   onChangeProfession,
   onChangeSubject,
   onChangeCourse,
+  onChangeClassIds,
+  onChangeTotalLessons,
+  onChangeCredit,
 }: {
   professionId: string;
   subjectId: string;
   courseId: string;
+  classIds: string[];
+  totalLessons: number;
+  credit: number;
   onChangeProfession: (id: string) => void;
   onChangeSubject: (id: string) => void;
   onChangeCourse: (id: string) => void;
+  onChangeClassIds: (ids: string[]) => void;
+  onChangeTotalLessons: (n: number) => void;
+  onChangeCredit: (n: number) => void;
 }) {
   const profession = professionById(professionId);
   const course = courses.find((c) => c.id === courseId);
-  const teacher = course ? teacherById(course.ownerTeacherId) : undefined;
+
   const relatedSubjects = subjects.filter((s) => s.professionId === professionId);
   const relatedCourses = courses.filter(
     (c) => c.professionId === professionId && c.subjectId === subjectId,
   );
+  const relatedClasses = useMemo(
+    () => classes.filter((c) => c.professionId === professionId && c.status === "in_session"),
+    [professionId],
+  );
+
+  const toggleClass = (id: string) => {
+    onChangeClassIds(
+      classIds.includes(id) ? classIds.filter((c) => c !== id) : [...classIds, id],
+    );
+  };
+  const toggleAll = () => {
+    if (classIds.length === relatedClasses.length) {
+      onChangeClassIds([]);
+    } else {
+      onChangeClassIds(relatedClasses.map((c) => c.id));
+    }
+  };
 
   return (
     <div className="space-y-4">
       <div className="bg-white rounded-xl border border-slate-200 p-5">
         <div className="text-slate-400 text-[0.6875rem] mb-4">
-          专业 · 学科 · 课程
+          学科 → 专业 → 课程
         </div>
         <div className="grid grid-cols-3 gap-4">
           <div>
-            <div className="text-slate-500 mb-2">专业</div>
+            <div className="text-slate-500 mb-2">学科</div>
             <select
               value={professionId}
               onChange={(e) => onChangeProfession(e.target.value)}
@@ -611,7 +731,7 @@ function Step1Scope({
             </select>
           </div>
           <div>
-            <div className="text-slate-500 mb-2">学科</div>
+            <div className="text-slate-500 mb-2">专业</div>
             <select
               value={subjectId}
               onChange={(e) => onChangeSubject(e.target.value)}
@@ -654,11 +774,46 @@ function Step1Scope({
               {course.description}
             </div>
             <div className="grid grid-cols-2 gap-2 pt-1">
-              <InfoCell k="学时" v={`${course.totalHours} 学时`} />
-              <InfoCell k="学分" v={`${course.credit} 学分`} />
-              <InfoCell k="关联知识点" v={`${course.knowledgeNodeIds.length} 个`} />
-              <InfoCell k="负责教师" v={teacher?.name ?? "—"} />
+              <InfoCell k="知识点" v={`${course.knowledgeNodeIds.length} 个`} />
+              <InfoCell k="挂载资源" v={`${resourcesByCourse(course.id).length} 个`} />
             </div>
+            <div className="grid grid-cols-2 gap-2 pt-1">
+              <div className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2">
+                <div className="text-amber-600 text-[0.6875rem] font-medium">课时数（必填）</div>
+                <input
+                  type="number"
+                  min={0}
+                  value={totalLessons}
+                  onChange={(e) => onChangeTotalLessons(Number(e.target.value) || 0)}
+                  className="text-amber-800 outline-none bg-transparent w-16 font-semibold"
+                />
+              </div>
+              <div className="rounded-lg bg-amber-50 border border-amber-200 px-3 py-2">
+                <div className="text-amber-600 text-[0.6875rem] font-medium">学分（必填）</div>
+                <input
+                  type="number"
+                  min={0}
+                  value={credit}
+                  onChange={(e) => onChangeCredit(Number(e.target.value) || 0)}
+                  className="text-amber-800 outline-none bg-transparent w-16 font-semibold"
+                />
+              </div>
+            </div>
+            {course.knowledgeNodeIds.length > 0 && (
+              <div className="pt-2">
+                <div className="text-[0.6875rem] text-slate-500 mb-1.5">关联知识点</div>
+                <div className="flex flex-wrap gap-1.5">
+                  {course.knowledgeNodeIds.map((nid) => {
+                    const gn = graphNodeById(nid);
+                    return gn ? (
+                      <span key={nid} className="px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 text-[0.6875rem]">
+                        {gn.name}
+                      </span>
+                    ) : null;
+                  })}
+                </div>
+              </div>
+            )}
             <div className="flex flex-wrap gap-1.5 pt-1">
               {course.tags.map((t) => (
                 <span key={t} className="px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 text-[0.6875rem]">
@@ -667,10 +822,50 @@ function Step1Scope({
               ))}
             </div>
           </div>
+
+          {/* 授课班级多选 */}
+          {relatedClasses.length > 0 && (
+            <div className="border-t border-slate-100 p-4">
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-slate-500 text-[0.6875rem]">授课班级</div>
+                <button
+                  type="button"
+                  onClick={toggleAll}
+                  className="text-indigo-600 text-[0.6875rem] hover:underline"
+                >
+                  {classIds.length === relatedClasses.length ? "取消全选" : "全选"}
+                </button>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {relatedClasses.map((cls) => {
+                  const checked = classIds.includes(cls.id);
+                  return (
+                    <label
+                      key={cls.id}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border cursor-pointer transition text-[0.8125rem] ${
+                        checked
+                          ? "border-indigo-400 bg-indigo-50 text-indigo-700"
+                          : "border-slate-200 bg-white text-slate-600 hover:border-indigo-300"
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => toggleClass(cls.id)}
+                        className="accent-indigo-600"
+                      />
+                      {cls.name}
+                      <span className="text-slate-400 text-[0.6875rem]">{cls.studentCount}人</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       ) : (
         <div className="bg-slate-50 border border-dashed border-slate-300 rounded-xl p-8 flex items-center justify-center text-slate-400 text-sm">
-          请选择专业、学科与课程
+          请选择学科、专业与课程
         </div>
       )}
     </div>
@@ -693,8 +888,6 @@ function InfoCell({ k, v }: { k: string; v: string }) {
 function Step3({
   strategyId,
   onSelectStrategy,
-  effective,
-  onEdit,
 }: {
   strategyId: string;
   onSelectStrategy: (id: string) => void;
@@ -702,25 +895,15 @@ function Step3({
   onEdit: (patch: Partial<StrategyOverride>) => void;
 }) {
   const matches = useMemo(() => {
-    return teachingStrategies
-      .map((s) => ({
-        strategy: s,
-        score: computeStrategyMatch(s, []),
-      }))
-      .sort((a, b) => b.score - a.score);
+    return teachingStrategies;
   }, []);
-
-  const [notice, setNotice] = useState<string | null>(null);
 
   return (
     <div className="space-y-5">
       <div>
-        <div className="flex items-center gap-2 mb-3">
-          <div className="text-slate-900">候选策略</div>
-          <AiBadge>AI 匹配度基于课程适用性估算</AiBadge>
-        </div>
+        <div className="text-slate-900 mb-3">标准教学策略</div>
         <div className="grid grid-cols-3 gap-3">
-          {matches.map(({ strategy, score }) => {
+          {matches.map((strategy) => {
             const selected = strategy.id === strategyId;
             return (
               <button
@@ -732,19 +915,8 @@ function Step3({
                     : "border-slate-200 bg-white hover:border-indigo-300"
                 }`}
               >
-                <div className="flex items-start justify-between mb-1">
+                <div className="mb-1">
                   <span className="text-slate-900">{strategy.name}</span>
-                  <span
-                    className={`px-2 py-0.5 rounded-md ${
-                      score >= 85
-                        ? "bg-emerald-50 text-emerald-700"
-                        : score >= 60
-                        ? "bg-indigo-50 text-indigo-700"
-                        : "bg-slate-100 text-slate-500"
-                    }`}
-                  >
-                    匹配 {score}%
-                  </span>
                 </div>
                 <div className="text-slate-500 mb-2 text-[0.6875rem]">
                   {sourceLabel(strategy.source)}
@@ -771,53 +943,6 @@ function Step3({
             );
           })}
         </div>
-      </div>
-
-      <div className="bg-white rounded-xl border border-slate-200 p-5">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <div className="text-slate-900">当前策略详情</div>
-            <AiBadge>可编辑</AiBadge>
-          </div>
-          <button
-            onClick={() => setNotice("已将当前调整保存为「李建国 · 个人模板草稿」")}
-            className="px-3 py-1 rounded-md border border-slate-200 hover:bg-slate-50 text-slate-600"
-          >
-            基于此策略新建个人模板
-          </button>
-        </div>
-        <div className="grid grid-cols-3 gap-3">
-          <EditableBlock
-            label="授课节奏"
-            value={effective.paceSuggestion}
-            onChange={(v) => onEdit({ paceSuggestion: v })}
-          />
-          <EditableBlock
-            label="难度曲线"
-            value={effective.difficultyCurve}
-            onChange={(v) => onEdit({ difficultyCurve: v })}
-          />
-          <EditableBlock
-            label="活动建议"
-            value={effective.activitySuggestion}
-            onChange={(v) => onEdit({ activitySuggestion: v })}
-          />
-        </div>
-        <div className="mt-4">
-          <div className="text-slate-500 mb-1.5 flex items-center gap-2">
-            策略简述（会写入教学计划）
-          </div>
-          <textarea
-            value={effective.strategyBrief}
-            onChange={(e) => onEdit({ strategyBrief: e.target.value })}
-            className="w-full min-h-[120px] border border-slate-200 rounded-md p-3 leading-relaxed text-slate-700"
-          />
-        </div>
-        {notice && (
-          <div className="mt-3 px-3 py-2 rounded-md bg-emerald-50 border border-emerald-200 text-emerald-700 flex items-center gap-2">
-            <Check size={14} /> {notice}
-          </div>
-        )}
       </div>
     </div>
   );
@@ -851,12 +976,65 @@ function EditableBlock({
 function Step5({
   draftLessons,
   setDraftLessons,
+  course,
+  classNames,
+  totalLessons,
+  credit,
 }: {
   draftLessons: DraftSection[];
   setDraftLessons: React.Dispatch<React.SetStateAction<DraftSection[] | null>>;
+  course: Course | undefined;
+  classNames: string;
+  totalLessons: number;
+  credit: number;
 }) {
-  const totalMinutes = draftLessons.reduce((sum, l) => sum + l.durationMinutes, 0);
-  const totalHours = Math.round(totalMinutes / 45);
+  const allKnowledgeNodeIds = useMemo(() => {
+    const ids = new Set<string>();
+    draftLessons.forEach((l) => l.knowledgeNodeIds.forEach((id) => ids.add(id)));
+    return ids.size;
+  }, [draftLessons]);
+
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  // Mock resources for each lesson (resource library items)
+  const mockResources = useMemo(() => [
+    { id: "res-1", name: "组合体三视图讲义", format: "PDF", source: "资源库" as const, size: "6.2 MB" },
+    { id: "res-2", name: "形体分析法课件", format: "PPTX", source: "资源库" as const, size: "18.4 MB" },
+    { id: "res-3", name: "三视图绘制微课", format: "MP4", source: "资源库" as const, size: "22 MB" },
+    { id: "res-4", name: "思维导图-组合体", format: "PNG", source: "资源库" as const, size: "1.3 MB" },
+    { id: "res-5", name: "课后作业模板", format: "PDF", source: "资源库" as const, size: "280 KB" },
+  ], []);
+
+  // Personal uploaded files per lesson
+  const [personalFiles, setPersonalFiles] = useState<Record<string, Array<{ id: string; name: string; format: string; size: string }>>>({});
+
+  const addPersonalFile = (lessonId: string) => {
+    const fakeFiles = [
+      { name: "教学补充材料.pdf", format: "PDF", size: "1.5 MB" },
+      { name: "练习题库.docx", format: "DOCX", size: "820 KB" },
+      { name: "课堂笔记模板.xlsx", format: "XLSX", size: "340 KB" },
+    ];
+    const pick = fakeFiles[Math.floor(Math.random() * fakeFiles.length)];
+    setPersonalFiles((prev) => ({
+      ...prev,
+      [lessonId]: [...(prev[lessonId] ?? []), { id: `pf-${Date.now()}`, ...pick }],
+    }));
+  };
+
+  const removePersonalFile = (lessonId: string, fileId: string) => {
+    setPersonalFiles((prev) => ({
+      ...prev,
+      [lessonId]: (prev[lessonId] ?? []).filter((f) => f.id !== fileId),
+    }));
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
 
   const moveLesson = (idx: number, delta: -1 | 1) => {
     setDraftLessons((prev) => {
@@ -913,110 +1091,258 @@ function Step5({
     });
   };
 
+  const mergeSelected = () => {
+    const selectedLessons = draftLessons.filter((l) => selectedIds.has(l.id));
+    if (selectedLessons.length < 2) return;
+    const mergedNodes = [...new Set(selectedLessons.flatMap((l) => l.knowledgeNodeIds))];
+    const firstIdx = draftLessons.findIndex((l) => l.id === selectedLessons[0].id);
+    const merged: DraftSection = {
+      id: `merged-${Date.now()}`,
+      title: selectedLessons.map((l) => l.title.replace(/第\s*\d+\s*课时\s*·\s*/u, "")).join(" + "),
+      plannedDate: selectedLessons[0].plannedDate,
+      durationMinutes: selectedLessons.reduce((s, l) => s + l.durationMinutes, 0),
+      knowledgeNodeIds: mergedNodes,
+    };
+    setDraftLessons((prev) => {
+      if (!prev) return prev;
+      const filtered = prev.filter((l) => !selectedIds.has(l.id));
+      filtered.splice(firstIdx, 0, merged);
+      return filtered;
+    });
+    setSelectedIds(new Set());
+  };
+
+  const splitSelected = () => {
+    const toSplit = draftLessons.find((l) => selectedIds.has(l.id));
+    if (!toSplit || toSplit.knowledgeNodeIds.length < 2) return;
+    const idx = draftLessons.findIndex((l) => l.id === toSplit.id);
+    const mid = Math.ceil(toSplit.knowledgeNodeIds.length / 2);
+    const partA: DraftSection = {
+      ...toSplit,
+      id: `split-a-${Date.now()}`,
+      knowledgeNodeIds: toSplit.knowledgeNodeIds.slice(0, mid),
+    };
+    const partB: DraftSection = {
+      ...toSplit,
+      id: `split-b-${Date.now()}`,
+      title: `课时 · ${toSplit.knowledgeNodeIds.slice(mid).map((n) => graphNodeById(n)?.name ?? n).join("/")}`,
+      knowledgeNodeIds: toSplit.knowledgeNodeIds.slice(mid),
+    };
+    setDraftLessons((prev) => {
+      if (!prev) return prev;
+      const arr = [...prev];
+      arr.splice(idx, 1, partA, partB);
+      return arr;
+    });
+    setSelectedIds(new Set());
+  };
+
+  const resourceCount = course ? resourcesByCourse(course.id).length : 0;
+
   return (
     <div className="space-y-3">
-      <div className="bg-white rounded-xl border border-slate-200 p-4 flex items-center gap-6 flex-wrap">
-        <Stat icon={<Clock size={14} />} label="课时数" value={`${draftLessons.length}`} />
-        <Stat icon={<Clock size={14} />} label="学时(约)" value={`${totalHours}`} />
-        <Stat
-          icon={<Sparkles size={14} />}
-          label="AI 调整说明"
-          value={`${draftLessons.filter((s) => !!s.aiAdjustment).length}`}
-        />
-        <div className="flex-1" />
-        <AiBadge>可按课时排序，检视图谱挂载</AiBadge>
+      {/* 总览栏 */}
+      <div className="bg-white rounded-xl border border-slate-200 p-4">
+        <div className="text-slate-900 font-medium mb-3">教学计划总览</div>
+        <div className="grid grid-cols-3 gap-3">
+          <div className="rounded-lg bg-slate-50 px-3 py-2">
+            <div className="text-slate-400 text-[0.6875rem]">课程</div>
+            <div className="text-slate-800">{course ? `《${course.name}》` : "—"}</div>
+          </div>
+          <div className="rounded-lg bg-slate-50 px-3 py-2">
+            <div className="text-slate-400 text-[0.6875rem]">授课班级</div>
+            <div className="text-slate-800">{classNames || "未选择"}</div>
+          </div>
+          <div className="rounded-lg bg-slate-50 px-3 py-2">
+            <div className="text-slate-400 text-[0.6875rem]">课时数</div>
+            <div className="text-slate-800">{totalLessons || draftLessons.length}</div>
+          </div>
+          <div className="rounded-lg bg-slate-50 px-3 py-2">
+            <div className="text-slate-400 text-[0.6875rem]">学分</div>
+            <div className="text-slate-800">{credit}</div>
+          </div>
+          <div className="rounded-lg bg-slate-50 px-3 py-2">
+            <div className="text-slate-400 text-[0.6875rem]">知识点数量</div>
+            <div className="text-slate-800">{course?.knowledgeNodeIds.length ?? 0} 个</div>
+          </div>
+          <div className="rounded-lg bg-slate-50 px-3 py-2">
+            <div className="text-slate-400 text-[0.6875rem]">挂载资源数量</div>
+            <div className="text-slate-800">{resourceCount} 个</div>
+          </div>
+        </div>
       </div>
 
-      <div className="space-y-2">
-        {draftLessons.map((sec, idx) => (
-          <div
-            key={sec.id}
-            className="bg-white rounded-xl border border-slate-200 p-4 hover:border-indigo-200 transition"
+      {/* 合并/拆分操作栏 */}
+      {selectedIds.size > 0 && (
+        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-indigo-50 border border-indigo-100">
+          <span className="text-indigo-700 text-[0.8125rem]">已选择 {selectedIds.size} 个课时</span>
+          {selectedIds.size >= 2 && (
+            <button
+              type="button"
+              onClick={mergeSelected}
+              className="px-3 py-1 rounded-md bg-indigo-600 text-white text-[0.8125rem] hover:bg-indigo-700"
+            >
+              合并为一个课时
+            </button>
+          )}
+          {selectedIds.size === 1 && (
+            <button
+              type="button"
+              onClick={splitSelected}
+              className="px-3 py-1 rounded-md bg-indigo-600 text-white text-[0.8125rem] hover:bg-indigo-700"
+            >
+              拆分
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => setSelectedIds(new Set())}
+            className="px-3 py-1 rounded-md border border-slate-200 text-slate-600 text-[0.8125rem] hover:bg-slate-50"
           >
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-[0.6875rem] font-semibold text-indigo-600 whitespace-nowrap">
-                第 {idx + 1} 课时
-              </span>
-              <input
-                value={sec.title}
-                onChange={(e) => updateLesson(idx, { title: e.target.value })}
-                className="flex-1 min-w-[12rem] border border-transparent hover:border-slate-200 focus:border-indigo-300 rounded-md px-2 py-1 text-slate-900 outline-none"
-              />
-              <input
-                type="date"
-                value={sec.plannedDate}
-                onChange={(e) => updateLesson(idx, { plannedDate: e.target.value })}
-                className="border border-slate-200 rounded-md px-2 py-1 text-slate-700"
-              />
-              <div className="flex items-center gap-1 border border-slate-200 rounded-md px-2 py-1">
-                <input
-                  type="number"
-                  value={sec.durationMinutes}
-                  onChange={(e) =>
-                    updateLesson(idx, { durationMinutes: Number(e.target.value) || 0 })
-                  }
-                  className="w-14 text-right outline-none text-slate-700"
-                />
-                <span className="text-slate-400">min</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => moveLesson(idx, -1)}
-                disabled={idx === 0}
-                className="size-7 rounded-md hover:bg-slate-100 disabled:opacity-30 text-slate-500 flex items-center justify-center"
-                title="上移"
-              >
-                <ArrowUp size={14} />
-              </button>
-              <button
-                type="button"
-                onClick={() => moveLesson(idx, 1)}
-                disabled={idx === draftLessons.length - 1}
-                className="size-7 rounded-md hover:bg-slate-100 disabled:opacity-30 text-slate-500 flex items-center justify-center"
-                title="下移"
-              >
-                <ArrowDown size={14} />
-              </button>
-              <button
-                type="button"
-                onClick={() => deleteLesson(idx)}
-                className="size-7 rounded-md hover:bg-rose-50 text-rose-500 flex items-center justify-center"
-                title="删除本课时"
-              >
-                <Trash2 size={14} />
-              </button>
-            </div>
+            取消选择
+          </button>
+        </div>
+      )}
 
-            <div className="mt-3">
-              <div className="text-[0.6875rem] text-slate-500 mb-1">图谱挂载（本节关联节点）</div>
-              {sec.knowledgeNodeIds.length ? (
-                <div className="flex flex-wrap gap-1.5">
-                  {sec.knowledgeNodeIds.map((nid) => {
-                    const gn = graphNodeById(nid);
-                    return (
-                      <span
-                        key={`${sec.id}-${nid}`}
-                        title={nid}
-                        className="text-[0.6875rem] px-2 py-0.5 rounded-md border border-slate-200 bg-slate-50 text-slate-700 max-w-[14rem] truncate"
+      <div className="space-y-2">
+        {draftLessons.map((sec, idx) => {
+          const isSelected = selectedIds.has(sec.id);
+          const lessonFiles = personalFiles[sec.id] ?? [];
+          return (
+            <div
+              key={sec.id}
+              className={`bg-white rounded-xl border p-4 hover:border-indigo-200 transition ${
+                isSelected ? "border-indigo-400 ring-1 ring-indigo-100" : "border-slate-200"
+              }`}
+            >
+              <div className="flex items-center gap-2 flex-wrap">
+                <input
+                  type="checkbox"
+                  checked={isSelected}
+                  onChange={() => toggleSelect(sec.id)}
+                  className="accent-indigo-600"
+                />
+                <span className="text-[0.6875rem] font-semibold text-indigo-600 whitespace-nowrap">
+                  第 {idx + 1} 课时
+                </span>
+                <input
+                  value={sec.title}
+                  onChange={(e) => updateLesson(idx, { title: e.target.value })}
+                  className="flex-1 min-w-[12rem] border border-transparent hover:border-slate-200 focus:border-indigo-300 rounded-md px-2 py-1 text-slate-900 outline-none"
+                />
+                <input
+                  type="date"
+                  value={sec.plannedDate}
+                  onChange={(e) => updateLesson(idx, { plannedDate: e.target.value })}
+                  className="border border-slate-200 rounded-md px-2 py-1 text-slate-700"
+                />
+                <button
+                  type="button"
+                  onClick={() => moveLesson(idx, -1)}
+                  disabled={idx === 0}
+                  className="size-7 rounded-md hover:bg-slate-100 disabled:opacity-30 text-slate-500 flex items-center justify-center"
+                  title="上移"
+                >
+                  <ArrowUp size={14} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => moveLesson(idx, 1)}
+                  disabled={idx === draftLessons.length - 1}
+                  className="size-7 rounded-md hover:bg-slate-100 disabled:opacity-30 text-slate-500 flex items-center justify-center"
+                  title="下移"
+                >
+                  <ArrowDown size={14} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => deleteLesson(idx)}
+                  className="size-7 rounded-md hover:bg-rose-50 text-rose-500 flex items-center justify-center"
+                  title="删除本课时"
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
+
+              {/* 知识点 */}
+              <div className="mt-3">
+                <div className="text-[0.6875rem] text-slate-500 mb-1">关联知识点</div>
+                {sec.knowledgeNodeIds.length ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {sec.knowledgeNodeIds.map((nid) => {
+                      const gn = graphNodeById(nid);
+                      return (
+                        <span
+                          key={`${sec.id}-${nid}`}
+                          className="group relative text-[0.6875rem] px-2 py-0.5 rounded-md border border-slate-200 bg-slate-50 text-slate-700 max-w-[14rem] truncate flex items-center gap-1"
+                        >
+                          {gn?.name ?? nid}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              updateLesson(idx, {
+                                knowledgeNodeIds: sec.knowledgeNodeIds.filter((id) => id !== nid),
+                              });
+                            }}
+                            className="text-slate-400 hover:text-rose-500 opacity-0 group-hover:opacity-100 text-[0.625rem]"
+                          >
+                            ×
+                          </button>
+                        </span>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="text-[0.8125rem] text-slate-400">暂未关联知识点</div>
+                )}
+              </div>
+
+              {/* 挂载资源 */}
+              <div className="mt-2">
+                <div className="text-[0.6875rem] text-slate-500 mb-1">挂载资源</div>
+                <div className="space-y-1">
+                  {mockResources.map((r) => (
+                    <div key={r.id} className="flex items-center gap-2 text-[0.6875rem] px-2 py-1 rounded-md bg-emerald-50/60">
+                      <span className="text-slate-700 truncate flex-1">{r.name}</span>
+                      <span className="px-1 py-px rounded bg-blue-50 text-blue-600 text-[9px] border border-blue-100">{r.format}</span>
+                      <span className="text-slate-400 text-[10px]">{r.size}</span>
+                      <span className="px-1 py-px rounded bg-violet-50 text-violet-600 text-[9px] border border-violet-100">{r.source}</span>
+                    </div>
+                  ))}
+                  {lessonFiles.map((f) => (
+                    <div key={f.id} className="flex items-center gap-2 text-[0.6875rem] px-2 py-1 rounded-md bg-slate-50">
+                      <span className="text-slate-700 truncate flex-1">{f.name}</span>
+                      <span className="px-1 py-px rounded bg-blue-50 text-blue-600 text-[9px] border border-blue-100">{f.format}</span>
+                      <span className="text-slate-400 text-[10px]">{f.size}</span>
+                      <span className="px-1 py-px rounded bg-emerald-50 text-emerald-600 text-[9px] border border-emerald-100">个人上传</span>
+                      <button
+                        type="button"
+                        onClick={() => removePersonalFile(sec.id, f.id)}
+                        className="text-rose-500 hover:text-rose-700 text-[10px]"
                       >
-                        {gn?.name ?? nid}
-                      </span>
-                    );
-                  })}
+                        删除
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => addPersonalFile(sec.id)}
+                    className="flex items-center gap-1 text-indigo-600 text-[0.6875rem] hover:underline mt-1"
+                  >
+                    <Plus size={10} /> 上传个人文件
+                  </button>
                 </div>
-              ) : (
-                <div className="text-[0.8125rem] text-slate-400">暂未挂载图谱节点</div>
+              </div>
+
+              {sec.aiAdjustment && (
+                <div className="mt-2 flex items-start gap-2">
+                  <AiBadge>AI 调整</AiBadge>
+                  <span className="text-slate-600 leading-relaxed">{sec.aiAdjustment}</span>
+                </div>
               )}
             </div>
-
-            {sec.aiAdjustment && (
-              <div className="mt-2 flex items-start gap-2">
-                <AiBadge>AI 调整</AiBadge>
-                <span className="text-slate-600 leading-relaxed">{sec.aiAdjustment}</span>
-              </div>
-            )}
-          </div>
-        ))}
+          );
+        })}
         <button
           type="button"
           onClick={addLesson}

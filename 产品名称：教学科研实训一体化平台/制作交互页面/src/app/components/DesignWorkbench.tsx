@@ -23,15 +23,32 @@ import { teachingPlans } from "@mock";
 import type {
   ChatMessage,
   DesignOutput,
+  DesignOutputV2,
   DesignTab,
   TeachingDesign,
+  TeachingDesignV2,
+  TeachingPlanV2,
+  PlanLesson,
 } from "@mock";
 import {
-  personaById,
   classById,
   designsForWorkbenchSection,
+  designsForLessonV2,
+  planV2ById,
+  lessonV2ById,
 } from "../data/lookups";
 import { PageHeader, AiBadge } from "./Layout";
+
+/** V2 output type quick-create config */
+const OUTPUT_TYPES_V2 = [
+  { type: "lecture_note", label: "讲义", icon: <FileText size={14} /> },
+  { type: "audio", label: "音频讲解", icon: <Headphones size={14} /> },
+  { type: "ppt", label: "课件PPT", icon: <Presentation size={14} /> },
+  { type: "mindmap", label: "思维导图", icon: <Brain size={14} /> },
+  { type: "micro_video", label: "微课视频", icon: <Film size={14} /> },
+  { type: "lesson_plan", label: "教案", icon: <ListChecks size={14} /> },
+  { type: "homework", label: "作业题", icon: <PenSquare size={14} /> },
+] as const;
 
 type TabKey = DesignTab;
 type BusinessTabKey = Exclude<TabKey, "AI融合">;
@@ -300,6 +317,7 @@ interface LocalMessage extends ChatMessage {
 export function DesignWorkbench({
   planId,
   sectionId,
+  lessonId,
   onBack,
   onOpenDemoSection,
   /** true 时使用学情专用假数据（仅部分小节有独立剧本） */
@@ -307,11 +325,28 @@ export function DesignWorkbench({
 }: {
   planId: string;
   sectionId: string;
+  /** v2.0: 课时 ID */
+  lessonId?: string;
   onBack: () => void;
   /** 假跳转：进入带完整假数据的焦点小节教学设计 */
   onOpenDemoSection?: () => void;
   learningAdjust?: boolean;
 }) {
+  // --- V2 data path ---
+  const planV2 = planV2ById(planId);
+  const lessonV2 = lessonId ? lessonV2ById(planId, lessonId) : undefined;
+  const designV2: TeachingDesignV2 | undefined = useMemo(
+    () => (lessonId ? designsForLessonV2(planId, lessonId, undefined, learningAdjust) : undefined),
+    [planId, lessonId, learningAdjust],
+  );
+  const isV2 = Boolean(lessonId && planV2 && lessonV2);
+
+  // V2 state: AI化 / 思政化 toggle + class switching
+  const [aiFlag, setAiFlag] = useState(designV2?.aiFlag ?? true);
+  const [politicsFlag, setPoliticsFlag] = useState(designV2?.politicsFlag ?? false);
+  const [activeClassId, setActiveClassId] = useState<string>(designV2?.classId ?? "");
+
+  // --- V1 data path (fallback) ---
   const plan = teachingPlans.find((p) => p.id === planId);
   const section = useMemo(() => {
     if (!plan) return undefined;
@@ -345,8 +380,15 @@ export function DesignWorkbench({
   >({});
   const [input, setInput] = useState("");
 
+  // V2 header title uses lesson context
+  const v2HeaderTitle = useMemo(() => {
+    if (!planV2 || !lessonV2) return "教学设计工作台";
+    const kn = lessonV2.knowledgePointNames[0] ?? "...";
+    return `第${lessonV2.lessonNo}课时 · ${kn}`;
+  }, [planV2, lessonV2]);
+
   const classNames = plan?.classIds.map((cid) => classById(cid)?.name ?? cid).join("+") ?? "";
-  const headerTitle = section ? `${classNames} · ${section.title}` : "教学设计工作台";
+  const headerTitle = isV2 ? v2HeaderTitle : (section ? `${classNames} · ${section.title}` : "教学设计工作台");
 
   const send = () => {
     if (!input.trim() || !currentDesign) return;
@@ -469,6 +511,16 @@ export function DesignWorkbench({
     });
   };
 
+  // Mock class tabs for V2
+  const v2ClassTabs = useMemo(() => {
+    if (!isV2) return [];
+    return [
+      { id: "cls-mech-2301", name: "机制2301" },
+      { id: "cls-mech-2302", name: "机制2302" },
+      { id: "cls-mech-2303", name: "机制2303" },
+    ];
+  }, [isV2]);
+
   return (
     <div className="flex flex-col h-full text-[13px]">
       <PageHeader
@@ -476,30 +528,474 @@ export function DesignWorkbench({
         title={<span className="text-[14px]">{headerTitle}</span>}
       />
 
-      <DesignBody
-        key={`${planId}-${sectionId}-${currentDesign?.id ?? "none"}`}
-        designsInSection={designs}
-        chatDesign={currentDesign}
-        sectionTitle={section?.title}
-        onOpenDemoSection={onOpenDemoSection}
-        extra={currentDesign ? (extraMsgs[currentDesign.id] ?? []) : []}
-        input={input}
-        onChange={setInput}
-        onSend={send}
-        acceptanceNotices={acceptanceNotices}
-        onDismissAcceptanceNotice={dismissAcceptanceNotice}
-        onAcceptFusionOutput={acceptFusionOutput}
-        learningAdjustSimulateInitialReply={learningAdjust}
-        fusionEnabled={fusionEnabled}
-        ideologyFusionEnabled={ideologyFusionEnabled}
-        onFusionEnabledChange={setFusionEnabledForWorkbench}
-        onIdeologyFusionEnabledChange={setIdeologyFusionEnabledForWorkbench}
-        fusionConfirmed={fusionConfirmed}
-        pendingFusionId={pendingFusion?.id}
-        pendingFusionKind={pendingFusion?.kind}
-        chatCleared={Boolean(currentDesign && chatClearedByDesign[currentDesign?.id ?? ""])}
-        onConfirmFusion={confirmFusionForWorkbench}
-      />
+      {/* V2 class switching tabs */}
+      {isV2 && v2ClassTabs.length > 0 && (
+        <div className="shrink-0 flex items-center gap-1 px-4 py-1.5 border-b border-slate-200 bg-white">
+          {v2ClassTabs.map((cls) => (
+            <button
+              key={cls.id}
+              type="button"
+              onClick={() => setActiveClassId(cls.id)}
+              className={`px-3 py-1 rounded-md text-[12px] font-medium transition ${
+                activeClassId === cls.id
+                  ? "bg-indigo-600 text-white"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+              }`}
+            >
+              {cls.name}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {isV2 && designV2 ? (
+        <DesignBodyV2
+          key={`${planId}-${lessonId}-${activeClassId}`}
+          designV2={designV2}
+          planV2={planV2!}
+          lessonV2={lessonV2!}
+          aiFlag={aiFlag}
+          politicsFlag={politicsFlag}
+          onAiFlagChange={setAiFlag}
+          onPoliticsFlagChange={setPoliticsFlag}
+          activeClassId={activeClassId}
+          onOpenDemoSection={onOpenDemoSection}
+          input={input}
+          onChange={setInput}
+        />
+      ) : (
+        <DesignBody
+          key={`${planId}-${sectionId}-${currentDesign?.id ?? "none"}`}
+          designsInSection={designs}
+          chatDesign={currentDesign}
+          sectionTitle={section?.title}
+          onOpenDemoSection={onOpenDemoSection}
+          extra={currentDesign ? (extraMsgs[currentDesign.id] ?? []) : []}
+          input={input}
+          onChange={setInput}
+          onSend={send}
+          acceptanceNotices={acceptanceNotices}
+          onDismissAcceptanceNotice={dismissAcceptanceNotice}
+          onAcceptFusionOutput={acceptFusionOutput}
+          learningAdjustSimulateInitialReply={learningAdjust}
+          fusionEnabled={fusionEnabled}
+          ideologyFusionEnabled={ideologyFusionEnabled}
+          onFusionEnabledChange={setFusionEnabledForWorkbench}
+          onIdeologyFusionEnabledChange={setIdeologyFusionEnabledForWorkbench}
+          fusionConfirmed={fusionConfirmed}
+          pendingFusionId={pendingFusion?.id}
+          pendingFusionKind={pendingFusion?.kind}
+          chatCleared={Boolean(currentDesign && chatClearedByDesign[currentDesign?.id ?? ""])}
+          onConfirmFusion={confirmFusionForWorkbench}
+        />
+      )}
+    </div>
+  );
+}
+
+/** V2 workbench body: simplified Agent chat + AI化/思政化 switches in left panel + unified output panel */
+function DesignBodyV2({
+  designV2,
+  planV2,
+  lessonV2,
+  aiFlag,
+  politicsFlag,
+  onAiFlagChange,
+  onPoliticsFlagChange,
+  activeClassId,
+  onOpenDemoSection,
+  input,
+  onChange,
+}: {
+  designV2: TeachingDesignV2;
+  planV2: TeachingPlanV2;
+  lessonV2: PlanLesson;
+  aiFlag: boolean;
+  politicsFlag: boolean;
+  onAiFlagChange: (v: boolean) => void;
+  onPoliticsFlagChange: (v: boolean) => void;
+  activeClassId: string;
+  onOpenDemoSection?: () => void;
+  input: string;
+  onChange: (v: string) => void;
+}) {
+  const messages = designV2.chatHistory;
+  const [localMsgs, setLocalMsgs] = useState<LocalMessage[]>([]);
+  const allMessages = useMemo(() => [...messages, ...localMsgs], [messages, localMsgs]);
+
+  // Uploaded mock files and selection state
+  const [uploadedFiles, setUploadedFiles] = useState<Array<{ id: string; name: string; format: string; source: string; size: string }>>([]);
+  const [selectedFileIds, setSelectedFileIds] = useState<Set<string>>(new Set());
+
+  const allFiles = useMemo(() => {
+    const base = designV2.knowledgeFiles.map((f) => {
+      const ext = f.name.split(".").pop()?.toLowerCase() ?? "";
+      const typeLabel = ext === "pdf" ? "PDF" : ext === "docx" || ext === "doc" ? "Word" : ext === "xlsx" || ext === "xls" ? "Excel" : ext === "png" || ext === "jpg" ? "图片" : ext === "pptx" || ext === "ppt" ? "PPT" : ext === "mp4" ? "MP4" : "其他";
+      const sourceTag = f.source === "knowledge_base" || f.source === "resource_library" ? "资源库" : "个人上传";
+      return { id: f.refId, name: f.name, format: typeLabel, source: sourceTag, sourceRaw: f.source, size: "" };
+    });
+    return [...base, ...uploadedFiles];
+  }, [designV2.knowledgeFiles, uploadedFiles]);
+
+  const allFileIds = useMemo(() => allFiles.map((f) => f.id), [allFiles]);
+  const isAllSelected = allFileIds.length > 0 && allFileIds.every((id) => selectedFileIds.has(id));
+
+  const toggleFile = (id: string) => {
+    setSelectedFileIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleAllFiles = () => {
+    if (isAllSelected) {
+      setSelectedFileIds(new Set());
+    } else {
+      setSelectedFileIds(new Set(allFileIds));
+    }
+  };
+
+  const addMockUpload = () => {
+    const fakeFiles = [
+      { name: "教学补充材料.pdf", format: "PDF", size: "1.5 MB" },
+      { name: "练习题库.docx", format: "Word", size: "820 KB" },
+      { name: "课堂笔记模板.xlsx", format: "Excel", size: "340 KB" },
+      { name: "三维建模演示.mp4", format: "MP4", size: "15.6 MB" },
+    ];
+    const pick = fakeFiles[Math.floor(Math.random() * fakeFiles.length)];
+    const newFile = { id: `upload-${Date.now()}`, name: pick.name, format: pick.format, source: "个人上传", size: pick.size };
+    setUploadedFiles((prev) => [...prev, newFile]);
+  };
+
+  // Mock output generation
+  const [generatedOutputs, setGeneratedOutputs] = useState<DesignOutputV2[]>([]);
+
+  const generateFromSelected = (type: string) => {
+    if (selectedFileIds.size === 0) return;
+    const typeInfo = OUTPUT_TYPES_V2.find((t) => t.type === type);
+    if (!typeInfo) return;
+    const newOutput: DesignOutputV2 = {
+      id: `gen-${Date.now()}`,
+      type: type as any,
+      title: `基于 ${selectedFileIds.size} 个资源生成的${typeInfo.label}`,
+      sizeLabel: `${(Math.random() * 10 + 1).toFixed(1)} MB`,
+      createdAt: new Date().toISOString(),
+      summary: `已基于勾选的 ${selectedFileIds.size} 个资源文件自动生成${typeInfo.label}，包含完整的教学内容与结构。`,
+    };
+    setGeneratedOutputs((prev) => [newOutput, ...prev]);
+  };
+
+  const allOutputs = useMemo(() => [...generatedOutputs, ...designV2.outputs], [generatedOutputs, designV2.outputs]);
+
+  const send = () => {
+    if (!input.trim()) return;
+    const now = new Date().toISOString();
+    const userMsg: LocalMessage = {
+      id: `local-${Date.now()}`,
+      role: "user",
+      content: input,
+      createdAt: now,
+    };
+    const modeHint = aiFlag ? "（AI化模式）" : politicsFlag ? "（思政化模式）" : "";
+    const aiMsg: LocalMessage = {
+      id: `local-${Date.now() + 1}`,
+      role: "assistant",
+      content: `${modeHint}已根据你的要求「${input.trim()}」生成对应内容，右栏产出物将同步更新。`,
+      createdAt: now,
+      pending: true,
+    };
+    setLocalMsgs((prev) => [...prev, userMsg, aiMsg]);
+    onChange("");
+  };
+
+  // Map V2 output type to icon
+  const iconForV2Output = (type: string) => {
+    const entry = OUTPUT_TYPES_V2.find((t) => t.type === type);
+    return entry ? entry.icon : <FileText size={14} />;
+  };
+
+  return (
+    <div className="flex-1 grid grid-cols-12 min-h-0 text-[12px]">
+      {/* Left panel: knowledge files + AI化/思政化 switches */}
+      <aside className="col-span-2 border-r border-slate-200 bg-white overflow-auto p-3 space-y-4">
+        <Section icon={Folder} title={`本节资源（${allFiles.length}）`}>
+          {allFiles.length > 0 && (
+            <label className="flex items-center gap-1.5 px-1.5 py-0.5 text-[11px] text-indigo-600 cursor-pointer hover:underline select-none">
+              <input
+                type="checkbox"
+                checked={isAllSelected}
+                onChange={toggleAllFiles}
+                className="accent-indigo-600"
+              />
+              {isAllSelected ? "取消全选" : "全选"}
+            </label>
+          )}
+          {allFiles.map((f) => {
+            const checked = selectedFileIds.has(f.id);
+            const mockSizes = ["6.2 MB", "18.4 MB", "22 MB", "1.3 MB", "280 KB"];
+            const mockSize = f.size || mockSizes[allFiles.indexOf(f) % mockSizes.length];
+            return (
+              <div key={f.id} className={`px-1.5 py-1 rounded text-slate-700 ${checked ? "bg-indigo-50/60" : "hover:bg-slate-50"}`}>
+                <div className="flex items-center gap-1.5 text-[11.5px]">
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={() => toggleFile(f.id)}
+                    className="accent-indigo-600 shrink-0"
+                  />
+                  <span className="truncate flex-1">{f.name}</span>
+                </div>
+                <div className="flex items-center gap-1 mt-0.5 ml-5">
+                  <span className="px-1 py-px rounded bg-blue-50 text-blue-600 text-[9px] border border-blue-100">{f.format}</span>
+                  <span className={`px-1 py-px rounded text-[9px] border ${
+                    f.source === "资源库"
+                      ? "bg-violet-50 text-violet-600 border-violet-100"
+                      : "bg-emerald-50 text-emerald-600 border-emerald-100"
+                  }`}>{f.source}</span>
+                  <span className="text-slate-400 text-[9px]">{mockSize}</span>
+                </div>
+              </div>
+            );
+          })}
+          {allFiles.length === 0 && (
+            <div className="text-slate-400 text-[11px]">未添加</div>
+          )}
+          <button
+            type="button"
+            onClick={addMockUpload}
+            className="w-full mt-1 px-2 py-1 rounded border border-dashed border-slate-300 text-slate-500 hover:border-indigo-400 hover:text-indigo-600 text-[11px] flex items-center justify-center gap-1"
+          >
+            <Paperclip size={11} /> 上传文件
+          </button>
+        </Section>
+
+        {/* AI化 toggle */}
+        <div
+          className={`rounded-xl border px-2.5 py-2 transition ${
+            aiFlag ? "border-violet-200 bg-violet-50/70" : "border-slate-200 bg-slate-50/60"
+          }`}
+        >
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 text-[12px] font-medium text-slate-900">
+                <Sparkles size={13} className={aiFlag ? "text-violet-600" : "text-slate-400"} />
+                AI化
+              </div>
+            </div>
+            <button
+              type="button"
+              aria-pressed={aiFlag}
+              onClick={() => onAiFlagChange(!aiFlag)}
+              className={`relative h-5 w-9 shrink-0 rounded-full transition ${
+                aiFlag ? "bg-violet-600" : "bg-slate-300"
+              }`}
+            >
+              <span
+                className={`absolute top-0.5 size-4 rounded-full bg-white shadow transition ${
+                  aiFlag ? "left-4" : "left-0.5"
+                }`}
+              />
+            </button>
+          </div>
+        </div>
+
+        {/* 思政化 toggle */}
+        <div
+          className={`rounded-xl border px-2.5 py-2 transition ${
+            politicsFlag ? "border-rose-200 bg-rose-50/70" : "border-slate-200 bg-slate-50/60"
+          }`}
+        >
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5 text-[12px] font-medium text-slate-900">
+                <Landmark size={13} className={politicsFlag ? "text-rose-600" : "text-slate-400"} />
+                思政化
+              </div>
+            </div>
+            <button
+              type="button"
+              aria-pressed={politicsFlag}
+              onClick={() => onPoliticsFlagChange(!politicsFlag)}
+              className={`relative h-5 w-9 shrink-0 rounded-full transition ${
+                politicsFlag ? "bg-rose-600" : "bg-slate-300"
+              }`}
+            >
+              <span
+                className={`absolute top-0.5 size-4 rounded-full bg-white shadow transition ${
+                  politicsFlag ? "left-4" : "left-0.5"
+                }`}
+              />
+            </button>
+          </div>
+        </div>
+
+        {/* Lesson info */}
+        <Section icon={Activity} title="课时信息">
+          <div className="text-slate-600 text-[11px] space-y-0.5">
+            <div>课时编号：第{lessonV2.lessonNo}课时</div>
+            <div>时长：{lessonV2.durationMinutes}分钟</div>
+          </div>
+        </Section>
+
+        {/* Teaching objectives */}
+        <Section icon={ListChecks} title="本节课时教学目标">
+          <ul className="list-disc list-inside text-slate-600 text-[11px] space-y-0.5">
+            {lessonV2.objectives.length > 0 ? lessonV2.objectives.map((obj, i) => (
+              <li key={i}>{obj}</li>
+            )) : (
+              <li className="text-slate-400">掌握本节核心知识点并能灵活应用</li>
+            )}
+          </ul>
+        </Section>
+
+        {/* Knowledge points to master */}
+        <Section icon={Brain} title="需掌握知识点">
+          <div className="flex flex-wrap gap-1">
+            {lessonV2.knowledgePointNames.length > 0 ? lessonV2.knowledgePointNames.map((name) => (
+              <span key={name} className="px-1.5 py-0.5 rounded-md bg-indigo-50 text-indigo-700 text-[10px]">{name}</span>
+            )) : (
+              <span className="text-slate-400 text-[11px]">暂无</span>
+            )}
+          </div>
+        </Section>
+      </aside>
+
+      {/* Center panel: unified Agent chat */}
+      <div className="col-span-7 flex flex-col bg-slate-50 min-h-0">
+        <div className="flex-1 overflow-auto p-5 space-y-3">
+          {allMessages.map((m) => (
+            <div
+              key={m.id}
+              className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}
+            >
+              <div
+                className={`max-w-[72%] px-3.5 py-2.5 rounded-2xl text-[12.5px] ${
+                  m.role === "user"
+                    ? "bg-indigo-600 text-white rounded-br-sm"
+                    : "bg-white border border-slate-200 rounded-bl-sm text-slate-800"
+                }`}
+              >
+                {m.role === "assistant" && (
+                  <div className="mb-1">
+                    <AiBadge>AI 助手</AiBadge>
+                    {aiFlag && (
+                      <span className="ml-1.5 text-[0.625rem] px-1 py-px rounded bg-violet-100 text-violet-700 border border-violet-200">
+                        AI化
+                      </span>
+                    )}
+                    {politicsFlag && (
+                      <span className="ml-1.5 text-[0.625rem] px-1 py-px rounded bg-rose-100 text-rose-700 border border-rose-200">
+                        思政化
+                      </span>
+                    )}
+                  </div>
+                )}
+                <p className="leading-relaxed whitespace-pre-line">{m.content}</p>
+              </div>
+            </div>
+          ))}
+          {allMessages.length === 0 && (
+            <div className="text-center text-slate-400 py-10 text-[12px]">
+              暂无对话记录，可在下方输入需求让 AI 生成初稿。
+            </div>
+          )}
+        </div>
+        <div className="border-t border-slate-200 bg-white p-3">
+          <div className="flex items-end gap-2 bg-slate-50 border border-slate-200 rounded-xl p-1.5">
+            <button className="text-slate-500 hover:text-slate-800 p-1.5">
+              <Paperclip size={14} />
+            </button>
+            <textarea
+              value={input}
+              onChange={(e) => onChange(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) send();
+              }}
+              placeholder="描述你想生成的内容，Cmd+Enter 发送…"
+              className="flex-1 bg-transparent outline-none resize-none py-1.5 min-h-[36px] max-h-28 text-[12.5px]"
+            />
+            <button
+              onClick={send}
+              className="flex items-center gap-1 bg-indigo-600 text-white px-3 py-1.5 rounded-lg hover:bg-indigo-700 text-[12.5px]"
+            >
+              <Send size={12} /> 发送
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Right panel: unified outputs with 7 quick-create buttons */}
+      <aside className="col-span-3 border-l border-slate-200 bg-white overflow-auto flex flex-col min-h-0 p-3">
+        {selectedFileIds.size > 0 && (
+          <div className="mb-2 px-2.5 py-1.5 rounded-lg bg-indigo-50 border border-indigo-100 text-[11px] text-indigo-700">
+            已选 {selectedFileIds.size} 个资源，点击下方按钮生成对应产出物
+          </div>
+        )}
+        <div className="mb-2 text-[10.5px] font-medium text-slate-500 uppercase tracking-wide">
+          快速创建产出物
+        </div>
+        <div className="grid grid-cols-3 gap-1.5 mb-2.5">
+          {OUTPUT_TYPES_V2.map((t) => (
+            <button
+              key={t.type}
+              type="button"
+              onClick={() => generateFromSelected(t.type)}
+              className={`flex flex-col items-center gap-1 px-1.5 py-2 rounded-lg border transition ${
+                selectedFileIds.size > 0
+                  ? "border-indigo-300 bg-indigo-50/40 hover:bg-indigo-100/50 cursor-pointer"
+                  : "border-slate-200 hover:border-indigo-200"
+              }`}
+            >
+              <span className="size-7 rounded-md flex items-center justify-center bg-indigo-50 text-indigo-600">
+                {t.icon}
+              </span>
+              <span className="text-slate-700 text-[11px] leading-tight text-center">{t.label}</span>
+            </button>
+          ))}
+        </div>
+
+        <div className="h-px bg-slate-100 my-2.5 shrink-0" />
+
+        <div className="text-[10.5px] font-medium text-slate-500 uppercase tracking-wide mb-1.5">
+          产出物（{allOutputs.length}）
+        </div>
+        <div className="space-y-2 min-h-0 flex-1 overflow-auto">
+          {allOutputs.map((o) => (
+            <div
+              key={o.id}
+              className="border border-slate-200 rounded-lg p-2.5 hover:border-indigo-300 transition"
+            >
+              <div className="flex items-center gap-2">
+                <div className="size-8 rounded-md bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                  {iconForV2Output(o.type)}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="truncate text-slate-900 text-[12.5px]">{o.title}</div>
+                  <div className="text-slate-500 text-[11px]">
+                    {[OUTPUT_TYPES_V2.find((t) => t.type === o.type)?.label ?? o.type, o.sizeLabel, o.durationLabel].filter(Boolean).join(" · ")}
+                  </div>
+                </div>
+              </div>
+              <div className="text-slate-500 mt-1 line-clamp-2 text-[11.5px]">{o.summary}</div>
+              <div className="flex gap-1 mt-1.5">
+                <button className="flex-1 py-0.5 rounded-md border border-slate-200 text-[11.5px] hover:bg-slate-50">
+                  预览
+                </button>
+                <button className="flex-1 py-0.5 rounded-md border border-indigo-200 bg-indigo-50 text-indigo-700 text-[11.5px] hover:bg-indigo-100">
+                  下载
+                </button>
+                <button className="flex-1 py-0.5 rounded-md border border-indigo-200 bg-indigo-50 text-indigo-700 text-[11.5px] hover:bg-indigo-100">
+                  发布
+                </button>
+              </div>
+            </div>
+          ))}
+          {allOutputs.length === 0 && (
+            <div className="text-slate-400 text-[11px] py-1 pl-0.5">暂无产出物</div>
+          )}
+        </div>
+      </aside>
     </div>
   );
 }
@@ -553,7 +1049,6 @@ function DesignBody({
   onConfirmFusion: (confirmId: string) => void;
 }) {
   const design = chatDesign;
-  const persona = design ? personaById(design.personaId) : undefined;
   const handoutDesign = useMemo(
     () => designsInSection.find((x) => x.tab === CHAT_CONTEXT_TAB),
     [designsInSection],
@@ -674,22 +1169,36 @@ function DesignBody({
           </div>
         ) : (
           <>
-            <Section icon={User} title="人设">
-              <div className="px-2 py-1.5 rounded-md bg-indigo-50 text-indigo-800">
-                {persona?.name ?? "—"} ✓
-              </div>
-              {persona?.description && (
-                <div className="text-slate-500 mt-1 line-clamp-3 text-[11px]">{persona.description}</div>
-              )}
-              <button className="text-indigo-600 mt-1 text-[11px]">切换 →</button>
-            </Section>
-            <Section icon={Folder} title={`知识文件（${design.knowledgeFiles.length}）`}>
-              {design.knowledgeFiles.map((f) => (
-                <FileRow key={f.refId} name={f.name} sourceLabel={fileSourceLabel(f.source)} />
-              ))}
+            <Section icon={Folder} title={`本节资源（${design.knowledgeFiles.length}）`}>
+              {design.knowledgeFiles.map((f, idx) => {
+                const ext = f.name.split(".").pop()?.toLowerCase() ?? "";
+                const typeLabel = ext === "pdf" ? "PDF" : ext === "docx" || ext === "doc" ? "Word" : ext === "xlsx" || ext === "xls" ? "Excel" : ext === "png" || ext === "jpg" ? "图片" : ext === "pptx" || ext === "ppt" ? "PPT" : "其他";
+                const sourceTag = f.source === "knowledge_base" || f.source === "resource_library" ? "资源库" : "个人上传";
+                const mockSizes = ["6.2 MB", "18.4 MB", "22 MB", "1.3 MB"];
+                const mockSize = mockSizes[idx % mockSizes.length];
+                return (
+                  <div key={f.refId} className="px-1.5 py-1 rounded hover:bg-slate-50 text-slate-700">
+                    <div className="flex items-center gap-1 text-[11.5px]">
+                      <span className="truncate flex-1">{f.name}</span>
+                    </div>
+                    <div className="flex items-center gap-1 mt-0.5">
+                      <span className="px-1 py-px rounded bg-blue-50 text-blue-600 text-[9px] border border-blue-100">{typeLabel}</span>
+                      <span className={`px-1 py-px rounded text-[9px] border ${
+                        f.source === "knowledge_base"
+                          ? "bg-violet-50 text-violet-600 border-violet-100"
+                          : "bg-emerald-50 text-emerald-600 border-emerald-100"
+                      }`}>{sourceTag}</span>
+                      <span className="text-slate-400 text-[9px]">{mockSize}</span>
+                    </div>
+                  </div>
+                );
+              })}
               {design.knowledgeFiles.length === 0 && (
                 <div className="text-slate-400 text-[11px]">未添加</div>
               )}
+              <button className="w-full mt-1 px-2 py-1 rounded border border-dashed border-slate-300 text-slate-500 hover:border-indigo-400 hover:text-indigo-600 text-[11px] flex items-center justify-center gap-1">
+                <Paperclip size={11} /> 上传文件
+              </button>
             </Section>
           </>
         )}
@@ -1063,7 +1572,7 @@ function EmptyDesignState({
         </div>
         <div className="text-slate-900 mb-1">{sectionTitle ?? "该小节"} · 教学设计尚未生成</div>
         <p className="text-slate-500 leading-relaxed text-[12px]">
-          该小节还未生成教学设计。你可以从人设、知识文件入手，再让 AI 生成初稿。
+          该小节还未生成教学设计。你可以从本节资源入手，再让 AI 生成初稿。
         </p>
         <div className="mt-5 flex items-center justify-center">
           <button

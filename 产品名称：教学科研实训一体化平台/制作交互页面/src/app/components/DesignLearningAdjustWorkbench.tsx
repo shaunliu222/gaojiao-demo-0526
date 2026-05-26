@@ -1,8 +1,11 @@
 import { useMemo } from "react";
-import { teachingPlans } from "@mock";
+import { teachingPlans, teachingPlansV2 } from "@mock";
 import {
   flattenPlanSections,
   nextSectionId,
+  planV2ById,
+  lessonV2ById,
+  nextLessonIdV2,
 } from "../data/lookups";
 import { DesignWorkbench } from "./DesignWorkbench";
 
@@ -13,6 +16,7 @@ import { DesignWorkbench } from "./DesignWorkbench";
 export function DesignLearningAdjustWorkbench({
   planId,
   sectionId,
+  lessonId,
   onBack,
   onOpenDemoSection,
   progressSectionId,
@@ -20,11 +24,18 @@ export function DesignLearningAdjustWorkbench({
 }: {
   planId: string;
   sectionId: string;
+  /** v2.0: 课时 ID */
+  lessonId?: string;
   onBack: () => void;
   onOpenDemoSection?: () => void;
   progressSectionId: string;
   reviewSectionIds?: string[];
 }) {
+  // v2.0: 优先使用 V2 计划数据
+  const planV2 = planV2ById(planId);
+  const lessonV2 = lessonId ? lessonV2ById(planId, lessonId) : undefined;
+
+  // v1 fallback
   const plan = teachingPlans.find((p) => p.id === planId);
   const section = useMemo(() => {
     if (!plan) return undefined;
@@ -42,6 +53,28 @@ export function DesignLearningAdjustWorkbench({
   );
 
   const learningBanner = useMemo(() => {
+    // v2.0 path
+    if (planV2 && lessonV2) {
+      const progressLesson = progressSectionId
+        ? planV2.lessons.find((l) => l.id === progressSectionId)
+        : undefined;
+      const progTitle = progressLesson
+        ? `第${progressLesson.lessonNo}课时 · ${progressLesson.knowledgePointNames[0] ?? "..."}`
+        : progressSectionId;
+      const reviewTitles = (reviewSectionIds ?? [])
+        .filter((id) => planV2.lessons.some((l) => l.id === id))
+        .map((id) => {
+          const l = planV2.lessons.find((ls) => ls.id === id);
+          return l ? `第${l.lessonNo}课时` : id;
+        });
+      const currentTitle = `第${lessonV2.lessonNo}课时 · ${lessonV2.knowledgePointNames[0] ?? "..."}`;
+      const hasNext = progressSectionId
+        ? Boolean(nextLessonIdV2(planV2, progressSectionId))
+        : false;
+      return { progTitle, reviewTitles, currentTitle, hasNext };
+    }
+
+    // v1 fallback
     if (!plan || !progressSectionId) return null;
     const ids = new Set(flatSections.map((s) => s.sectionId));
     if (!ids.has(progressSectionId)) return null;
@@ -53,7 +86,7 @@ export function DesignLearningAdjustWorkbench({
     const currentTitle = section?.title;
     const hasNext = Boolean(nextSectionId(plan, progressSectionId));
     return { progTitle, reviewTitles, currentTitle, hasNext };
-  }, [plan, progressSectionId, reviewSectionIds, flatSections, section?.title]);
+  }, [planV2, lessonV2, plan, progressSectionId, reviewSectionIds, flatSections, section?.title]);
 
   return (
     <div className="flex flex-col h-full min-h-0">
@@ -81,6 +114,7 @@ export function DesignLearningAdjustWorkbench({
         <DesignWorkbench
           planId={planId}
           sectionId={sectionId}
+          lessonId={lessonId}
           onBack={onBack}
           onOpenDemoSection={onOpenDemoSection}
           learningAdjust

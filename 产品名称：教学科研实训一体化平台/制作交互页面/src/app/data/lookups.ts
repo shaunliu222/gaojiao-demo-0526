@@ -21,8 +21,10 @@ import {
   trainingProjects,
   teachingStrategies,
   teachingPlans,
+  teachingPlansV2,
   designsBySection,
   designsBySectionLearningAdjust,
+  designsByLessonV2,
   classProfiles,
   studentProfiles,
   homeworkEvaluations,
@@ -44,6 +46,10 @@ import type {
   TeachingPlan,
   PlanSection,
   TeachingDesign,
+  TeachingPlanV2,
+  PlanLesson,
+  TeachingDesignV2,
+  LessonClassHomeworkEval,
   ClassProfile,
   StudentProfile,
   HomeworkEvalSummary,
@@ -411,4 +417,107 @@ export function defaultLearningClassIdForTeacher(teacherId: string): string {
   }
   if (unrestricted.length > 0) return unrestricted[0]!;
   return classProfiles[0]!.classId;
+}
+
+// ==========================================================================
+// v2.0 教学计划 & 教学设计查询函数
+// ==========================================================================
+
+const planV2ById_ = indexBy(teachingPlansV2);
+
+/** v2.0: 按 ID 获取教学计划 */
+export const planV2ById = (id: string): TeachingPlanV2 | undefined =>
+  planV2ById_[id];
+
+/** v2.0: 获取教学计划的所有课时 */
+export const lessonsByPlanV2 = (planId: string): PlanLesson[] => {
+  const plan = planV2ById(planId);
+  return plan?.lessons ?? [];
+};
+
+/** v2.0: 按 planId + lessonId 获取单个课时 */
+export const lessonV2ById = (
+  planId: string,
+  lessonId: string,
+): PlanLesson | undefined => {
+  const plan = planV2ById(planId);
+  return plan?.lessons.find((l) => l.id === lessonId);
+};
+
+/** v2.0: 获取下一个课时 ID */
+export function nextLessonIdV2(
+  plan: TeachingPlanV2,
+  lessonId: string,
+): string | undefined {
+  const i = plan.lessons.findIndex((l) => l.id === lessonId);
+  if (i < 0 || i >= plan.lessons.length - 1) return undefined;
+  return plan.lessons[i + 1]!.id;
+}
+
+/** v2.0: 计算教学计划进度（已完成设计的课时百分比） */
+export function computePlanProgressV2(plan: TeachingPlanV2): number {
+  if (plan.lessons.length === 0) return 0;
+  const designed = plan.lessons.filter((l) => l.hasDesign).length;
+  return Math.round((designed / plan.lessons.length) * 100);
+}
+
+/** v2.0: 教学设计工作台数据源（按 lessonId 查询） */
+export function designsForLessonV2(
+  planId: string,
+  lessonId: string,
+  classId?: string,
+  learningAdjust = false,
+): TeachingDesignV2 | undefined {
+  const key = `${planId}::${lessonId}::${classId ?? ""}`;
+  return designsByLessonV2?.get(key);
+}
+
+/** v2.0: 获取课时关联的所有班级作业评价（mock 数据） */
+export function lessonClassHomeworkEvals(
+  _planId: string,
+  _lessonId: string,
+): LessonClassHomeworkEval[] {
+  // Mock 数据：为主线计划的当前焦点课时返回模拟评价数据
+  return [
+    {
+      classId: "cls-mech-2301",
+      className: "机制2301",
+      homeworkContent: "组合体三视图绘制练习",
+      submissionRate: 0.95,
+      averageScore: 82.5,
+      weakKnowledgePoints: ["截交线与相贯线", "空间想象"],
+      evalStatus: "evaluated",
+    },
+    {
+      classId: "cls-mech-2302",
+      className: "机制2302",
+      homeworkContent: "组合体三视图绘制练习",
+      submissionRate: 0.88,
+      averageScore: 71.3,
+      weakKnowledgePoints: ["组合体分析", "形体分析法", "投影推理"],
+      evalStatus: "evaluated",
+    },
+    {
+      classId: "cls-mech-2303",
+      className: "机制2303",
+      homeworkContent: "组合体三视图绘制练习",
+      submissionRate: 0.92,
+      averageScore: 78.6,
+      weakKnowledgePoints: ["尺寸标注策略"],
+      evalStatus: "evaluated",
+    },
+  ];
+}
+
+/** v2.0: 教师可见的 V2 教学计划列表 */
+export function plansV2VisibleToTeacher(
+  teacherId: string,
+): TeachingPlanV2[] {
+  if (teacherSeesAllScopedContent(teacherId)) return teachingPlansV2;
+  return teachingPlansV2.filter((p) => p.creatorTeacherId === teacherId);
+}
+
+/** v2.0: 某课程下教师可见的计划 */
+export function plansV2ByCourse(courseId: string): TeachingPlanV2[] {
+  return teachingPlansV2.filter((p) => p.courseId === courseId);
 }

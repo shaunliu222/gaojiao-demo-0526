@@ -627,15 +627,30 @@ function DesignBodyV2({
   const [uploadedFiles, setUploadedFiles] = useState<Array<{ id: string; name: string; format: string; source: string; size: string }>>([]);
   const [selectedFileIds, setSelectedFileIds] = useState<Set<string>>(new Set());
 
-  const allFiles = useMemo(() => {
+  // Categorized resources: classroomContent + homework are "已发布", reference + other are teacher-only
+  const categorizedFiles = useMemo(() => {
     const base = designV2.knowledgeFiles.map((f) => {
       const ext = f.name.split(".").pop()?.toLowerCase() ?? "";
       const typeLabel = ext === "pdf" ? "PDF" : ext === "docx" || ext === "doc" ? "Word" : ext === "xlsx" || ext === "xls" ? "Excel" : ext === "png" || ext === "jpg" ? "图片" : ext === "pptx" || ext === "ppt" ? "PPT" : ext === "mp4" ? "MP4" : "其他";
       const sourceTag = f.source === "knowledge_base" || f.source === "resource_library" ? "资源库" : "个人上传";
       return { id: f.refId, name: f.name, format: typeLabel, source: sourceTag, sourceRaw: f.source, size: "" };
     });
-    return [...base, ...uploadedFiles];
+    const all = [...base, ...uploadedFiles];
+    // Split into categories: first ~60% classroom content, next ~20% homework, rest reference/other
+    return {
+      classroomContent: all.slice(0, Math.ceil(all.length * 0.5)),
+      homework: all.slice(Math.ceil(all.length * 0.5), Math.ceil(all.length * 0.7)),
+      reference: all.slice(Math.ceil(all.length * 0.7), Math.ceil(all.length * 0.9)),
+      other: all.slice(Math.ceil(all.length * 0.9)),
+    };
   }, [designV2.knowledgeFiles, uploadedFiles]);
+
+  const allFiles = useMemo(() => [
+    ...categorizedFiles.classroomContent,
+    ...categorizedFiles.homework,
+    ...categorizedFiles.reference,
+    ...categorizedFiles.other,
+  ], [categorizedFiles]);
 
   const allFileIds = useMemo(() => allFiles.map((f) => f.id), [allFiles]);
   const isAllSelected = allFileIds.length > 0 && allFileIds.every((id) => selectedFileIds.has(id));
@@ -670,6 +685,28 @@ function DesignBodyV2({
 
   // Mock output generation
   const [generatedOutputs, setGeneratedOutputs] = useState<DesignOutputV2[]>([]);
+
+  // Published state for outputs: tracks which outputs are published and to which classes
+  const [publishedOutputs, setPublishedOutputs] = useState<Record<string, string[]>>({});
+  const [publishMenuOpen, setPublishMenuOpen] = useState<string | null>(null);
+
+  const togglePublish = (outputId: string, classId: string) => {
+    setPublishedOutputs((prev) => {
+      const current = prev[outputId] ?? [];
+      const next = current.includes(classId) ? current.filter((c) => c !== classId) : [...current, classId];
+      return { ...prev, [outputId]: next };
+    });
+  };
+
+  const publishToAll = (outputId: string) => {
+    setPublishedOutputs((prev) => ({
+      ...prev,
+      [outputId]: ["cls-mech-2301", "cls-mech-2302", "cls-mech-2303"],
+    }));
+    setPublishMenuOpen(null);
+  };
+
+  const isOutputPublished = (outputId: string) => (publishedOutputs[outputId]?.length ?? 0) > 0;
 
   const generateFromSelected = (type: string) => {
     if (selectedFileIds.size === 0) return;
@@ -731,33 +768,104 @@ function DesignBodyV2({
               {isAllSelected ? "取消全选" : "全选"}
             </label>
           )}
-          {allFiles.map((f) => {
-            const checked = selectedFileIds.has(f.id);
-            const mockSizes = ["6.2 MB", "18.4 MB", "22 MB", "1.3 MB", "280 KB"];
-            const mockSize = f.size || mockSizes[allFiles.indexOf(f) % mockSizes.length];
-            return (
-              <div key={f.id} className={`px-1.5 py-1 rounded text-slate-700 ${checked ? "bg-indigo-50/60" : "hover:bg-slate-50"}`}>
-                <div className="flex items-center gap-1.5 text-[11.5px]">
-                  <input
-                    type="checkbox"
-                    checked={checked}
-                    onChange={() => toggleFile(f.id)}
-                    className="accent-indigo-600 shrink-0"
-                  />
-                  <span className="truncate flex-1">{f.name}</span>
-                </div>
-                <div className="flex items-center gap-1 mt-0.5 ml-5">
-                  <span className="px-1 py-px rounded bg-blue-50 text-blue-600 text-[9px] border border-blue-100">{f.format}</span>
-                  <span className={`px-1 py-px rounded text-[9px] border ${
-                    f.source === "资源库"
-                      ? "bg-violet-50 text-violet-600 border-violet-100"
-                      : "bg-emerald-50 text-emerald-600 border-emerald-100"
-                  }`}>{f.source}</span>
-                  <span className="text-slate-400 text-[9px]">{mockSize}</span>
-                </div>
-              </div>
-            );
-          })}
+          {/* 课堂内容 */}
+          {categorizedFiles.classroomContent.length > 0 && (
+            <div className="mb-1">
+              <div className="text-[9.5px] font-medium text-indigo-600 mb-0.5 px-1.5">课堂内容</div>
+              {categorizedFiles.classroomContent.map((f) => {
+                const checked = selectedFileIds.has(f.id);
+                const mockSizes = ["6.2 MB", "18.4 MB", "22 MB"];
+                const mockSize = f.size || mockSizes[categorizedFiles.classroomContent.indexOf(f) % mockSizes.length];
+                return (
+                  <div key={f.id} className={`px-1.5 py-1 rounded text-slate-700 ${checked ? "bg-indigo-50/60" : "hover:bg-slate-50"}`}>
+                    <div className="flex items-center gap-1.5 text-[11.5px]">
+                      <input type="checkbox" checked={checked} onChange={() => toggleFile(f.id)} className="accent-indigo-600 shrink-0" />
+                      <span className="truncate flex-1">{f.name}</span>
+                      <span className="px-1 py-px rounded bg-emerald-50 text-emerald-600 text-[8px] border border-emerald-200 shrink-0">已发布</span>
+                    </div>
+                    <div className="flex items-center gap-1 mt-0.5 ml-5">
+                      <span className="px-1 py-px rounded bg-blue-50 text-blue-600 text-[9px] border border-blue-100">{f.format}</span>
+                      <span className={`px-1 py-px rounded text-[9px] border ${f.source === "资源库" ? "bg-violet-50 text-violet-600 border-violet-100" : "bg-emerald-50 text-emerald-600 border-emerald-100"}`}>{f.source}</span>
+                      <span className="text-slate-400 text-[9px]">{mockSize}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          {/* 课堂作业 */}
+          {categorizedFiles.homework.length > 0 && (
+            <div className="mb-1">
+              <div className="text-[9.5px] font-medium text-amber-600 mb-0.5 px-1.5">课堂作业</div>
+              {categorizedFiles.homework.map((f) => {
+                const checked = selectedFileIds.has(f.id);
+                const mockSizes = ["280 KB", "1.1 MB"];
+                const mockSize = f.size || mockSizes[categorizedFiles.homework.indexOf(f) % mockSizes.length];
+                return (
+                  <div key={f.id} className={`px-1.5 py-1 rounded text-slate-700 ${checked ? "bg-indigo-50/60" : "hover:bg-slate-50"}`}>
+                    <div className="flex items-center gap-1.5 text-[11.5px]">
+                      <input type="checkbox" checked={checked} onChange={() => toggleFile(f.id)} className="accent-indigo-600 shrink-0" />
+                      <span className="truncate flex-1">{f.name}</span>
+                      <span className="px-1 py-px rounded bg-emerald-50 text-emerald-600 text-[8px] border border-emerald-200 shrink-0">已发布</span>
+                    </div>
+                    <div className="flex items-center gap-1 mt-0.5 ml-5">
+                      <span className="px-1 py-px rounded bg-blue-50 text-blue-600 text-[9px] border border-blue-100">{f.format}</span>
+                      <span className={`px-1 py-px rounded text-[9px] border ${f.source === "资源库" ? "bg-violet-50 text-violet-600 border-violet-100" : "bg-emerald-50 text-emerald-600 border-emerald-100"}`}>{f.source}</span>
+                      <span className="text-slate-400 text-[9px]">{mockSize}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          {/* 教学设计参考资料 */}
+          {categorizedFiles.reference.length > 0 && (
+            <div className="mb-1">
+              <div className="text-[9.5px] font-medium text-emerald-600 mb-0.5 px-1.5">教学设计参考资料</div>
+              {categorizedFiles.reference.map((f) => {
+                const checked = selectedFileIds.has(f.id);
+                const mockSizes = ["1.3 MB", "3.5 MB"];
+                const mockSize = f.size || mockSizes[categorizedFiles.reference.indexOf(f) % mockSizes.length];
+                return (
+                  <div key={f.id} className={`px-1.5 py-1 rounded text-slate-700 ${checked ? "bg-indigo-50/60" : "hover:bg-slate-50"}`}>
+                    <div className="flex items-center gap-1.5 text-[11.5px]">
+                      <input type="checkbox" checked={checked} onChange={() => toggleFile(f.id)} className="accent-indigo-600 shrink-0" />
+                      <span className="truncate flex-1">{f.name}</span>
+                    </div>
+                    <div className="flex items-center gap-1 mt-0.5 ml-5">
+                      <span className="px-1 py-px rounded bg-blue-50 text-blue-600 text-[9px] border border-blue-100">{f.format}</span>
+                      <span className={`px-1 py-px rounded text-[9px] border ${f.source === "资源库" ? "bg-violet-50 text-violet-600 border-violet-100" : "bg-emerald-50 text-emerald-600 border-emerald-100"}`}>{f.source}</span>
+                      <span className="text-slate-400 text-[9px]">{mockSize}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          {/* 其它 */}
+          {categorizedFiles.other.length > 0 && (
+            <div className="mb-1">
+              <div className="text-[9.5px] font-medium text-slate-500 mb-0.5 px-1.5">其它</div>
+              {categorizedFiles.other.map((f) => {
+                const checked = selectedFileIds.has(f.id);
+                const mockSizes = ["8.7 MB"];
+                const mockSize = f.size || mockSizes[0];
+                return (
+                  <div key={f.id} className={`px-1.5 py-1 rounded text-slate-700 ${checked ? "bg-indigo-50/60" : "hover:bg-slate-50"}`}>
+                    <div className="flex items-center gap-1.5 text-[11.5px]">
+                      <input type="checkbox" checked={checked} onChange={() => toggleFile(f.id)} className="accent-indigo-600 shrink-0" />
+                      <span className="truncate flex-1">{f.name}</span>
+                    </div>
+                    <div className="flex items-center gap-1 mt-0.5 ml-5">
+                      <span className="px-1 py-px rounded bg-blue-50 text-blue-600 text-[9px] border border-blue-100">{f.format}</span>
+                      <span className={`px-1 py-px rounded text-[9px] border ${f.source === "资源库" ? "bg-violet-50 text-violet-600 border-violet-100" : "bg-emerald-50 text-emerald-600 border-emerald-100"}`}>{f.source}</span>
+                      <span className="text-slate-400 text-[9px]">{mockSize}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
           {allFiles.length === 0 && (
             <div className="text-slate-400 text-[11px]">未添加</div>
           )}
@@ -766,7 +874,7 @@ function DesignBodyV2({
             onClick={addMockUpload}
             className="w-full mt-1 px-2 py-1 rounded border border-dashed border-slate-300 text-slate-500 hover:border-indigo-400 hover:text-indigo-600 text-[11px] flex items-center justify-center gap-1"
           >
-            <Paperclip size={11} /> 上传文件
+            <Paperclip size={11} /> 上传文件（PDF/Word/Excel等）
           </button>
         </Section>
 
@@ -925,7 +1033,7 @@ function DesignBodyV2({
         </div>
       </div>
 
-      {/* Right panel: unified outputs with 7 quick-create buttons */}
+      {/* Right panel: 教学设计发布列表 */}
       <aside className="col-span-3 border-l border-slate-200 bg-white overflow-auto flex flex-col min-h-0 p-3">
         {selectedFileIds.size > 0 && (
           <div className="mb-2 px-2.5 py-1.5 rounded-lg bg-indigo-50 border border-indigo-100 text-[11px] text-indigo-700">
@@ -957,43 +1065,150 @@ function DesignBodyV2({
 
         <div className="h-px bg-slate-100 my-2.5 shrink-0" />
 
-        <div className="text-[10.5px] font-medium text-slate-500 uppercase tracking-wide mb-1.5">
-          产出物（{allOutputs.length}）
+        <div className="text-[10.5px] font-medium text-slate-900 uppercase tracking-wide mb-1.5">
+          教学设计发布列表
         </div>
-        <div className="space-y-2 min-h-0 flex-1 overflow-auto">
-          {allOutputs.map((o) => (
-            <div
-              key={o.id}
-              className="border border-slate-200 rounded-lg p-2.5 hover:border-indigo-300 transition"
-            >
-              <div className="flex items-center gap-2">
-                <div className="size-8 rounded-md bg-indigo-50 text-indigo-600 flex items-center justify-center">
-                  {iconForV2Output(o.type)}
+
+        {/* 已发布栏 */}
+        <div className="mb-2">
+          <div className="flex items-center gap-1.5 mb-1">
+            <span className="text-[10px] font-medium text-emerald-700 px-1.5 py-0.5 rounded bg-emerald-50 border border-emerald-200">已发布</span>
+            <span className="text-slate-400 text-[10px]">
+              {[
+                ...categorizedFiles.classroomContent.filter(() => true),
+                ...categorizedFiles.homework.filter(() => true),
+                ...allOutputs.filter((o) => isOutputPublished(o.id)),
+              ].length} 个文件
+            </span>
+          </div>
+          <div className="space-y-1.5 mb-2">
+            {/* 课堂内容/课堂作业文件（自动已发布） */}
+            {categorizedFiles.classroomContent.map((f) => (
+              <div key={`pub-${f.id}`} className="border border-emerald-100 bg-emerald-50/30 rounded-md px-2 py-1.5">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-slate-700 text-[11px] truncate flex-1">{f.name}</span>
+                  <span className="px-1 py-px rounded bg-blue-50 text-blue-600 text-[8px] border border-blue-100">{f.format}</span>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <div className="truncate text-slate-900 text-[12.5px]">{o.title}</div>
-                  <div className="text-slate-500 text-[11px]">
-                    {[OUTPUT_TYPES_V2.find((t) => t.type === o.type)?.label ?? o.type, o.sizeLabel, o.durationLabel].filter(Boolean).join(" · ")}
+                <div className="flex items-center gap-1 mt-0.5">
+                  <span className="text-[9px] text-emerald-600">课堂内容</span>
+                  <span className="text-slate-300">·</span>
+                  <span className="text-[9px] text-slate-500">已发布到：机制2301、机制2302、机制2303</span>
+                </div>
+              </div>
+            ))}
+            {categorizedFiles.homework.map((f) => (
+              <div key={`pub-${f.id}`} className="border border-emerald-100 bg-emerald-50/30 rounded-md px-2 py-1.5">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-slate-700 text-[11px] truncate flex-1">{f.name}</span>
+                  <span className="px-1 py-px rounded bg-blue-50 text-blue-600 text-[8px] border border-blue-100">{f.format}</span>
+                </div>
+                <div className="flex items-center gap-1 mt-0.5">
+                  <span className="text-[9px] text-amber-600">课堂作业</span>
+                  <span className="text-slate-300">·</span>
+                  <span className="text-[9px] text-slate-500">已发布到：机制2301、机制2302、机制2303</span>
+                </div>
+              </div>
+            ))}
+            {/* 教学产物已发布的文件 */}
+            {allOutputs.filter((o) => isOutputPublished(o.id)).map((o) => {
+              const publishedClasses = publishedOutputs[o.id] ?? [];
+              const classNames = publishedClasses.map((cid) => {
+                const cls = [{ id: "cls-mech-2301", name: "机制2301" }, { id: "cls-mech-2302", name: "机制2302" }, { id: "cls-mech-2303", name: "机制2303" }].find((c) => c.id === cid);
+                return cls?.name ?? cid;
+              }).join("、");
+              return (
+                <div key={`pub-${o.id}`} className="border border-emerald-100 bg-emerald-50/30 rounded-md px-2 py-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <div className="size-5 rounded bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+                      {iconForV2Output(o.type)}
+                    </div>
+                    <span className="text-slate-700 text-[11px] truncate flex-1">{o.title}</span>
+                  </div>
+                  <div className="flex items-center gap-1 mt-0.5">
+                    <span className="text-[9px] text-indigo-600">教学产物</span>
+                    <span className="text-slate-300">·</span>
+                    <span className="text-[9px] text-slate-500">已发布到：{classNames}</span>
                   </div>
                 </div>
+              );
+            })}
+            {categorizedFiles.classroomContent.length === 0 && categorizedFiles.homework.length === 0 && !allOutputs.some((o) => isOutputPublished(o.id)) && (
+              <div className="text-slate-400 text-[10px] py-1 pl-0.5">暂无已发布文件</div>
+            )}
+          </div>
+        </div>
+
+        {/* 待发布栏 */}
+        <div>
+          <div className="flex items-center gap-1.5 mb-1">
+            <span className="text-[10px] font-medium text-amber-700 px-1.5 py-0.5 rounded bg-amber-50 border border-amber-200">待发布</span>
+            <span className="text-slate-400 text-[10px]">
+              {allOutputs.filter((o) => !isOutputPublished(o.id)).length} 个文件
+            </span>
+          </div>
+          <div className="space-y-1.5">
+            {allOutputs.filter((o) => !isOutputPublished(o.id)).map((o) => (
+              <div
+                key={o.id}
+                className="border border-slate-200 rounded-lg p-2 hover:border-indigo-300 transition relative"
+              >
+                <div className="flex items-center gap-2">
+                  <div className="size-7 rounded-md bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                    {iconForV2Output(o.type)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="truncate text-slate-900 text-[11.5px]">{o.title}</div>
+                    <div className="text-slate-500 text-[10px]">
+                      {[OUTPUT_TYPES_V2.find((t) => t.type === o.type)?.label ?? o.type, o.sizeLabel].filter(Boolean).join(" · ")}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-1 mt-1.5">
+                  <button
+                    onClick={() => setPublishMenuOpen(publishMenuOpen === o.id ? null : o.id)}
+                    className="flex-1 py-0.5 rounded-md border border-indigo-200 bg-indigo-50 text-indigo-700 text-[11px] hover:bg-indigo-100 text-center"
+                  >
+                    发布到班级
+                  </button>
+                  <button className="flex-1 py-0.5 rounded-md border border-slate-200 text-[11px] hover:bg-slate-50 text-center">
+                    预览
+                  </button>
+                </div>
+                {/* 发布班级选择下拉 */}
+                {publishMenuOpen === o.id && (
+                  <div className="absolute left-0 right-0 top-full z-50 mt-1 bg-white rounded-lg border border-slate-200 shadow-lg p-2">
+                    <div className="text-[10px] text-slate-500 mb-1">选择发布班级：</div>
+                    {[{ id: "cls-mech-2301", name: "机制2301" }, { id: "cls-mech-2302", name: "机制2302" }, { id: "cls-mech-2303", name: "机制2303" }].map((cls) => (
+                      <label key={cls.id} className="flex items-center gap-1.5 px-1.5 py-1 hover:bg-slate-50 rounded cursor-pointer text-[11px] text-slate-700">
+                        <input
+                          type="checkbox"
+                          checked={(publishedOutputs[o.id] ?? []).includes(cls.id)}
+                          onChange={() => togglePublish(o.id, cls.id)}
+                          className="accent-indigo-600"
+                        />
+                        {cls.name}
+                      </label>
+                    ))}
+                    <button
+                      onClick={() => publishToAll(o.id)}
+                      className="w-full mt-1 py-1 rounded-md bg-indigo-600 text-white text-[11px] hover:bg-indigo-700 text-center"
+                    >
+                      发布到所有班级
+                    </button>
+                    <button
+                      onClick={() => setPublishMenuOpen(null)}
+                      className="w-full mt-1 py-0.5 rounded-md text-slate-500 text-[10px] hover:bg-slate-50 text-center"
+                    >
+                      关闭
+                    </button>
+                  </div>
+                )}
               </div>
-              <div className="text-slate-500 mt-1 line-clamp-2 text-[11.5px]">{o.summary}</div>
-              <div className="flex gap-1 mt-1.5">
-                <button className="flex-1 py-0.5 rounded-md border border-slate-200 text-[11.5px] hover:bg-slate-50">
-                  预览
-                </button>
-                <button className="flex-1 py-0.5 rounded-md border border-indigo-200 bg-indigo-50 text-indigo-700 text-[11.5px] hover:bg-indigo-100">
-                  下载
-                </button>
-                <button className="flex-1 py-0.5 rounded-md border border-indigo-200 bg-indigo-50 text-indigo-700 text-[11.5px] hover:bg-indigo-100">
-                  发布
-                </button>
-              </div>
-            </div>
-          ))}
-          {allOutputs.length === 0 && (
-            <div className="text-slate-400 text-[11px] py-1 pl-0.5">暂无产出物</div>
-          )}
+            ))}
+            {allOutputs.filter((o) => !isOutputPublished(o.id)).length === 0 && (
+              <div className="text-slate-400 text-[10px] py-1 pl-0.5">暂无待发布文件</div>
+            )}
+          </div>
         </div>
       </aside>
     </div>

@@ -132,6 +132,9 @@ export function PlanWizard({
   // ==================== 步骤切换（1 选择课程 · 2 教学策略 · 3 预览并生成）====================
   const [step, setStep] = useState<1 | 2 | 3>(1);
 
+  // ==================== 上架确认弹窗 ====================
+  const [showPublishConfirm, setShowPublishConfirm] = useState(false);
+
   // ==================== 个性化教学需求（v2.0 新增） ====================
   const [customStrategy, setCustomStrategy] = useState<string>("");
 
@@ -361,20 +364,7 @@ export function PlanWizard({
             customStrategy,
           })
         }
-        onPublish={() => {
-          const data: WizardPlanSummary = {
-            courseId,
-            professionId,
-            subjectId,
-            classIds,
-            totalLessons,
-            credit,
-            strategyId,
-            customStrategy,
-          };
-          runGenerateAnimation();
-          onSubmit("in_progress", data);
-        }}
+        onPublish={() => setShowPublishConfirm(true)}
       />
       {generating && (
         <GenerationOverlay
@@ -383,6 +373,58 @@ export function PlanWizard({
           course={course}
           draftLessonCount={(draftLessons ?? []).length}
         />
+      )}
+      {showPublishConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm" role="dialog" aria-modal="true">
+          <div className="w-[min(30rem,92vw)] bg-white rounded-2xl shadow-2xl border border-slate-200 p-6">
+            <div className="flex items-center gap-2 mb-3">
+              <Sparkles size={18} className="text-indigo-600" />
+              <span className="text-slate-900 font-medium">上架确认</span>
+            </div>
+            <p className="text-slate-600 text-[0.8125rem] leading-relaxed mb-3">
+              上架后，教学计划将推送给所选班级的学生。资源推送规则如下：
+            </p>
+            <div className="space-y-2 mb-4">
+              <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-indigo-50 border border-indigo-100">
+                <Check size={14} className="text-indigo-600 mt-0.5 shrink-0" />
+                <div className="text-[0.75rem] text-slate-700">
+                  <span className="font-medium text-indigo-700">课堂内容、课堂作业</span> — 推送给学生的教学计划资源列表，学生可直接查看和下载
+                </div>
+              </div>
+              <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-slate-50 border border-slate-200">
+                <Clock size={14} className="text-slate-400 mt-0.5 shrink-0" />
+                <div className="text-[0.75rem] text-slate-500">
+                  <span className="font-medium text-slate-600">教学设计参考资料、其它</span> — 仅教师在教学设计工作台中查看，不推送给学生
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-2">
+              <button onClick={() => setShowPublishConfirm(false)} className="px-4 py-1.5 rounded-md border border-slate-200 hover:bg-slate-50 text-slate-600 text-[0.8125rem]">
+                取消
+              </button>
+              <button
+                onClick={() => {
+                  setShowPublishConfirm(false);
+                  const data: WizardPlanSummary = {
+                    courseId,
+                    professionId,
+                    subjectId,
+                    classIds,
+                    totalLessons,
+                    credit,
+                    strategyId,
+                    customStrategy,
+                  };
+                  runGenerateAnimation();
+                  onSubmit("in_progress", data);
+                }}
+                className="px-4 py-1.5 rounded-md bg-indigo-600 text-white hover:bg-indigo-700 flex items-center gap-1 text-[0.8125rem]"
+              >
+                <Sparkles size={14} /> 确认上架
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -969,6 +1011,22 @@ function EditableBlock({
   );
 }
 
+/** 单个资源文件行 */
+function ResourceRow({ r }: { r: { id: string; name: string; format: string; source: string; size: string } }) {
+  return (
+    <div className="flex items-center gap-2 text-[0.6875rem] px-2 py-1 rounded-md bg-emerald-50/60">
+      <span className="text-slate-700 truncate flex-1">{r.name}</span>
+      <span className="px-1 py-px rounded bg-blue-50 text-blue-600 text-[9px] border border-blue-100">{r.format}</span>
+      <span className="text-slate-400 text-[10px]">{r.size}</span>
+      <span className={`px-1 py-px rounded text-[9px] border ${
+        r.source === "资源库"
+          ? "bg-violet-50 text-violet-600 border-violet-100"
+          : "bg-emerald-50 text-emerald-600 border-emerald-100"
+      }`}>{r.source}</span>
+    </div>
+  );
+}
+
 // ==========================================================================
 // Step 5 · 按课时预览骨架（可编辑）
 // ==========================================================================
@@ -996,37 +1054,25 @@ function Step5({
 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
-  // Mock resources for each lesson (resource library items)
-  const mockResources = useMemo(() => [
-    { id: "res-1", name: "组合体三视图讲义", format: "PDF", source: "资源库" as const, size: "6.2 MB" },
-    { id: "res-2", name: "形体分析法课件", format: "PPTX", source: "资源库" as const, size: "18.4 MB" },
-    { id: "res-3", name: "三视图绘制微课", format: "MP4", source: "资源库" as const, size: "22 MB" },
-    { id: "res-4", name: "思维导图-组合体", format: "PNG", source: "资源库" as const, size: "1.3 MB" },
-    { id: "res-5", name: "课后作业模板", format: "PDF", source: "资源库" as const, size: "280 KB" },
-  ], []);
-
-  // Personal uploaded files per lesson
-  const [personalFiles, setPersonalFiles] = useState<Record<string, Array<{ id: string; name: string; format: string; size: string }>>>({});
-
-  const addPersonalFile = (lessonId: string) => {
-    const fakeFiles = [
-      { name: "教学补充材料.pdf", format: "PDF", size: "1.5 MB" },
-      { name: "练习题库.docx", format: "DOCX", size: "820 KB" },
-      { name: "课堂笔记模板.xlsx", format: "XLSX", size: "340 KB" },
-    ];
-    const pick = fakeFiles[Math.floor(Math.random() * fakeFiles.length)];
-    setPersonalFiles((prev) => ({
-      ...prev,
-      [lessonId]: [...(prev[lessonId] ?? []), { id: `pf-${Date.now()}`, ...pick }],
-    }));
-  };
-
-  const removePersonalFile = (lessonId: string, fileId: string) => {
-    setPersonalFiles((prev) => ({
-      ...prev,
-      [lessonId]: (prev[lessonId] ?? []).filter((f) => f.id !== fileId),
-    }));
-  };
+  // Categorized mock resources for each lesson
+  const categorizedResources = useMemo(() => ({
+    classroomContent: [
+      { id: "rc-1", name: "组合体三视图讲义", format: "PDF", source: "资源库" as const, size: "6.2 MB" },
+      { id: "rc-2", name: "形体分析法课件", format: "PPTX", source: "资源库" as const, size: "18.4 MB" },
+      { id: "rc-3", name: "三视图绘制微课", format: "MP4", source: "资源库" as const, size: "22 MB" },
+    ],
+    homework: [
+      { id: "rh-1", name: "课后作业模板", format: "PDF", source: "资源库" as const, size: "280 KB" },
+      { id: "rh-2", name: "组合体练习题集", format: "DOCX", source: "资源库" as const, size: "1.1 MB" },
+    ],
+    reference: [
+      { id: "rr-1", name: "思维导图-组合体", format: "PNG", source: "资源库" as const, size: "1.3 MB" },
+      { id: "rr-2", name: "教学设计参考-三视图", format: "PDF", source: "个人上传" as const, size: "3.5 MB" },
+    ],
+    other: [
+      { id: "ro-1", name: "课程思政素材包", format: "ZIP", source: "个人上传" as const, size: "8.7 MB" },
+    ],
+  }), []);
 
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) => {
@@ -1207,7 +1253,6 @@ function Step5({
       <div className="space-y-2">
         {draftLessons.map((sec, idx) => {
           const isSelected = selectedIds.has(sec.id);
-          const lessonFiles = personalFiles[sec.id] ?? [];
           return (
             <div
               key={sec.id}
@@ -1297,40 +1342,36 @@ function Step5({
                 )}
               </div>
 
-              {/* 挂载资源 */}
+              {/* 挂载资源（分类展示） */}
               <div className="mt-2">
                 <div className="text-[0.6875rem] text-slate-500 mb-1">挂载资源</div>
-                <div className="space-y-1">
-                  {mockResources.map((r) => (
-                    <div key={r.id} className="flex items-center gap-2 text-[0.6875rem] px-2 py-1 rounded-md bg-emerald-50/60">
-                      <span className="text-slate-700 truncate flex-1">{r.name}</span>
-                      <span className="px-1 py-px rounded bg-blue-50 text-blue-600 text-[9px] border border-blue-100">{r.format}</span>
-                      <span className="text-slate-400 text-[10px]">{r.size}</span>
-                      <span className="px-1 py-px rounded bg-violet-50 text-violet-600 text-[9px] border border-violet-100">{r.source}</span>
-                    </div>
+                {/* 课堂内容 */}
+                <div className="mb-1.5">
+                  <div className="text-[0.625rem] font-medium text-indigo-600 mb-0.5 px-1">课堂内容</div>
+                  {categorizedResources.classroomContent.map((r) => (
+                    <ResourceRow key={r.id} r={r} />
                   ))}
-                  {lessonFiles.map((f) => (
-                    <div key={f.id} className="flex items-center gap-2 text-[0.6875rem] px-2 py-1 rounded-md bg-slate-50">
-                      <span className="text-slate-700 truncate flex-1">{f.name}</span>
-                      <span className="px-1 py-px rounded bg-blue-50 text-blue-600 text-[9px] border border-blue-100">{f.format}</span>
-                      <span className="text-slate-400 text-[10px]">{f.size}</span>
-                      <span className="px-1 py-px rounded bg-emerald-50 text-emerald-600 text-[9px] border border-emerald-100">个人上传</span>
-                      <button
-                        type="button"
-                        onClick={() => removePersonalFile(sec.id, f.id)}
-                        className="text-rose-500 hover:text-rose-700 text-[10px]"
-                      >
-                        删除
-                      </button>
-                    </div>
+                </div>
+                {/* 课堂作业 */}
+                <div className="mb-1.5">
+                  <div className="text-[0.625rem] font-medium text-amber-600 mb-0.5 px-1">课堂作业</div>
+                  {categorizedResources.homework.map((r) => (
+                    <ResourceRow key={r.id} r={r} />
                   ))}
-                  <button
-                    type="button"
-                    onClick={() => addPersonalFile(sec.id)}
-                    className="flex items-center gap-1 text-indigo-600 text-[0.6875rem] hover:underline mt-1"
-                  >
-                    <Plus size={10} /> 上传个人文件
-                  </button>
+                </div>
+                {/* 教学设计参考资料 */}
+                <div className="mb-1.5">
+                  <div className="text-[0.625rem] font-medium text-emerald-600 mb-0.5 px-1">教学设计参考资料</div>
+                  {categorizedResources.reference.map((r) => (
+                    <ResourceRow key={r.id} r={r} />
+                  ))}
+                </div>
+                {/* 其它 */}
+                <div className="mb-1.5">
+                  <div className="text-[0.625rem] font-medium text-slate-500 mb-0.5 px-1">其它</div>
+                  {categorizedResources.other.map((r) => (
+                    <ResourceRow key={r.id} r={r} />
+                  ))}
                 </div>
               </div>
 

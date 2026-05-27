@@ -30,6 +30,9 @@ import { PlanSectionResourcesPage } from "./components/PlanSectionResourcesPage"
 import { HwOverview, HwDetail } from "./components/HomeworkEval";
 import { ExamOverview, ExamDetail } from "./components/ExamEval";
 import { CourseList, CourseDetail } from "./components/Courses";
+import { CourseChapterManager } from "./components/CourseChapterManager";
+import { CourseFormDrawer } from "./components/CourseFormDrawer";
+import { CoursePreviewDialog } from "./components/CoursePreviewDialog";
 import { ResourceLibrary } from "./components/ResourceLibrary";
 import { GraphBrowse, ResourceDetail } from "./components/Graph";
 import { PersonnelManagement } from "./components/PersonnelManagement";
@@ -96,6 +99,7 @@ type TeacherView =
   | { k: "graph"; focusNodeId?: string }
   | { k: "course-list" }
   | { k: "course-detail"; id: string }
+  | { k: "course-chapter-manage"; courseId: string }
   | { k: "resource-list" }
   | { k: "resource-detail"; id: string; from?: "graph" | "library" | "course" }
   | { k: "personnel-mgmt" };
@@ -216,6 +220,8 @@ function titleForView(view: View, resourceSessionOverlay: Resource[]): string {
       return "课程中心";
     case "course-detail":
       return courseById(view.id)?.name ?? "课程详情";
+    case "course-chapter-manage":
+      return `章节管理 · 《${courseById(view.courseId)?.name ?? "课程"}》`;
     case "resource-list":
       return "教学资源库";
     case "resource-detail":
@@ -253,11 +259,23 @@ export default function App() {
   const [resourceSessionOverlay, setResourceSessionOverlay] = useState<Resource[]>([]);
   /** 会话态：向导创建的教学计划（草稿/上架），合并展示到列表 */
   const [sessionPlans, setSessionPlans] = useState<TeachingPlanV2[]>([]);
+  /** 课程中心：编辑抽屉 */
+  const [editCourseId, setEditCourseId] = useState<string | null>(null);
+  /** 课程中心：预览弹窗 */
+  const [previewCourseId, setPreviewCourseId] = useState<string | null>(null);
+  /** 课程中心：操作 toast */
+  const [courseToast, setCourseToast] = useState<string | null>(null);
 
   const pageTitle = useMemo(
     () => titleForView(view, resourceSessionOverlay),
     [view, resourceSessionOverlay],
   );
+
+  useEffect(() => {
+    if (!courseToast) return;
+    const t = window.setTimeout(() => setCourseToast(null), 3000);
+    return () => window.clearTimeout(t);
+  }, [courseToast]);
 
   useEffect(() => {
     document.title = `${pageTitle} · ${PLATFORM_TITLE}`;
@@ -670,10 +688,42 @@ export default function App() {
         );
       case "course-list":
         return (
-          <CourseList
-            currentTeacherId={teacherId}
-            onOpen={(id) => goEnginePage("courses", { k: "course-detail", id })}
-          />
+          <>
+            <CourseList
+              currentTeacherId={teacherId}
+              onOpen={(id) => goEnginePage("courses", { k: "course-detail", id })}
+              onChapterManage={(courseId) =>
+                setView({ k: "course-chapter-manage", courseId })
+              }
+              onEdit={(courseId) => setEditCourseId(courseId)}
+              onPreview={(courseId) => setPreviewCourseId(courseId)}
+              onCopy={(courseId) => setCourseToast(`已复制课程（演示环境）`)}
+              onDelete={(courseId) => setCourseToast(`已删除课程（演示环境）`)}
+              onPublishToggle={(courseId) => setCourseToast(`已切换上架状态（演示环境）`)}
+            />
+            {editCourseId && (
+              <CourseFormDrawer
+                open={!!editCourseId}
+                course={courseById(editCourseId)}
+                onClose={() => setEditCourseId(null)}
+                onSave={() => {
+                  setEditCourseId(null);
+                  setCourseToast("课程已保存（演示环境）");
+                }}
+              />
+            )}
+            {previewCourseId && (
+              <CoursePreviewDialog
+                courseId={previewCourseId}
+                onClose={() => setPreviewCourseId(null)}
+              />
+            )}
+            {courseToast && (
+              <div className="fixed bottom-6 left-1/2 z-[60] -translate-x-1/2 rounded-lg bg-slate-900 px-4 py-2 text-sm text-white shadow-lg">
+                {courseToast}
+              </div>
+            )}
+          </>
         );
       case "course-detail":
         return (
@@ -690,6 +740,17 @@ export default function App() {
             onOpenKnowledgeInGraph={(nodeId) =>
               goEnginePage("graph", { k: "graph", focusNodeId: nodeId })
             }
+          />
+        );
+      case "course-chapter-manage":
+        return (
+          <CourseChapterManager
+            courseId={view.courseId}
+            currentTeacherId={teacherId}
+            onBack={() => {
+              setNav("courses");
+              setView({ k: "course-list" });
+            }}
           />
         );
       case "resource-list":

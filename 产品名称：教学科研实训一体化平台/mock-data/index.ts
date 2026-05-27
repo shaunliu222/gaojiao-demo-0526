@@ -34,6 +34,7 @@ export {
   knowledgeGraphTrainingPlanDocumentById,
 } from "./knowledgeGraphTrainingPlanDocs";
 export { courses } from "./courses";
+export { courseChapterMap, chaptersByCourse } from "./courseChapters";
 export { suggestedNewCourses } from "./suggestedNewCourses";
 export { resources } from "./resources";
 export { moocPlatforms, moocExternalCourses } from "./moocExternalCourses";

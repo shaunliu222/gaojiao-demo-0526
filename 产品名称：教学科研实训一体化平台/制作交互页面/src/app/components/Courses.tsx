@@ -1,7 +1,6 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   BookOpen,
-  ChevronDown,
   FileText,
   Film,
   GraduationCap,
@@ -11,12 +10,11 @@ import {
   Code2,
   Database,
   Plus,
-  Search,
   Upload,
   X,
 } from "lucide-react";
 import { courses, professions, suggestedNewCourses } from "@mock";
-import type { Course, ResourceType, SuggestedNewCourse } from "@mock";
+import type { Course, ResourceType, SuggestedNewCourse, PublishStatus } from "@mock";
 import {
   teacherById,
   professionById,
@@ -26,6 +24,10 @@ import {
 } from "../data/lookups";
 import { PageHeader, AiBadge } from "./Layout";
 import { AssociatedKnowledgeNodes } from "./AssociatedKnowledgeNodes";
+import { CourseFilterBar, defaultFilters, type CourseFilterState } from "./CourseFilterBar";
+import { CourseViewToggle } from "./CourseViewToggle";
+import { CourseTable } from "./CourseTable";
+import { CourseCardGrid } from "./CourseCardGrid";
 
 function summarizeTags(tags: string[]): string {
   if (tags.length === 0) return "—";
@@ -35,7 +37,7 @@ function summarizeTags(tags: string[]): string {
 
 function CourseAiSuggestionChips({ s }: { s: NonNullable<Course["aiSuggestion"]> }) {
   const chipBase = "inline-flex items-center px-2 py-0.5 rounded-md text-[0.6875rem] font-medium";
-  const chips: ReactNode[] = [];
+  const chips: React.ReactNode[] = [];
   if (s.kind === "add_resource" || s.kind === "add_resource_and_hours") {
     chips.push(
       <span key="res" className={`${chipBase} bg-orange-50 text-orange-800 border border-orange-200`}>
@@ -159,17 +161,25 @@ function NewCourseSuggestionDrawer({
 export function CourseList({
   currentTeacherId,
   onOpen,
+  onChapterManage,
+  onEdit,
+  onPreview,
+  onCopy,
+  onDelete,
+  onPublishToggle,
 }: {
   currentTeacherId: string;
   onOpen: (id: string) => void;
+  onChapterManage: (courseId: string) => void;
+  onEdit: (courseId: string) => void;
+  onPreview: (courseId: string) => void;
+  onCopy: (courseId: string) => void;
+  onDelete: (courseId: string) => void;
+  onPublishToggle: (courseId: string) => void;
 }) {
-  const [selectedProfIds, setSelectedProfIds] = useState<Set<string>>(
-    () => new Set(professions.map((p) => p.id))
-  );
-  const [courseQuery, setCourseQuery] = useState("");
-  const [profPanelOpen, setProfPanelOpen] = useState(false);
-  const [profSearch, setProfSearch] = useState("");
+  const [filters, setFilters] = useState<CourseFilterState>(defaultFilters);
   const [aiOnly, setAiOnly] = useState(false);
+  const [viewMode, setViewMode] = useState<"table" | "card">("table");
   const [pendingSuggestionId, setPendingSuggestionId] = useState<string | null>(null);
   const [dismissedSuggestionIds, setDismissedSuggestionIds] = useState<Set<string>>(
     () => new Set(),
@@ -178,21 +188,32 @@ export function CourseList({
 
   const scopeCourses = useMemo(() => {
     const seesAll = teacherSeesAllScopedContent(currentTeacherId);
-    let rows = courses.filter((c) => selectedProfIds.has(c.professionId));
+    let rows = courses;
     if (!seesAll) {
       rows = rows.filter((c) => c.ownerTeacherId === currentTeacherId);
     }
-    const q = courseQuery.trim().toLowerCase();
+    // Apply filters
+    const q = filters.name.trim().toLowerCase();
     if (q) rows = rows.filter((c) => c.name.toLowerCase().includes(q));
+    if (filters.courseType) rows = rows.filter((c) => c.courseType === filters.courseType);
+    if (filters.publishStatus) rows = rows.filter((c) => c.publishStatus === filters.publishStatus);
+    if (filters.college) {
+      rows = rows.filter((c) => {
+        const prof = professionById(c.professionId);
+        return prof?.college === filters.college;
+      });
+    }
+    if (filters.subjectId) rows = rows.filter((c) => c.subjectId === filters.subjectId);
+    if (filters.professionId) rows = rows.filter((c) => c.professionId === filters.professionId);
     return rows;
-  }, [selectedProfIds, courseQuery, currentTeacherId]);
+  }, [filters, currentTeacherId]);
 
   const scopeSuggested = useMemo(
     () =>
       suggestedNewCourses.filter(
-        (s) => selectedProfIds.has(s.professionId) && !dismissedSuggestionIds.has(s.id),
+        (s) => !dismissedSuggestionIds.has(s.id),
       ),
-    [selectedProfIds, dismissedSuggestionIds],
+    [dismissedSuggestionIds],
   );
 
   const aiExistingCount = useMemo(
@@ -210,43 +231,7 @@ export function CourseList({
     [pendingSuggestionId],
   );
 
-  const professionsFiltered = useMemo(() => {
-    const q = profSearch.trim().toLowerCase();
-    if (!q) return professions;
-    return professions.filter((p) => p.name.toLowerCase().includes(q));
-  }, [profSearch]);
-
-  const toggleProfession = (id: string) => {
-    setSelectedProfIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-
-  const selectAllProfessions = () => {
-    setSelectedProfIds(new Set(professions.map((p) => p.id)));
-  };
-
-  const clearProfessions = () => {
-    setSelectedProfIds(new Set());
-  };
-
   const courseImportInputRef = useRef<HTMLInputElement>(null);
-  const profRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!profPanelOpen) return;
-    const handler = (e: MouseEvent) => {
-      const t = e.target as Node;
-      if (profPanelOpen && profRef.current && !profRef.current.contains(t)) {
-        setProfPanelOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [profPanelOpen]);
 
   useEffect(() => {
     if (!toast) return;
@@ -271,6 +256,17 @@ export function CourseList({
 
   const laterSuggestion = () => setPendingSuggestionId(null);
 
+  const handleCardAction = (action: string, courseId: string) => {
+    switch (action) {
+      case "chapters": onChapterManage(courseId); break;
+      case "edit": onEdit(courseId); break;
+      case "preview": onPreview(courseId); break;
+      case "copy": onCopy(courseId); break;
+      case "delete": onDelete(courseId); break;
+      case "togglePublish": onPublishToggle(courseId); break;
+    }
+  };
+
   return (
     <div>
       <PageHeader
@@ -281,7 +277,7 @@ export function CourseList({
               ref={courseImportInputRef}
               type="file"
               className="sr-only"
-              accept=".csv,.xlsx,.xls,.json,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv,application/json"
+              accept=".csv,.xlsx,.xls,.json"
               onChange={() => {
                 const el = courseImportInputRef.current;
                 if (el) el.value = "";
@@ -295,9 +291,8 @@ export function CourseList({
               <Upload size={14} />
               <span>上传文件导入</span>
             </button>
-
             <button
-              onClick={() => {}}
+              onClick={() => setToast("新建课程功能开发中（演示环境）")}
               className="inline-flex items-center gap-1 bg-indigo-600 text-white px-3 py-1.5 rounded-md hover:bg-indigo-700"
             >
               <Plus size={14} /> 新建课程
@@ -305,96 +300,18 @@ export function CourseList({
           </>
         }
       />
-      <div className="px-6 pt-4 flex flex-wrap items-center gap-3">
-        <div ref={profRef} className="relative">
-          <button
-            type="button"
-            onClick={() => setProfPanelOpen((v) => !v)}
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-sm transition ${
-              profPanelOpen
-                ? "border-indigo-300 bg-indigo-50 text-indigo-800"
-                : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
-            }`}
-          >
-            专业筛选
-            <span className="text-slate-400 font-normal tabular-nums">
-              （{selectedProfIds.size}/{professions.length}）
-            </span>
-            <ChevronDown
-              size={14}
-              className={`text-slate-400 transition ${profPanelOpen ? "rotate-180" : ""}`}
-            />
-          </button>
-          {profPanelOpen && (
-            <div className="absolute left-0 top-[calc(100%+6px)] w-[min(100vw-3rem,22rem)] bg-white border border-slate-200 rounded-xl shadow-lg z-30 flex flex-col max-h-[min(24rem,50vh)]">
-              <div className="p-2 border-b border-slate-100 shrink-0">
-                <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-md px-2 py-1">
-                  <Search size={14} className="text-slate-400 shrink-0" />
-                  <input
-                    value={profSearch}
-                    onChange={(e) => setProfSearch(e.target.value)}
-                    placeholder="搜索专业名称…"
-                    className="w-full min-w-0 bg-transparent text-sm outline-none"
-                  />
-                </div>
-              </div>
-              <div className="overflow-y-auto flex-1 min-h-0 p-1">
-                {professionsFiltered.length === 0 ? (
-                  <div className="px-3 py-6 text-center text-slate-400 text-sm">
-                    无匹配专业
-                  </div>
-                ) : (
-                  professionsFiltered.map((p) => (
-                    <label
-                      key={p.id}
-                      className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-slate-50 cursor-pointer"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={selectedProfIds.has(p.id)}
-                        onChange={() => toggleProfession(p.id)}
-                        className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-                      />
-                      <span className="text-sm text-slate-800 truncate">{p.name}</span>
-                    </label>
-                  ))
-                )}
-              </div>
-              <div className="flex items-center justify-between gap-2 px-2 py-1.5 border-t border-slate-100 text-xs shrink-0">
-                <button
-                  type="button"
-                  onClick={selectAllProfessions}
-                  className="text-indigo-600 hover:text-indigo-800 px-2 py-1"
-                >
-                  全选
-                </button>
-                <button
-                  type="button"
-                  onClick={clearProfessions}
-                  className="text-slate-500 hover:text-slate-800 px-2 py-1"
-                >
-                  清空
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
 
-        <div className="flex items-center gap-1.5 bg-white border border-slate-200 rounded-md px-2 py-1 flex-1 min-w-[12rem] max-w-md">
-          <Search size={14} className="text-slate-400 shrink-0" />
-          <input
-            value={courseQuery}
-            onChange={(e) => setCourseQuery(e.target.value)}
-            placeholder="搜索课程名称…"
-            className="w-full min-w-0 bg-transparent text-sm outline-none"
-          />
-        </div>
-
-        <span className="text-slate-400 text-sm tabular-nums ml-auto">
-          课程 {listCourses.length} 条 · AI 建议新增 {scopeSuggested.length} 条
-        </span>
+      {/* Filter bar */}
+      <div className="px-6 pt-4">
+        <CourseFilterBar
+          filters={filters}
+          onFiltersChange={setFilters}
+          onSearch={() => {}}
+          onReset={() => setFilters(defaultFilters)}
+        />
       </div>
 
+      {/* AI suggestion banner */}
       <div className="px-6 pb-3">
         <div className="rounded-lg border border-violet-200 bg-gradient-to-r from-violet-50 to-indigo-50 px-4 py-3 flex flex-wrap items-center gap-3">
           <p className="text-sm text-violet-950 flex-1 min-w-[12rem] leading-relaxed">
@@ -418,27 +335,22 @@ export function CourseList({
           </button>
         </div>
       </div>
+
+      {/* View toggle + count */}
+      <div className="px-6 pb-2 flex items-center gap-3">
+        <CourseViewToggle view={viewMode} onChange={setViewMode} />
+        <span className="text-slate-400 text-sm tabular-nums ml-auto">
+          课程 {listCourses.length} 条 · AI 建议新增 {scopeSuggested.length} 条
+        </span>
+      </div>
+
+      {/* Course list */}
       <div className="px-6 pb-6 pt-1">
-        <div className="border border-slate-200 rounded-lg bg-white overflow-hidden">
-          <div className="overflow-x-auto max-h-[min(70vh,calc(100vh-12rem))] overflow-y-auto">
+        {/* AI suggested virtual rows (only in table mode) */}
+        {viewMode === "table" && scopeSuggested.length > 0 && (
+          <div className="mb-2 border border-violet-200 rounded-lg overflow-hidden">
             <table className="w-full text-sm text-left border-collapse">
-              <thead>
-                <tr className="bg-slate-50 text-slate-600 border-b border-slate-200 sticky top-0 z-10">
-                  <th className="px-3 py-2.5 font-medium whitespace-nowrap">课程名称</th>
-                  <th className="px-3 py-2.5 font-medium whitespace-nowrap">专业</th>
-                  <th className="px-3 py-2.5 font-medium whitespace-nowrap">学期</th>
-                  <th className="px-3 py-2.5 font-medium whitespace-nowrap text-right">学分</th>
-                  <th className="px-3 py-2.5 font-medium whitespace-nowrap text-right">学时</th>
-                  <th className="px-3 py-2.5 font-medium whitespace-nowrap">主讲</th>
-                  <th className="px-3 py-2.5 font-medium min-w-[8rem]">标签摘要</th>
-                  <th className="px-3 py-2.5 font-medium whitespace-nowrap text-right min-w-[7rem]">
-                    AI 建议
-                  </th>
-                  <th className="px-3 py-2.5 font-medium whitespace-nowrap text-right">知识点</th>
-                  <th className="px-3 py-2.5 font-medium whitespace-nowrap text-right">资源</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-violet-100">
                 {scopeSuggested.map((s) => {
                   const prof = professionById(s.professionId);
                   return (
@@ -449,10 +361,7 @@ export function CourseList({
                     >
                       <td className="border-l-[3px] border-violet-400 px-3 py-2 max-w-[14rem]">
                         <div className="flex gap-2">
-                          <span
-                            className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-violet-500"
-                            aria-hidden
-                          />
+                          <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-violet-500" aria-hidden />
                           <div className="min-w-0">
                             <span className="line-clamp-2 font-medium" title={s.name}>
                               《{s.name}》
@@ -463,19 +372,12 @@ export function CourseList({
                           </div>
                         </div>
                       </td>
-                      <td
-                        className="px-3 py-2 text-slate-600 whitespace-nowrap max-w-[10rem] truncate"
-                        title={prof?.name}
-                      >
+                      <td className="px-3 py-2 text-slate-600 whitespace-nowrap max-w-[10rem] truncate" title={prof?.name}>
                         {prof?.name ?? "—"}
                       </td>
                       <td className="px-3 py-2 text-slate-600 whitespace-nowrap">{s.semester}</td>
-                      <td className="px-3 py-2 text-right tabular-nums text-slate-600">
-                        {s.recommendedCredit}
-                      </td>
-                      <td className="px-3 py-2 text-right tabular-nums text-slate-600">
-                        {s.recommendedHours}
-                      </td>
+                      <td className="px-3 py-2 text-right tabular-nums text-slate-600">{s.recommendedCredit}</td>
+                      <td className="px-3 py-2 text-right tabular-nums text-slate-600">{s.recommendedHours}</td>
                       <td className="px-3 py-2 text-slate-500 whitespace-nowrap">—</td>
                       <td className="px-3 py-2 text-violet-800 max-w-[12rem] truncate">AI 建议新增</td>
                       <td className="px-3 py-2 text-right">
@@ -483,83 +385,33 @@ export function CourseList({
                           建议新增
                         </span>
                       </td>
-                      <td className="px-3 py-2 text-right tabular-nums text-slate-600">
-                        {s.uncoveredNodeIds.length}
-                      </td>
+                      <td className="px-3 py-2 text-right tabular-nums text-slate-600">{s.uncoveredNodeIds.length}</td>
                       <td className="px-3 py-2 text-right tabular-nums text-slate-400">—</td>
                     </tr>
                   );
                 })}
-                {listCourses.map((c) => {
-                  const owner = teacherById(c.ownerTeacherId);
-                  const prof = professionById(c.professionId);
-                  const resCount = resourcesByCourse(c.id).filter((r) =>
-                    teacherCanViewResource(r, currentTeacherId),
-                  ).length;
-                  return (
-                    <tr
-                      key={c.id}
-                      onClick={() => onOpen(c.id)}
-                      className="hover:bg-slate-50/80 cursor-pointer text-slate-800"
-                    >
-                      <td className="px-3 py-2 max-w-[14rem]">
-                        <span className="line-clamp-2" title={c.name}>
-                          《{c.name}》
-                        </span>
-                      </td>
-                      <td
-                        className="px-3 py-2 text-slate-600 whitespace-nowrap max-w-[10rem] truncate"
-                        title={prof?.name}
-                      >
-                        {prof?.name ?? "—"}
-                      </td>
-                      <td className="px-3 py-2 text-slate-600 whitespace-nowrap">{c.semester}</td>
-                      <td className="px-3 py-2 text-right tabular-nums text-slate-600">{c.credit}</td>
-                      <td className="px-3 py-2 text-right tabular-nums text-slate-600">
-                        {c.totalHours}
-                      </td>
-                      <td
-                        className="px-3 py-2 text-slate-600 whitespace-nowrap max-w-[8rem] truncate"
-                        title={owner?.name}
-                      >
-                        {owner?.name ?? "—"}
-                      </td>
-                      <td
-                        className="px-3 py-2 text-slate-500 max-w-[12rem] truncate"
-                        title={summarizeTags(c.tags)}
-                      >
-                        {summarizeTags(c.tags)}
-                      </td>
-                      <td className="px-3 py-2 text-right">
-                        {c.aiSuggestion ? (
-                          <CourseAiSuggestionChips s={c.aiSuggestion} />
-                        ) : (
-                          <span className="text-slate-300">—</span>
-                        )}
-                      </td>
-                      <td className="px-3 py-2 text-right tabular-nums text-slate-600">
-                        {c.knowledgeNodeIds.length}
-                      </td>
-                      <td className="px-3 py-2 text-right tabular-nums text-slate-600">{resCount}</td>
-                    </tr>
-                  );
-                })}
-                {scopeSuggested.length === 0 && listCourses.length === 0 && (
-                  <tr>
-                    <td colSpan={10} className="px-3 py-16 text-center text-slate-400">
-                      {selectedProfIds.size === 0
-                        ? "请至少选择一个专业"
-                        : aiOnly
-                          ? "当前仅显示 AI 建议相关条目，暂无匹配项"
-                          : "当前筛选条件下暂无课程"}
-                    </td>
-                  </tr>
-                )}
               </tbody>
             </table>
           </div>
-        </div>
+        )}
+
+        {/* Main course list */}
+        {viewMode === "table" ? (
+          <CourseTable
+            courses={listCourses}
+            currentTeacherId={currentTeacherId}
+            onChapterManage={onChapterManage}
+            onEdit={onEdit}
+            onPreview={onPreview}
+            onCopy={onCopy}
+            onDelete={onDelete}
+            onPublishToggle={onPublishToggle}
+          />
+        ) : (
+          <CourseCardGrid courses={listCourses} onAction={handleCardAction} />
+        )}
       </div>
+
       <NewCourseSuggestionDrawer
         suggestion={drawerSuggestion}
         onClose={() => setPendingSuggestionId(null)}
@@ -635,16 +487,16 @@ export function CourseDetail({
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-slate-900">《{c.name}》</span>
               <span className="px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700">
+                {c.courseType}
+              </span>
+              <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700">
                 {prof?.name}
               </span>
               <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700">
                 {c.semester}
               </span>
               {c.tags.map((t) => (
-                <span
-                  key={t}
-                  className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600"
-                >
+                <span key={t} className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-600">
                   {t}
                 </span>
               ))}
@@ -708,12 +560,11 @@ export function CourseDetail({
             <Info k="学分" v={`${c.credit} 学分`} />
             <Info k="学时" v={`${c.totalHours} 学时`} />
             <Info k="开课学期" v={c.semester} />
+            <Info k="课程类型" v={c.courseType} />
+            <Info k="上架状态" v={c.publishStatus === "published" ? "已上架" : c.publishStatus === "draft" ? "草稿" : "已下架"} />
             <Info k="主讲教师" v={owner ? `${owner.name} · ${owner.title}` : "—"} />
             <Info k="所属专业" v={prof?.name ?? "—"} />
-            <Info
-              k="关联知识点"
-              v={`${c.knowledgeNodeIds.length} 个`}
-            />
+            <Info k="关联知识点" v={`${c.knowledgeNodeIds.length} 个`} />
             <Info k="教学资源" v={`${resourcesList.length} 个`} />
           </dl>
         </aside>

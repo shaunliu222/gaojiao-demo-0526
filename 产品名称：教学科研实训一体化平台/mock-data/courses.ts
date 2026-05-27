@@ -1,10 +1,18 @@
 import type { Course } from "./types";
+import { courseChapterMap } from "./courseChapters";
 
 /**
  * 课程数据（机械工程专业，覆盖不同年级与课程类型）
  *
  * `knowledgeNodeIds` 指向合并后的能力—知识点谱系，与 `knowledgeGraph` / `courseCoverage` 对齐。
+ * `chapters` 引用 `courseChapters.ts` 中的章节数据。
+ *
+ * 数据闭环：
+ * - courseId 被教学计划 (teachingPlans.ts) 引用，如 plan-main.courseId = "course-mech-draw"
+ * - 章节 knowledgePointIds/skillPointIds 引用 kgL3.ts 的 L3Node ID
+ * - 章节课件/参考资料引用 resources.ts 的 Resource ID
  */
+
 export const courses: Course[] = [
   {
     id: "course-mech-draw",
@@ -31,6 +39,11 @@ export const courses: Course[] = [
     ],
     ownerTeacherId: "t-li",
     tags: ["核心课", "制图", "CAD", "工科基础"],
+    courseType: "专业基础课",
+    publishStatus: "published",
+    publishedAt: "2026-01-15T10:00:00+08:00",
+    summary: "系统讲授投影原理、机件表达、零件图装配图与CAD工程制图，机械类核心基础课。",
+    chapters: courseChapterMap["course-mech-draw"],
   },
   {
     id: "course-mech-design",
@@ -46,6 +59,11 @@ export const courses: Course[] = [
     knowledgeNodeIds: ["kn-mech-007", "kn-mech-008", "kn-mech-009", "kn-mech-010"],
     ownerTeacherId: "t-chen",
     tags: ["核心课", "机械设计"],
+    courseType: "专业课",
+    publishStatus: "published",
+    publishedAt: "2026-01-18T10:00:00+08:00",
+    summary: "通用机械零件与常用机构的工作原理和设计方法，奠定机械设计能力基础。",
+    chapters: courseChapterMap["course-mech-design"],
     aiSuggestion: {
       kind: "add_resource",
       summary: "建议补充题库与微课，覆盖截交/相贯与三维—工程图衔接节点",
@@ -70,6 +88,11 @@ export const courses: Course[] = [
     knowledgeNodeIds: ["kn-mech-013", "kn-mech-009", "kn-mech-008"],
     ownerTeacherId: "t-wang",
     tags: ["实训", "工程规范"],
+    courseType: "实训课",
+    publishStatus: "published",
+    publishedAt: "2026-01-20T10:00:00+08:00",
+    summary: "车铣钳焊铸全流程金属加工实践，重在动手与工程规范养成。",
+    chapters: courseChapterMap["course-mech-practice"],
   },
   {
     id: "course-mech-intro",
@@ -85,6 +108,11 @@ export const courses: Course[] = [
     knowledgeNodeIds: ["kn-mech-018", "kn-mech-003", "kn-mech-016", "kn-mech-017"],
     ownerTeacherId: "t-sun",
     tags: ["大一", "导论"],
+    courseType: "导论课",
+    publishStatus: "published",
+    publishedAt: "2026-01-12T10:00:00+08:00",
+    summary: "产业链概览、培养方案、制图与智能制造入门，建立课程认知地图。",
+    chapters: courseChapterMap["course-mech-intro"],
   },
   {
     id: "course-mech-tolerance",
@@ -100,6 +128,11 @@ export const courses: Course[] = [
     knowledgeNodeIds: ["kn-mech-008", "kn-mech-009", "kn-mech-015"],
     ownerTeacherId: "t-wanglh",
     tags: ["大四", "公差", "检测"],
+    courseType: "专业课",
+    publishStatus: "published",
+    publishedAt: "2026-01-22T10:00:00+08:00",
+    summary: "尺寸公差、形位公差、表面粗糙度及几何量检测方法。",
+    chapters: courseChapterMap["course-mech-tolerance"],
   },
   {
     id: "course-mech-robotics",
@@ -115,6 +148,10 @@ export const courses: Course[] = [
     knowledgeNodeIds: ["kn-mech-012", "kn-mech-014", "kn-mech-016", "kn-mech-010"],
     ownerTeacherId: "t-zhao",
     tags: ["大二", "机器人", "仿真"],
+    courseType: "选修课",
+    publishStatus: "draft",
+    summary: "坐标系与示教编程、工作站应用、安全互锁与离线仿真入门。",
+    chapters: courseChapterMap["course-mech-robotics"],
   },
   {
     id: "course-mech-hydraulic",
@@ -130,6 +167,11 @@ export const courses: Course[] = [
     knowledgeNodeIds: ["kn-mech-015", "kn-mech-010"],
     ownerTeacherId: "t-zhao",
     tags: ["专业课", "液压气动"],
+    courseType: "专业课",
+    publishStatus: "published",
+    publishedAt: "2026-01-25T10:00:00+08:00",
+    summary: "流体传动基础、典型控制回路、气动元件选型与系统装调。",
+    chapters: courseChapterMap["course-mech-hydraulic"],
   },
   {
     id: "course-mech-process",
@@ -145,6 +187,11 @@ export const courses: Course[] = [
     knowledgeNodeIds: ["kn-mech-009", "kn-mech-013", "kn-mech-010", "kn-mech-017"],
     ownerTeacherId: "t-wanglh",
     tags: ["制造工艺", "质量"],
+    courseType: "专业课",
+    publishStatus: "published",
+    publishedAt: "2026-01-28T10:00:00+08:00",
+    summary: "工艺规程制定、定位夹紧、加工误差与装配工艺，图纸到批产的质量意识。",
+    chapters: courseChapterMap["course-mech-process"],
     aiSuggestion: {
       kind: "adjust_hours",
       summary: "建议总学时 +8，承接「智能制造孪生」与「机器人工作站」在工艺链里的课堂演练",
@@ -176,6 +223,10 @@ export const courses: Course[] = [
     ],
     ownerTeacherId: "t-sun",
     tags: ["AI实训", "生成式AI", "跨课程"],
+    courseType: "实训课",
+    publishStatus: "draft",
+    summary: "学习选用AI工具完成制图/设计/工艺任务，强调事实核验与学术诚信。",
+    chapters: courseChapterMap["course-mech-ai-lab"],
     aiSuggestion: {
       kind: "add_resource_and_hours",
       summary: "需同步补充组合体案例与线上题库，并增加 8 学时用于人机协同实训",

@@ -278,6 +278,12 @@ export interface PlanKnowledgePathGraph {
 
 // ============ 4. 内容库：课程 / 资源 / 实训 ============
 
+/** 课程类型 */
+export type CourseType = "专业基础课" | "专业课" | "选修课" | "实训课" | "导论课";
+
+/** 上架状态 */
+export type PublishStatus = "draft" | "published" | "unpublished";
+
 /** 课程 */
 export interface Course {
   id: ID;
@@ -295,6 +301,81 @@ export interface Course {
   tags: string[];
   /** 图谱差异分析后，AI 对该课程给出的优化建议（学院端课程中心展示） */
   aiSuggestion?: CourseAiSuggestion;
+  /** 课程类型 */
+  courseType: CourseType;
+  /** 上架状态 */
+  publishStatus: PublishStatus;
+  /** 上架时间 */
+  publishedAt?: ISODateTime;
+  /** 课程摘要（列表卡片展示用） */
+  summary: string;
+  /** 章节目录树（支持最多3层嵌套） */
+  chapters: CourseChapter[];
+}
+
+/** 章节目录节点类型 */
+export type ChapterNodeType = "chapter" | "section" | "subsection";
+
+/** 章节目录节点（支持最多3层：章/节/小节） */
+export interface CourseChapter {
+  id: ID;
+  title: string;
+  nodeType: ChapterNodeType;
+  publishStatus: PublishStatus;
+  sortOrder: number;
+  /** 子节点 */
+  children: CourseChapter[];
+  /** 以下字段仅叶子节点有值 */
+  coursewares: CoursewareItem[];
+  exercises: ExerciseItem[];
+  /** 关联技能点 ID（引用 L3Node kind="skill_point"） */
+  skillPointIds: ID[];
+  /** 关联知识点 ID（引用 L3Node kind="knowledge_point"） */
+  knowledgePointIds: ID[];
+  /** 参考资料 */
+  references: ReferenceItem[];
+}
+
+/** 课件条目（本地上传或从资源库选择） */
+export interface CoursewareItem {
+  id: ID;
+  title: string;
+  source: "local_upload" | "resource_library";
+  resourceId?: ID;
+  fileName: string;
+  fileType: ResourceType;
+  sizeMb?: number;
+  uploadedAt: ISODateTime;
+}
+
+/** 练习题类型 */
+export type ExerciseType = "single_choice" | "multi_choice" | "true_false" | "fill_blank" | "short_answer";
+/** 练习题难度 */
+export type ExerciseDifficulty = "easy" | "medium" | "hard";
+
+/** 练习题 */
+export interface ExerciseItem {
+  id: ID;
+  type: ExerciseType;
+  difficulty: ExerciseDifficulty;
+  question: string;
+  options?: string[];
+  answer: string;
+  analysis?: string;
+  knowledgePointIds: ID[];
+  isAiGenerated?: boolean;
+}
+
+/** 参考资料 */
+export interface ReferenceItem {
+  id: ID;
+  title: string;
+  source: "local_upload" | "resource_library";
+  resourceId?: ID;
+  fileName: string;
+  fileType: ResourceType;
+  sizeMb?: number;
+  uploadedAt: ISODateTime;
 }
 
 /**

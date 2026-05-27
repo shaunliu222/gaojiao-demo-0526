@@ -31,6 +31,8 @@ import {
   examEvaluations,
   nodeById,
   graphNodes,
+  l3Nodes,
+  chaptersByCourse,
 } from "@mock";
 import type {
   Class,
@@ -55,6 +57,9 @@ import type {
   HomeworkEvalSummary,
   ExamEvalSummary,
   GraphNode,
+  CourseChapter,
+  L3Node,
+  L3NodeKind,
 } from "@mock";
 
 // ==========================================================================
@@ -520,4 +525,117 @@ export function plansV2VisibleToTeacher(
 /** v2.0: 某课程下教师可见的计划 */
 export function plansV2ByCourse(courseId: string): TeachingPlanV2[] {
   return teachingPlansV2.filter((p) => p.courseId === courseId);
+}
+
+// ==========================================================================
+// 课程中心查询函数
+// ==========================================================================
+
+/** 汇总课程章节树中的技能点/知识点/资源数量 */
+export function countCourseStats(chapters: CourseChapter[]): {
+  skillPointCount: number;
+  knowledgePointCount: number;
+  resourceCount: number;
+  exerciseCount: number;
+} {
+  const skillIds = new Set<string>();
+  const knowledgeIds = new Set<string>();
+  const resourceIds = new Set<string>();
+  let exerciseCount = 0;
+
+  function walk(nodes: CourseChapter[]) {
+    for (const node of nodes) {
+      for (const id of node.skillPointIds) skillIds.add(id);
+      for (const id of node.knowledgePointIds) knowledgeIds.add(id);
+      for (const cw of node.coursewares) if (cw.resourceId) resourceIds.add(cw.resourceId);
+      for (const ref of node.references) if (ref.resourceId) resourceIds.add(ref.resourceId);
+      exerciseCount += node.exercises.length;
+      walk(node.children);
+    }
+  }
+
+  walk(chapters);
+  return {
+    skillPointCount: skillIds.size,
+    knowledgePointCount: knowledgeIds.size,
+    resourceCount: resourceIds.size,
+    exerciseCount,
+  };
+}
+
+/** 获取课程完整的章节树（优先从 Course.chapters，fallback 到 courseChapterMap） */
+export function getCourseChapters(courseId: string): CourseChapter[] {
+  const course = courseById(courseId);
+  if (course && course.chapters.length > 0) return course.chapters;
+  return chaptersByCourse(courseId);
+}
+
+/** 按 kind 筛选 L3 节点 */
+export function l3NodesByKind(kind: L3NodeKind): L3Node[] {
+  return l3Nodes.filter((n) => n.kind === kind);
+}
+
+/** 按 ID 获取 L3 节点 */
+export function l3NodeById(id: string): L3Node | undefined {
+  return l3Nodes.find((n) => n.id === id);
+}
+
+/** 从章节树中查找指定 ID 的节点 */
+export function findChapterNode(
+  chapters: CourseChapter[],
+  nodeId: string,
+): CourseChapter | undefined {
+  for (const ch of chapters) {
+    if (ch.id === nodeId) return ch;
+    const found = findChapterNode(ch.children, nodeId);
+    if (found) return found;
+  }
+  return undefined;
+}
+
+/** 按学院筛选的课程 */
+export function coursesByCollege(college: string): Course[] {
+  return courses.filter((c) => {
+    const prof = professionById(c.professionId);
+    return prof?.college === college;
+  });
+}
+
+/** 所有已有课程的学院列表（去重） */
+export function uniqueColleges(): string[] {
+  const set = new Set<string>();
+  for (const c of courses) {
+    const prof = professionById(c.professionId);
+    if (prof?.college) set.add(prof.college);
+  }
+  return Array.from(set);
+}
+
+/** 按学科筛选的课程 */
+export function coursesBySubject(subjectId: string): Course[] {
+  return courses.filter((c) => c.subjectId === subjectId);
+}
+
+/** 获取课程的学科名称 */
+export function subjectNameByCourse(courseId: string): string {
+  const course = courseById(courseId);
+  if (!course) return "—";
+  const subj = subjectById(course.subjectId);
+  return subj?.name ?? "—";
+}
+
+/** 获取课程的专业名称 */
+export function professionNameByCourse(courseId: string): string {
+  const course = courseById(courseId);
+  if (!course) return "—";
+  const prof = professionById(course.professionId);
+  return prof?.name ?? "—";
+}
+
+/** 获取课程的创建人名称 */
+export function creatorNameByCourse(courseId: string): string {
+  const course = courseById(courseId);
+  if (!course) return "—";
+  const teacher = teacherById(course.ownerTeacherId);
+  return teacher?.name ?? "—";
 }

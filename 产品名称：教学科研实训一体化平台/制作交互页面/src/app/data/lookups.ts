@@ -473,8 +473,17 @@ export function designsForLessonV2(
   classId?: string,
   learningAdjust = false,
 ): TeachingDesignV2 | undefined {
-  const key = `${planId}::${lessonId}::${classId ?? ""}`;
-  return designsByLessonV2?.get(key);
+  if (classId) {
+    const key = `${planId}::${lessonId}::${classId}`;
+    return designsByLessonV2?.get(key);
+  }
+  // classId 未指定时，先精确匹配空 classId，再 fallback 到任意匹配
+  const exact = designsByLessonV2?.get(`${planId}::${lessonId}::`);
+  if (exact) return exact;
+  for (const [k, v] of designsByLessonV2 ?? []) {
+    if (k.startsWith(`${planId}::${lessonId}::`)) return v;
+  }
+  return undefined;
 }
 
 /** v2.0: 获取课时关联的所有班级作业评价（mock 数据） */
